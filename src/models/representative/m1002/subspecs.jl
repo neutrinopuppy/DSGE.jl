@@ -97,6 +97,8 @@ function init_subspec!(m::Model1002)
         return ss85!(m)
     elseif subspec(m) == "ss86"
         return ss86!(m)
+    elseif subspec(m) == "ss87"
+        return ss87!(m)
     else
         error("This subspec is not defined.")
     end
@@ -6573,4 +6575,28 @@ function ss86!(m)
         set_regime_prior!(m[:σ_λ_f_iid], i, m[:σ_λ_f_iid].prior)
     end
     set_regime_prior!(m[:σ_λ_f_iid], 3, RootInverseGamma(10.0, 0.0501))
+end
+
+
+function ss87!(m)
+    ss64!(m)
+
+    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
+    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
+    for i in 8:get_setting(m, :n_regimes)
+        get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 1
+        get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
+    end
+
+    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
+    set_regime_val!(m[:ρ_meas_π], 1, 0.)
+    set_regime_val!(m[:ρ_meas_π], 2, 0.2320)
+    set_regime_val!(m[:σ_meas_π], 1, 0.)
+    set_regime_val!(m[:σ_meas_π], 2, 0.0999)
+
+    # Fix shocks to 0 in para regime 1
+    set_regime_fixed!(m[:ρ_meas_π], 1, true)
+    set_regime_fixed!(m[:ρ_meas_π], 2, false)
+    set_regime_fixed!(m[:σ_meas_π], 1, true)
+    set_regime_fixed!(m[:σ_meas_π], 2, false)
 end

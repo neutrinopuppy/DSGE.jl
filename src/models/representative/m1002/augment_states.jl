@@ -212,6 +212,11 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
         TTT_aug[endo_new[:e_gdi_t], endo_new[:e_gdi_covid_t]] = m[:ρ_gdi_covid]
     end
 
+    if subspec(m) in ["ss87"]
+        TTT_aug[endo_new[:e_meas_π_t], endo_new[:e_meas_π_t]] = m[:ρ_meas_π]
+        TTT_aug[endo_new[:e_meas_π_t1], endo_new[:e_meas_π_t]] = 1.0
+    end
+
     if haskey(get_settings(m), :add_iid_cond_obs_gdp_meas_err) ?
         get_setting(m, :add_iid_cond_obs_gdp_meas_err) : false
         TTT_aug[endo_new[:e_condgdp_t], endo_new[:e_condgdp_t]] = m[:ρ_condgdp]
@@ -265,6 +270,11 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
     RRR_aug[endo_new[:e_gdp_t], exo[:gdi_sh]] = m[:ρ_gdpvar] * m[:σ_gdp] ^ 2
 
     RRR_aug[endo_new[:e_gdi_t], exo[:gdi_sh]] = 1.0
+
+    # Measurement Error in Levels on PCE and GDP Deflator
+    if subspec(m) in ["ss87"]
+        RRR_aug[endo_new[:e_meas_π_t], exo[:meas_π_sh]] = 1.0
+    end
 
     if subspec(m) in ["ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss80", "ss82", "ss83"]
         # COVID counterparts to measurement errors

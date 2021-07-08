@@ -156,15 +156,15 @@ function measurement(m::Model1002{T},
     ## Inflation (GDP Deflator)
     ZZ[obs[:obs_gdpdeflator], endo[:π_t]]            = m[:Γ_gdpdef]
     ZZ[obs[:obs_gdpdeflator], endo_new[:e_gdpdef_t]] = 1.0
-    ZZ[obs[:obs_gdpdeflator], endo_new[:p_meas_t]]  = 1.0
-    ZZ[obs[:obs_gdpdeflator], endo_new[:p_meas_t1]] = -1.0
+    ZZ[obs[:obs_gdpdeflator], endo_new[:e_meas_π_t]]  = 1.0
+    ZZ[obs[:obs_gdpdeflator], endo_new[:e_meas_π_t1]] = -1.0
     DD[obs[:obs_gdpdeflator]]                        = 100*(m[:π_star]-1) + m[:δ_gdpdef]
 
     ## Inflation (Core PCE)
     ZZ[obs[:obs_corepce], endo[:π_t]]             = 1.0
     ZZ[obs[:obs_corepce], endo_new[:e_corepce_t]] = 1.0
-    ZZ[obs[:obs_corepce], endo_new[:p_meas_t]]  = 1.0
-    ZZ[obs[:obs_corepce], endo_new[:p_meas_t1]] = -1.0#m[:me_level]
+    ZZ[obs[:obs_corepce], endo_new[:e_meas_π_t]]  = 1.0
+    ZZ[obs[:obs_corepce], endo_new[:e_meas_π_t1]] = -1.0
     DD[obs[:obs_corepce]]                         = 100*(m[:π_star]-1)
 
     if haskey(get_settings(m), :add_iid_cond_obs_corepce_meas_err) ?
@@ -250,13 +250,17 @@ function measurement(m::Model1002{T},
     QQ[exo[:gdp_sh], exo[:gdp_sh]]         = m[:σ_gdp]^2
     QQ[exo[:gdi_sh], exo[:gdi_sh]]         = m[:σ_gdi]^2
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86", "ss87"]
         QQ[exo[:ziid_sh], exo[:ziid_sh]]   = m[:σ_ziid]^2
         QQ[exo[:biidc_sh], exo[:biidc_sh]] = m[:σ_biidc]^2
         QQ[exo[:φ_sh], exo[:φ_sh]]         = m[:σ_φ]^2
     end
     if subspec(m) in ["ss86"]
         QQ[exo[:λ_f_iid_sh], exo[:λ_f_iid_sh]] = m[:σ_λ_f_iid]^2
+    end
+
+    if subspec(m) in ["ss87"]
+        QQ[exo[:meas_π_sh], exo[:meas_π_sh]]   = m[:σ_meas_π]^2
     end
 
     if subspec(m) in ["ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss80", "ss82", "ss83"]
