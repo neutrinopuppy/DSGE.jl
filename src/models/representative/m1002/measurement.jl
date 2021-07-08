@@ -156,11 +156,15 @@ function measurement(m::Model1002{T},
     ## Inflation (GDP Deflator)
     ZZ[obs[:obs_gdpdeflator], endo[:π_t]]            = m[:Γ_gdpdef]
     ZZ[obs[:obs_gdpdeflator], endo_new[:e_gdpdef_t]] = 1.0
+    ZZ[obs[:obs_gdpdeflator], endo_new[:p_meas_t]]  = 1.0
+    ZZ[obs[:obs_gdpdeflator], endo_new[:p_meas_t1]] = -1.0
     DD[obs[:obs_gdpdeflator]]                        = 100*(m[:π_star]-1) + m[:δ_gdpdef]
 
     ## Inflation (Core PCE)
     ZZ[obs[:obs_corepce], endo[:π_t]]             = 1.0
     ZZ[obs[:obs_corepce], endo_new[:e_corepce_t]] = 1.0
+    ZZ[obs[:obs_corepce], endo_new[:p_meas_t]]  = 1.0
+    ZZ[obs[:obs_corepce], endo_new[:p_meas_t1]] = -1.0#m[:me_level]
     DD[obs[:obs_corepce]]                         = 100*(m[:π_star]-1)
 
     if haskey(get_settings(m), :add_iid_cond_obs_corepce_meas_err) ?
