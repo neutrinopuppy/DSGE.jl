@@ -171,11 +171,11 @@ function init_model_indices!(m::Model1002)
     if subspec(m) in ["ss14", "ss15", "ss16", "ss18", "ss19"]
         push!(endogenous_states_augmented, :e_tfp_t1)
     end
-    if susbpec(m) in ["ss87", "ss88"]
-        push!(endogenous_states_augemented, :e_meas_π_t, :e_meas_π_t1)
+    if subspec(m) in ["ss87", "ss88"]
+        push!(endogenous_states_augmented, :e_meas_π_t, :e_meas_π_t1)
     end
-    if susbpec(m) in ["ss88"]
-        push!(endogenous_states_augemented, :λ_f_iid_sh1)
+    if subspec(m) in ["ss88"]
+        push!(endogenous_states_augmented, :λ_f_iid_sh1)
         push!(equilibrium_conditions, :eq_λ_f_sh)
     end
 
@@ -197,7 +197,7 @@ function init_model_indices!(m::Model1002)
         push!(exogenous_shocks, :λ_f_iid_sh)
     end
     if subspec(m) in ["ss87", "ss88"]
-        push!(exogenous_shocks, :e_meas_π_sh)
+        push!(exogenous_shocks, :meas_π_sh)
     end
 
     # COVID counterparts for standard business cycle shocks
@@ -576,8 +576,8 @@ buted to steady-state inflation.",
                    tex_label="\\mathcal{C}_{me}")
 
     if subspec(m) in ["ss87", "ss88"]
-        m <= parameter(:ρ_meas_π, 0.2320, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
-                       tex_label="\\rho_{meas_\pi}")
+        m <= parameter(:ρ_meas_π, 0.2320, (0.0, 0.999), (0.0, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
+                       tex_label="\\rho_{meas}_\\pi")
     end
 
     # exogenous processes - standard deviation
@@ -647,8 +647,8 @@ buted to steady-state inflation.",
                    tex_label="\\sigma_{gdi}")
 
     if subspec(m) in ["ss87", "ss88"]
-        m <= parameter(:σ_meas_π, 0.0999, (1e-8, 5.),(1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
-                       tex_label="\\sigma_{meas_\pi}")
+        m <= parameter(:σ_meas_π, 0.0999, (0.0, 5.),(0.0, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
+                       tex_label="\\sigma_{meas}_\\pi}")
     end
 
     if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86", "ss87", "ss88"]
@@ -1232,7 +1232,7 @@ function shock_groupings(m::Model1002)
 
         mea_vec = [:lr_sh, :tfp_sh, :gdpdef_sh, :corepce_sh, :gdp_sh, :gdi_sh]
         if subspec(m) in ["ss87", "ss88"]
-            push!(mea_vec, :e_meas_π_sh)
+            push!(mea_vec, :meas_π_sh)
         end
 
         if haskey(get_settings(m), :add_iid_cond_obs_gdp_meas_err) ?
