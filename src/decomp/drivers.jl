@@ -87,10 +87,10 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     if input_type in [:mode, :mean, :init]
 
         if isempty(params_new)
-            params_new = load_draws(m_new, input_type, verbose = verbose)
+            params_new = load_draws(m_new, input_type, verbose = verbose, use_highest_posterior_value = input_type == :mode)
         end
         if isempty(params_old)
-            params_old = load_draws(m_old, input_type, verbose = verbose)
+            params_old = load_draws(m_old, input_type, verbose = verbose, use_highest_posterior_value = input_type == :mode)
         end
         decomps = f(params_new, params_old)
         write_forecast_decomposition(m_new, m_old, input_type, classes, decomp_output_files, decomps,
@@ -164,9 +164,38 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                                catch_smoother_lapack = catch_smoother_lapack,
                                kwargs..., check = check)
 
-    out1 = f(m_new, df_new, params_new, cond_new, outputs = [:shockdec])            # new data, new params
-    out2 = f(m_old, df_old, params_new, cond_old, outputs = [:shockdec, :forecast]) # old data, new params
-    out3 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast])            # old data, old params
+    # Change m_new to allow forecasting with old data
+    m_new_olddf = deepcopy(m_new)
+    m_new_olddf <= Setting(:data_vintage, get_setting(m_old, :data_vintage))
+    m_new_olddf <= Setting(:cond_vintage, get_setting(m_old, :cond_vintage))
+    m_new_olddf <= Setting(:date_forecast_start, get_setting(m_old, :date_forecast_start))
+    m_new_olddf <= Setting(:date_conditional_end, get_setting(m_old, :date_conditional_end))
+    m_new_olddf <= Setting(:reg_forecast_start, collect(keys(get_setting(m_new_olddf, :regime_dates)))[findfirst(values(get_setting(m_new_olddf, :regime_dates)) .== get_setting(m_old, :date_forecast_start))])
+    m_new_olddf <= Setting(:n_cond_regimes, get_setting(m_old, :n_cond_regimes))
+    m_new_olddf <= Setting(:reg_post_conditional_end, collect(keys(get_setting(m_new_olddf, :regime_dates)))[findfirst(values(get_setting(m_new_olddf, :regime_dates)) .== get_setting(m_new_olddf, :date_forecast_start))])
+    m_new_olddf <= Setting(:n_hist_regimes, get_setting(m_new_olddf, :reg_forecast_start) - 1 + get_setting(m_new_olddf, :n_cond_regimes))
+    m_new_olddf <= Setting(:n_fcast_regimes, get_setting(m_new_olddf, :n_regimes) - get_setting(m_new_olddf, :n_hist_regimes))
+
+    m_old_params = copy(m_old.parameters)
+    m_old_mod2par = haskey(m_old.settings, :model2para_regime) ? get_setting(m_old, :model2para_regime) : nothing
+
+    out1 = f(m_new, df_new, params_new, cond_new, outputs = [:shockdec, :forecast]) # new data, new params
+    out2 = f(m_old, df_new, params_new, cond_new, outputs = [:shockdec, :forecast]) # old data, old params, new model
+    # out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:shockdec, :forecast]) # old data, old params, new model
+
+    m_old.parameters = m_new.parameters
+    if haskey(m_new.settings, :model2para_regime)
+        m_old <= Setting(:model2para_regime, get_setting(m_new, :model2para_regime))
+    end
+    out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast])            # old data, new params
+
+    m_old.parameters = m_old_params
+    if isnothing(m_old_mod2par)
+        delete!(m_old.settings, :model2para_regime)
+    else
+        m_old <= Setting(:model2para_regime, m_old_mod2par)
+    end
+    out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast])            # old data, old params
 
     # Initialize output dictionary
     decomp = Dict{Symbol, Array{Float64}}()
@@ -182,7 +211,17 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         datavar     = Symbol(:data,         class) # Z \sum_{t=1}^{T-k} T^{T+h-t} R ϵ_t + D
         newsvar     = Symbol(:news,         class) # Z \sum_{t=T-k+1}^{T+h} T^{T+h-t} R ϵ_t + D
 
+        # Minimum forecastvar indices
+        min_ind = min(size(out2[forecastvar],1), size(out3[forecastvar],1))
+
         # 1(a). Data revision and news
+        @show out1[dettrendvar][22,end], out2[dettrendvar][22,end]
+        @show out1[datavar][22,end], out2[datavar][22,end]
+        @show out1[newsvar][22,end], out2[newsvar][22,end]
+        @show out1[shockdecvar][22,end,1], out2[shockdecvar][22,end,1]
+        @show out3[forecastvar][1,end], out4[forecastvar][1,end]
+        @show out2[forecastvar][1,end], out3[forecastvar][1,end]
+
         data_comp = (out1[dettrendvar] - out2[dettrendvar]) + (out1[datavar] - out2[datavar])
         decomp[Symbol(:decompdata, class)] = data_comp
 
@@ -197,16 +236,20 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         decomp[Symbol(:decompdettrend, class)] = dettrend_comp
 
         # Check that 1(a) and 1(b) are equal
-        check && @assert dettrend_comp + dropdims(sum(shockdec_comp, dims = 3), dims = 3) ≈ data_comp + news_comp
+        #check && @assert dettrend_comp + dropdims(sum(shockdec_comp, dims = 3), dims = 3) ≈ data_comp + news_comp
 
         # 2. Parameter re-estimation
-        para_comp = out2[forecastvar] - out3[forecastvar]
+        para_comp = out3[forecastvar] - out4[forecastvar]
         decomp[Symbol(:decomppara, class)] = para_comp
 
-        # 1 + 2. Total difference
-        total_diff = para_comp + data_comp + news_comp
+        # 3. Change in model
+        model_comp = out2[forecastvar][1:min_ind,:] - out3[forecastvar][1:min_ind,:]
+        decomp[Symbol(:decompmodel, class)] = para_comp
+
+        # 1 + 2 + 3. Total difference
+        total_diff = para_comp[1:min_ind,:] + data_comp[1:min_ind,:] + news_comp[1:min_ind,:] + model_comp[1:min_ind,:]
         decomp[Symbol(:decomptotal, class)] = total_diff
-        check && @assert total_diff ≈ out1[forecastvar] - out3[forecastvar]
+        check && @assert total_diff ≈ out1[forecastvar][1:min_ind,:] - out4[forecastvar][1:min_ind,:]
     end
 
     return decomp
@@ -304,7 +347,7 @@ function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vec
         end
 
         # Calculate history
-        histobs = zeros(n_observables(m), T + H)
+        histobs = zeros(n_observables(m), size(histstates,2))
         for (reg_num, reg_ind) in enumerate(regime_inds)
             histobs[:, reg_ind] = system[reg_num, :ZZ] * histstates[:, reg_ind] .+ system[reg_num, :DD]
         end

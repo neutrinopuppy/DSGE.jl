@@ -582,7 +582,7 @@ function read_forecast_series(filepath::String, product::Symbol, var_ind::Int)
     # Other products are ndraws x nvars x nperiods
     elseif product in [:hist, :histut, :hist4q, :forecast, :forecastut, :forecast4q,
                        :bddforecast, :bddforecastut, :bddforecast4q, :dettrend,
-                       :decompdata, :decompnews, :decomppara, :decompdettrend, :decomptotal]
+                       :decompdata, :decompnews, :decomppara, :decompdettrend, :decompmodel, :decomptotal]
                        #:forecastlvl, :histlvl, :bddforecastlvl]
         inds_to_read = if ndims == 2 # one draw
             whole = FileIO.load(filepath, "arr")
