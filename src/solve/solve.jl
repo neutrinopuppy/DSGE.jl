@@ -230,7 +230,6 @@ function solve_regime_switching(m::AbstractDSGEModel{T};
                                            uncertain_altpolicy = uncertain_altpolicy,
                                            verbose = verbose)
             end
-
             # Solve for gensys2 regimes
             if gensys2
                 for reg_range in gensys2_regimes
