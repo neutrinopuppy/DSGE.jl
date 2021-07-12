@@ -292,5 +292,5 @@ n_param_regs(params::ParameterVector)
 Get total number of parameter regimes for each parameter
 """
 function n_param_regs(params::ParameterVector)
-    return [haskey(params[i].regimes, :value) ? length(params[i].regimes[:value]) : 1 for i in 1:length(m.parameters)]
+    return [haskey(params[i].regimes, :value) ? length(params[i].regimes[:value]) : 1 for i in 1:length(params)]
 end
