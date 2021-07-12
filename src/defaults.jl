@@ -152,7 +152,7 @@ function default_settings!(m::AbstractDSGEModel)
     settings[:forecast_smoother] = Setting(:forecast_smoother, :durbin_koopman,
         "Choice of smoother to use during forecasting. Can be :hamilton, :koopman, " *
         ":carter_kohn, or :durbin_koopman")
-    settings[:forecast_horizons] = Setting(:forecast_horizons, 60,
+    settings[:forecast_horizons] = Setting(:forecast_horizons, 40,
         "Number of periods to forecast ahead")
     settings[:forecast_tdist_shocks] = Setting(:forecast_tdist_shocks, false,
         "Draw Students-t distributed shocks in forecast")
