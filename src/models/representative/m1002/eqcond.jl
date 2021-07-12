@@ -430,9 +430,9 @@ function eqcond(m::Model1002, reg::Int)
     if subspec(m) in ["ss86", "ss88"]
         Ψ[eq[:eq_λ_f], exo[:λ_f_iid_sh]] = 1.0
         if subspec(m) in ["ss88"]
-            Γ1[eq[:eq_λ_f], m.endogenous_states_augmented[:λ_f_iid_sh1]] = -1.0
+            Γ1[eq[:eq_λ_f], endo[:λ_f_iid_sh1]] = -1.0
 
-            Γ0[eq[:eq_λ_f_sh], m.endogenous_states_augmented[:λ_f_iid_sh1]] = 1.
+            Γ0[eq[:eq_λ_f_sh], endo[:λ_f_iid_sh1]] = 1.
             Ψ[eq[:eq_λ_f_sh], exo[:λ_f_iid_sh]] = 1.
         end
     end

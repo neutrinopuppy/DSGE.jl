@@ -175,7 +175,7 @@ function init_model_indices!(m::Model1002)
         push!(endogenous_states_augmented, :e_meas_π_t, :e_meas_π_t1)
     end
     if subspec(m) in ["ss88"]
-        push!(endogenous_states_augmented, :λ_f_iid_sh1)
+        push!(endogenous_states, :λ_f_iid_sh1)
         push!(equilibrium_conditions, :eq_λ_f_sh)
     end
 
@@ -1237,11 +1237,11 @@ function shock_groupings(m::Model1002)
 
         if haskey(get_settings(m), :add_iid_cond_obs_gdp_meas_err) ?
             get_setting(m, :add_iid_cond_obs_gdp_meas_err) : false
-            mea = ShockGroup("me", push!(mea_vec, [:condgdp_sh, :condcorepce_sh]),
+            mea = ShockGroup("me", push!(mea_vec, :condgdp_sh, :condcorepce_sh),
                              RGB(0.0, 0.8, 0.0))
         elseif haskey(get_settings(m), :add_iid_anticipated_obs_gdp_meas_err) ?
             get_setting(m, :add_iid_anticipated_obs_gdp_meas_err) : false
-            mea = ShockGroup("me", push!(mea_vec, [:gdpexp_sh]),
+            mea = ShockGroup("me", push!(mea_vec, :gdpexp_sh),
                              RGB(0.0, 0.8, 0.0))
         else
             mea = ShockGroup("me", mea_vec, RGB(0.0, 0.8, 0.0))

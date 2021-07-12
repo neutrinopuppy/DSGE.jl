@@ -156,7 +156,7 @@ function measurement(m::Model1002{T},
     ## Inflation (GDP Deflator)
     ZZ[obs[:obs_gdpdeflator], endo[:π_t]]            = m[:Γ_gdpdef]
     ZZ[obs[:obs_gdpdeflator], endo_new[:e_gdpdef_t]] = 1.0
-    if subspec(m) in ["ss87"]
+    if subspec(m) in ["ss87", "ss88"]
         ZZ[obs[:obs_gdpdeflator], endo_new[:e_meas_π_t]]  = 1.0
         ZZ[obs[:obs_gdpdeflator], endo_new[:e_meas_π_t1]] = -1.0
     end
@@ -165,7 +165,7 @@ function measurement(m::Model1002{T},
     ## Inflation (Core PCE)
     ZZ[obs[:obs_corepce], endo[:π_t]]             = 1.0
     ZZ[obs[:obs_corepce], endo_new[:e_corepce_t]] = 1.0
-    if subspec(m) in ["ss87"]
+    if subspec(m) in ["ss87", "ss88"]
         ZZ[obs[:obs_corepce], endo_new[:e_meas_π_t]]  = 1.0
         ZZ[obs[:obs_corepce], endo_new[:e_meas_π_t1]] = -1.0
     end
