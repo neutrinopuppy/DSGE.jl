@@ -10,7 +10,8 @@ forecast) necessary to call the plotting function `shockdec` in
 """
 function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
                          cond_new::Symbol, cond_old::Symbol,
-                         class::Symbol; individual_shocks::Bool = false, forecast_string_old = "", forecast_string_new = "") where M<:AbstractDSGEModel
+                         class::Symbol; individual_shocks::Bool = false, forecast_string_old = "", forecast_string_new = "",
+                         model_comp::Bool = false) where M<:AbstractDSGEModel
     # Read in means
     input_file = get_decomp_mean_file(m_new, m_old, input_type, cond_new, cond_old, class, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old)
     decomps = JLD2.jldopen(input_file, "r") do file
@@ -19,6 +20,7 @@ function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
 
     # Common metadata
     comps = [:data, :news, :para]
+    comps = model_comp ? vcat(comps, :model) : comps
     dates = decomps[collect(keys(decomps))[1]][!,:date]
     vars  = collect(keys(get_dict(m_new, class)))
 
@@ -147,16 +149,19 @@ function plot_forecast_decomposition(m_new::M, m_old::M, vars::Vector{Symbol}, c
                                      groups::Vector{ShockGroup} = shock_groupings(m_new),
                                      plotroot::String = figurespath(m_new, "forecast"),
                                      verbose::Symbol = :low, forecast_string_new = "", forecast_string_old = "",
-                                     kwargs...) where M<:AbstractDSGEModel
+                                     model_comp::Bool = false, kwargs...) where M<:AbstractDSGEModel
     # Create MeansBands
     mbs = make_decomp_mbs(m_new, m_old, input_type, cond_new, cond_old, class,
-                          individual_shocks = individual_shocks, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old)
+                          individual_shocks = individual_shocks, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old, model_comp = model_comp)
 
     # Create shock grouping
     if !individual_shocks
         groups = [ShockGroup("data", [:data], colorant"#9DE0AD"), # sea foam green
                   ShockGroup("news", [:news], colorant"#45ADA8"), # turquoise
                   ShockGroup("para", [:para], colorant"#547980")] # blue gray
+        if model_comp
+            push!(groups, ShockGroup("model", [:model], colorant"red"))
+        end
     end
 
     # Get titles if not provided
