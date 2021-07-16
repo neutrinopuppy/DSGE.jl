@@ -39,7 +39,7 @@ use_chand_recursion = true
 
 # Estimate with full sample
 m = deepcopy(m)
-m <= Setting(:n_particles, 1000, true, "npart", "")
+m <= Setting(:n_particles, 10000, true, "npart", "")
 m <= Setting(:data_vintage, "210714")
 
 @everywhere Random.seed!(42)
@@ -56,7 +56,7 @@ full_cloud  = full_file["cloud"]
 
 # Estimate with 1st half of sample
 m_old = deepcopy(m)
-m_old <= Setting(:n_particles, 1000, true, "npart", "")
+m_old <= Setting(:n_particles, 10000, true, "npart", "")
 m_old <= Setting(:data_vintage, "000000")
 
 savepath_old = rawpath(m_old, "estimate", "smc_cloud.jld2")
@@ -70,6 +70,8 @@ end
 
 println("Initial estimation done!")
 
+## Get Marginal Data Density of above estimation
+# mdd_old = marginal_data_density(m_old, data[:, 1:Int(floor(end/2))])
 
 m_new = deepcopy(m)
 
@@ -80,7 +82,7 @@ m_new <= Setting(:tempered_update, true)
 old_vint = "000000"
 new_vint = "200218"
 
-savepath_new = rawpath(m_new, "estimate", "smc_could.jld2")
+savepath_new = rawpath(m_new, "estimate", "smc_cloud.jld2")
 
 loadpath = rawpath(m_old, "estimate", "smc_cloud.jld2")
 loadpath = replace(loadpath, r"vint=[0-9]{6}" => "vint=" * old_vint)
@@ -91,7 +93,7 @@ m_new <= Setting(:previous_data_vintage, old_vint)
 println("Beginning online estimation")
 #@suppress begin
 #    DSGE.smc2(m_new, data; verbose = verbose, old_data = data[:,1:Int(floor(end/2))],old_cloud = old_cloud,
-#              tempered_update_prior_weight = 0.5)
+#              tempered_update_prior_weight = 0.5, old_model = m_old, log_prob_old_data = mdd_old)
 #end
 println("Finished online estimation")
 
