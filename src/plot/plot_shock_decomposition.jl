@@ -82,7 +82,7 @@ function plot_shock_decomposition(m::AbstractDSGEModel, vars::Vector{Symbol}, cl
     for (var, title) in zip(vars, titles)
 
         # Call recipe
-        ylabs = trend_nostates == DataFrame() ? "\n(deviations from mean)" : ""
+        ylabs = trend_nostates == DataFrame() ? "\n(deviations from mean)" : "\n(deviations from mean)"
 
         # Change ylims based on variable
         if ylim_dict != Dict() && var in keys(ylim_dict)

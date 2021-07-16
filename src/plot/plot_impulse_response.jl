@@ -291,7 +291,6 @@ irf
     sign = flip_sign ? -1 : 1
     quarters_ahead = collect(1:size(mb.means,1))
 
-    quarters_ahead = collect(1:size(mb.means,1))
     # Bands
    for pct in bands_pcts
         @series begin

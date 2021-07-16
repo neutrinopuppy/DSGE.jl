@@ -721,6 +721,16 @@ histforecast_vector
 
     # Add trendline
     if add_trendline
+        start_trend_ind = findfirst(dates .== trend_start_date)
+        if isnothing(start_trend_ind)
+            @warn "trend_start_date ($(trend_start_date))is not located in the history or forecast, " *
+                "so we are plotting the trend from the start_date ($(start_date))"
+            trend_start_date = start_date
+            start_trend_ind = findfirst(x -> x == trend_start_date, dates)
+        end
+        start_trend_val = combined.means[start_trend_ind, var]
+        end_ind = findfirst(dates .== end_date)
+
         @series begin
             seriestype :=  :line
             linewidth  --> 2
