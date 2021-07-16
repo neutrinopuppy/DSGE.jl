@@ -21,9 +21,12 @@ end
 
 function get_decomp_output_files(m_new::M, m_old::M, input_type::Symbol,
                                  cond_new::Symbol, cond_old::Symbol,
-                                 classes::Vector{Symbol}; forecast_string_new = "", forecast_string_old = "") where M<:AbstractDSGEModel
+                                 classes::Vector{Symbol}; forecast_string_new = "", forecast_string_old = "",
+                                 model_decomp::Bool = false) where M<:AbstractDSGEModel
     output_files = Dict{Symbol, String}()
-    for comp in [:data, :news, :shockdec, :dettrend, :para, :total]
+    comps = [:data, :news, :shockdec, :dettrend, :para, :total]
+    comps = model_decomp ? vcat(comps, :model) : comps
+    for comp in comps
         for class in classes
             product = Symbol(:decomp, comp)
             output_var = Symbol(product, class)
@@ -50,9 +53,11 @@ function write_forecast_decomposition(m_new::M, m_old::M, input_type::Symbol,
                                       decomps::Dict{Symbol, Array{Float64}};
                                       block_number::Nullable{Int} = Nullable{Int}(),
                                       block_inds::AbstractRange{Int} = 1:0,
-                                      verbose::Symbol = :low,
+                                      verbose::Symbol = :low, model_decomp::Bool = false,
                                       forecast_string_new = "", forecast_string_old = "") where M<:AbstractDSGEModel
-    for comp in [:data, :news, :shockdec, :dettrend, :para, :total]
+    comps = [:data, :news, :shockdec, :dettrend, :para, :total]
+    comps = model_decomp ? vcat(comps, :model) : comps
+    for comp in comps
         for class in classes
             prod = Symbol(:decomp, comp)
             var = Symbol(prod, class)

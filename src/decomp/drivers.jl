@@ -69,10 +69,11 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             params_new::AbstractArray = Vector{Float64}(undef, 0),
                             params_old::AbstractArray = Vector{Float64}(undef, 0),
                             apply_altpolicy::Bool = false, catch_smoother_lapack::Bool = false,
+                            model_decomp::Bool = false,
                             kwargs...) where M<:AbstractDSGEModel
 
     # Get output file names
-    decomp_output_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, classes, forecast_string_old = forecast_string_old, forecast_string_new = forecast_string_new)
+    decomp_output_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, classes, forecast_string_old = forecast_string_old, forecast_string_new = forecast_string_new, model_decomp = model_decomp)
 
     info_print(verbose, :low, "Decomposing forecast...")
     println(verbose, :low, "Start time: $(now())")
@@ -95,7 +96,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         decomps = f(params_new, params_old)
         write_forecast_decomposition(m_new, m_old, input_type, classes, decomp_output_files, decomps,
                                      forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old,
-                                     verbose = verbose)
+                                     verbose = verbose, model_decomp = model_decomp)
 
     # Multiple-draw forecasts
     elseif input_type == :full
@@ -155,6 +156,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             catch_smoother_lapack::Bool = false,
                             forecast_string_old::String = "",
                             forecast_string_new::String = "") where M<:AbstractDSGEModel
+
     # Check numbers of periods
     T, k, H = decomposition_periods(m_new, m_old, df_new, df_old, cond_new, cond_old)
 
@@ -180,14 +182,15 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     m_old_mod2par = haskey(m_old.settings, :model2para_regime) ? get_setting(m_old, :model2para_regime) : nothing
 
     out1 = f(m_new, df_new, params_new, cond_new, outputs = [:shockdec, :forecast]) # new data, new params
-    out2 = f(m_old, df_new, params_new, cond_new, outputs = [:shockdec, :forecast]) # old data, old params, new model
-    # out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:shockdec, :forecast]) # old data, old params, new model
 
     m_old.parameters = m_new.parameters
     if haskey(m_new.settings, :model2para_regime)
         m_old <= Setting(:model2para_regime, get_setting(m_new, :model2para_regime))
     end
-    out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast])            # old data, new params
+    out2 = f(m_old, df_new, params_new, cond_new, outputs = [:shockdec, :forecast]) # old data, old params, new model
+    #out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:shockdec, :forecast]) # old data, old params, new model
+
+    out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec])            # old data, new params
 
     m_old.parameters = m_old_params
     if isnothing(m_old_mod2par)
@@ -195,7 +198,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     else
         m_old <= Setting(:model2para_regime, m_old_mod2par)
     end
-    out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast])            # old data, old params
+    out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast, :shockdec])            # old data, old params
 
     # Initialize output dictionary
     decomp = Dict{Symbol, Array{Float64}}()
@@ -212,27 +215,28 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         newsvar     = Symbol(:news,         class) # Z \sum_{t=T-k+1}^{T+h} T^{T+h-t} R ϵ_t + D
 
         # Minimum forecastvar indices
+        min_ind1 = min(size(out1[shockdecvar],3), size(out4[shockdecvar],3))
         min_ind = min(size(out2[forecastvar],1), size(out3[forecastvar],1))
 
         # 1(a). Data revision and news
-        @show out1[dettrendvar][22,end], out2[dettrendvar][22,end]
+#=        @show out1[dettrendvar][22,end], out2[dettrendvar][22,end]
         @show out1[datavar][22,end], out2[datavar][22,end]
         @show out1[newsvar][22,end], out2[newsvar][22,end]
         @show out1[shockdecvar][22,end,1], out2[shockdecvar][22,end,1]
         @show out3[forecastvar][1,end], out4[forecastvar][1,end]
-        @show out2[forecastvar][1,end], out3[forecastvar][1,end]
+        @show out2[forecastvar][1,end], out3[forecastvar][1,end]=#
 
-        data_comp = (out1[dettrendvar] - out2[dettrendvar]) + (out1[datavar] - out2[datavar])
+        data_comp = (out2[dettrendvar] - out3[dettrendvar]) + (out2[datavar] - out3[datavar])#(out1[dettrendvar] - out2[dettrendvar]) + (out1[datavar] - out2[datavar])
         decomp[Symbol(:decompdata, class)] = data_comp
 
-        news_comp = out1[newsvar] - out2[newsvar]
+        news_comp = out2[newsvar] - out3[newsvar]#out1[newsvar] - out2[newsvar]
         decomp[Symbol(:decompnews, class)] = news_comp
 
         # 1(b). Shock decomposition and deterministic trend
-        shockdec_comp = out1[shockdecvar] - out2[shockdecvar] # Ny x Nh x Ne
+        shockdec_comp = out1[shockdecvar][:,:,1:min_ind1] - out4[shockdecvar][:,:,1:min_ind1] # Ny x Nh x Ne
         decomp[Symbol(:decompshockdec, class)] = shockdec_comp
 
-        dettrend_comp = out1[dettrendvar] - out2[dettrendvar]
+        dettrend_comp = out1[dettrendvar] - out4[dettrendvar]
         decomp[Symbol(:decompdettrend, class)] = dettrend_comp
 
         # Check that 1(a) and 1(b) are equal
@@ -243,12 +247,15 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         decomp[Symbol(:decomppara, class)] = para_comp
 
         # 3. Change in model
-        model_comp = out2[forecastvar][1:min_ind,:] - out3[forecastvar][1:min_ind,:]
-        decomp[Symbol(:decompmodel, class)] = para_comp
+        model_comp = out1[forecastvar][1:min_ind,:] - out2[forecastvar][1:min_ind,:]
+        decomp[Symbol(:decompmodel, class)] = model_comp
 
         # 1 + 2 + 3. Total difference
         total_diff = para_comp[1:min_ind,:] + data_comp[1:min_ind,:] + news_comp[1:min_ind,:] + model_comp[1:min_ind,:]
         decomp[Symbol(:decomptotal, class)] = total_diff
+        #=@show total_diff[1,1] ≈ out1[forecastvar][1,1] - out4[forecastvar][1,1]
+        @show total_diff[1,1], para_comp[1,1], data_comp[1,1], news_comp[1,1], model_comp[1,1]
+        @show out1[forecastvar][1,1], out4[forecastvar][1,1]=#
         check && @assert total_diff ≈ out1[forecastvar][1:min_ind,:] - out4[forecastvar][1:min_ind,:]
     end
 

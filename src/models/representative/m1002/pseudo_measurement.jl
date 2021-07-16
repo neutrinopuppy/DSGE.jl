@@ -180,6 +180,11 @@ function pseudo_measurement(m::Model1002{T},
             ZZ_pseudo[pseudo[:PseudoCorePCE], endo[:π_t]]              = 1.0
             ZZ_pseudo[pseudo[:PseudoCorePCE], endo_addl[:e_corepce_t]] = 1.0
             DD_pseudo[pseudo[:PseudoCorePCE]]                          = 100. * (m[:π_star] - 1.)
+#=
+            if subspec(m) in ["ss87", "ss88"]
+                ZZ_pseudo[pseudo[:PseudoCorePCE], endo_addl[:e_meas_π_t]]  = 1.0
+                ZZ_pseudo[pseudo[:PseudoCorePCE], endo_addl[:e_meas_π_t1]] = -1.0
+            end=#
         end
     end
 

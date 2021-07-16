@@ -1,6 +1,6 @@
 function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
                              cond_new::Symbol, cond_old::Symbol, classes::Vector{Symbol}; forecast_string_new = "", forecast_string_old = "",
-                             verbose::Symbol = :low) where M<:AbstractDSGEModel
+                             verbose::Symbol = :low, model_decomp::Bool = false) where M<:AbstractDSGEModel
     # Print
     println(verbose, :low, )
     info_print(verbose, :low, "Computing means of forecast decomposition...")
@@ -22,7 +22,7 @@ function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
         mapfcn = use_parallel_workers(m_new) ? pmap : map
         decomp_vec = mapfcn(var -> decomposition_means(m_new, m_old, input_type,
                                                        cond_new, cond_old, class, var, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old,
-                                                       verbose = verbose),
+                                                       verbose = verbose, model_decomp = model_decomp),
                             variable_names)
         decomps = OrderedDict{Symbol, DataFrame}()
         for (var, decomp) in zip(variable_names, decomp_vec)
@@ -51,16 +51,18 @@ function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
                              cond_new::Symbol, cond_old::Symbol,
                              class::Symbol, var::Symbol;
 forecast_string_new = "", forecast_string_old = "",
-                             verbose::Symbol = :low) where M<:AbstractDSGEModel
+                             verbose::Symbol = :low, model_decomp::Bool = false) where M<:AbstractDSGEModel
     # Read in dates
-    input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, [class], forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old)
+    input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, [class], forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old, model_decomp = model_decomp)
     input_file = input_files[Symbol(:decomptotal, class)]
     dates = jldopen(input_file, "r") do file
         sort(collect(keys(read(file, "date_indices"))))
     end
 
     decomp = DataFrame(date = dates)
-    for comp in [:data, :news, :shockdec, :dettrend, :para, :total]
+    comps = [:data, :news, :shockdec, :dettrend, :para, :total]
+    comps = model_decomp ? vcat(comps, :model) : comps
+    for comp in comps
         product = Symbol(:decomp, comp)
 
         input_file = input_files[Symbol(product, class)]
