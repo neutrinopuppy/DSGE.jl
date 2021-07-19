@@ -1,7 +1,7 @@
 using DSGE, ModelConstructors, HDF5, Random, JLD2, FileIO, SMC, Test, Suppressor
 
 path = dirname(@__FILE__)
-writing_output = false
+
 if VERSION < v"1.5"
     ver = "111"
 elseif VERSION < v"1.6"
@@ -10,12 +10,31 @@ else
     ver = "160"
 end
 
+# set to true if you want to reestimate models
+estimate = false
+
+if estimate == true
+    # set number of workers and assign them
+    n_workers = 48
+
+    ENV["frbnyjuliamemory"] = "6G"
+    myprocs = addprocs_frbny(n_workers)
+    @everywhere using DSGE, OrderedCollections
+    DSGE.sendto(workers(), USER = USER)
+    @everywhere include("/data/dsge_data_dir/dsgejl/$USER/proc/includeall.jl")
+end
+
+
+# instantiate model
 m = AnSchorfheide()
 
 save = normpath(joinpath(dirname(@__FILE__), "save"))
 m <= Setting(:saveroot, save)
 
+
 data = h5read(joinpath(path, "reference/smc.h5"), "data")
+
+# model settings
 
 m <= Setting(:n_particles, 400)
 m <= Setting(:n_Φ, 100)
@@ -44,15 +63,21 @@ m <= Setting(:data_vintage, "210714")
 
 @everywhere Random.seed!(42)
 
-# estimate model with full data
+
 
 savepath_full = rawpath(m, "estimate", "smc_cloud.jld2")
 
-#DSGE.smc2(m, data; verbose = verbose)
+if estimate == true
+    DSGE.smc2(m, data; verbose = verbose)
+end
 
+# load in saved cloud and weights for full estimation
 full_file   = load(rawpath(m, "estimate", "smc_cloud.jld2"))
 full_cloud  = full_file["cloud"]
+full_w      = full_file["w"]
 
+# get marginal data density of full estimation
+mdd_full = marginal_data_density(m, data)
 
 # Estimate with 1st half of sample
 m_old = deepcopy(m)
@@ -62,16 +87,18 @@ m_old <= Setting(:data_vintage, "000000")
 savepath_old = rawpath(m_old, "estimate", "smc_cloud.jld2")
 loadpath_old = rawpath(m_old, "estimate", "smc_cloud.jld2")
 
-println("Estimating Initial AnSchorfheide Model... (approx. 2 minutes)")
 
-@suppress begin
-#    DSGE.smc2(m_old, data[:, 1:Int(floor(end/2))]; verbose = verbose)
+
+if estimate == true
+    println("Estimating Initial AnSchorfheide Model... (approx. 2 minutes)")
+    @suppress begin
+        DSGE.smc2(m_old, data[:, 1:Int(floor(end/2))]; verbose = verbose)
+    end
+    println("Initial estimation done!")
 end
 
-println("Initial estimation done!")
-
-## Get Marginal Data Density of above estimation
-# mdd_old = marginal_data_density(m_old, data[:, 1:Int(floor(end/2))])
+old_file   = load(rawpath(m_old, "estimate", "smc_cloud.jld2"))
+old_cloud  = full_file["cloud"]
 
 m_new = deepcopy(m)
 
@@ -84,19 +111,28 @@ new_vint = "200218"
 
 savepath_new = rawpath(m_new, "estimate", "smc_cloud.jld2")
 
-loadpath = rawpath(m_old, "estimate", "smc_cloud.jld2")
-loadpath = replace(loadpath, r"vint=[0-9]{6}" => "vint=" * old_vint)
-
-old_cloud = load(loadpath, "cloud")
-
 m_new <= Setting(:previous_data_vintage, old_vint)
-println("Beginning online estimation")
-#@suppress begin
-#    DSGE.smc2(m_new, data; verbose = verbose, old_data = data[:,1:Int(floor(end/2))],old_cloud = old_cloud,
-#              tempered_update_prior_weight = 0.5, old_model = m_old, log_prob_old_data = mdd_old)
-#end
-println("Finished online estimation")
 
+if estimate == true
 
-loadpath_new = replace(loadpath, r"vint=[0-9]{6}" => "vint=" * new_vint)
+    println("Beginning online estimation")
+    @suppress begin
+        DSGE.smc2(m_new, data; verbose = verbose, old_data = data[:,1:Int(floor(end/2))],old_cloud = old_cloud,
+               old_model = m_old, log_prob_old_data = mdd_old)
+    end
+    println("Finished online estimation")
+end
+
+rmprocs(myprocs)
+
+# load in online cloud and weights
+loadpath_new = replace(loadpath_old, r"vint=[0-9]{6}" => "vint=" * new_vint)
 online_cloud = load(loadpath_new, "cloud")
+online_w     = load(loadpath_new, "w")
+
+# get marginal data density of online estimation
+mdd_new = marginal_data_density(m_new, data)
+
+@testset "Online Estimation: AnSchorf" begin
+    @test abs(mdd_new - mdd_full) < 3
+end
