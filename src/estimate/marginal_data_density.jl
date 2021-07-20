@@ -16,16 +16,17 @@ For calculating the log marginal data density for a given posterior sample.
 - `calculation_method::Symbol`: either `:incremental_weights` or `:harmonic_mean`
 - `parallel::Bool`
 - `bridge_vec::Vector{String}`: Estimation cloud files for all the bridges up to a scratch estimation.
-    Used for incremental weights calculation of MDD. Scratch is last.
+    Used for incremental weights calculation of MDD. Scratch is last. Use of this input is ONLY NECESSARY
+    if log_prob_old_data was NOT passed into SMC. Otherwise, MDD will automatically account for bridges.
 - `smc_estimate_file::String`: Specify estimation cloud file to use if estimation_method is SMC
 """
 function marginal_data_density(m::Union{AbstractDSGEModel,AbstractVARModel},
-                               data::Matrix{Float64} = Matrix{Float64}(undef, 0, 0);
+                               data; # = Matrix{Float64}(undef, 0, 0);
                                estimation_method::Symbol = :smc,
                                calculation_method::Symbol = :incremental_weights,
                                parallel::Bool = false, bridge_vec::Vector = [],
                                smc_estimate_file::String = rawpath(m, "estimate", "smc_cloud.jld2"),
-                               new_prior::Bool = false, new_params = Matrix(0,0))
+                               new_prior::Bool = false, new_params = Matrix{Float64}(undef,0,0))
     if estimation_method == :mh && calculation_method == :incremental_weights
         throw("Can only calculation MDD with incremental weights if the estimation method is :smc")
     end
