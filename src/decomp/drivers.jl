@@ -112,9 +112,9 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
 
             # Get to work!
             params_new_block = isempty(params_new) ? load_draws(m_new, input_type, block_inds[block], verbose = verbose) :
-                params_new[block_inds[block]]
+                [params_new[block_inds[block][i],:] for i in 1:length(block_inds[block])]
             params_old_block = isempty(params_old) ? load_draws(m_old, input_type, block_inds[block], verbose = verbose) :
-                params_old[block_inds[block]]
+                [params_old[block_inds[block][i],:] for i in 1:length(block_inds[block])]
             mapfcn = use_parallel_workers(m_new) ? pmap : map
             decomps = mapfcn(f, params_new_block, params_old_block)
 
@@ -174,31 +174,37 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     m_new_olddf <= Setting(:date_conditional_end, get_setting(m_old, :date_conditional_end))
     m_new_olddf <= Setting(:reg_forecast_start, collect(keys(get_setting(m_new_olddf, :regime_dates)))[findfirst(values(get_setting(m_new_olddf, :regime_dates)) .== get_setting(m_old, :date_forecast_start))])
     m_new_olddf <= Setting(:n_cond_regimes, get_setting(m_old, :n_cond_regimes))
-    m_new_olddf <= Setting(:reg_post_conditional_end, collect(keys(get_setting(m_new_olddf, :regime_dates)))[findfirst(values(get_setting(m_new_olddf, :regime_dates)) .== get_setting(m_new_olddf, :date_forecast_start))])
+    m_new_olddf <= Setting(:reg_post_conditional_end, findlast(sort!(collect(values(get_setting(m_new_olddf, :regime_dates)))) .<= date_conditional_end(m_new_olddf))+1)
     m_new_olddf <= Setting(:n_hist_regimes, get_setting(m_new_olddf, :reg_forecast_start) - 1 + get_setting(m_new_olddf, :n_cond_regimes))
-    m_new_olddf <= Setting(:n_fcast_regimes, get_setting(m_new_olddf, :n_regimes) - get_setting(m_new_olddf, :n_hist_regimes))
+    m_new_olddf <= Setting(:n_fcast_regimes, get_setting(m_new_olddf, :n_regimes) - get_setting(m_new_olddf, :reg_forecast_start) + 1)
 
     m_old_params = copy(m_old.parameters)
     m_old_mod2par = haskey(m_old.settings, :model2para_regime) ? get_setting(m_old, :model2para_regime) : nothing
 
-    out1 = f(m_new, df_new, params_new, cond_new, outputs = [:shockdec, :forecast]) # new data, new params
+    # New forecast
+    out1 = f(m_new, df_new, params_new, cond_new, outputs = [:forecast, :shockdec]) # new data, new params
 
+    # Change old parameters to forecast old model with new parameters
     m_old.parameters = m_new.parameters
     if haskey(m_new.settings, :model2para_regime)
         m_old <= Setting(:model2para_regime, get_setting(m_new, :model2para_regime))
     end
-    out2 = f(m_old, df_new, params_new, cond_new, outputs = [:shockdec, :forecast]) # old data, old params, new model
-    #out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:shockdec, :forecast]) # old data, old params, new model
 
-    out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec])            # old data, new params
+    # New Model, Old Data, New Parameters
+    out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:shockdec, :forecast])
 
+    # Old Model, Old Data, New Parameters
+    out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec])
+
+    # Return to old parameters
     m_old.parameters = m_old_params
     if isnothing(m_old_mod2par)
         delete!(m_old.settings, :model2para_regime)
     else
         m_old <= Setting(:model2para_regime, m_old_mod2par)
     end
-    out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast, :shockdec])            # old data, old params
+    # Old Forecast
+    out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast, :shockdec])
 
     # Initialize output dictionary
     decomp = Dict{Symbol, Array{Float64}}()
@@ -219,43 +225,37 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         min_ind = min(size(out2[forecastvar],1), size(out3[forecastvar],1))
 
         # 1(a). Data revision and news
-#=        @show out1[dettrendvar][22,end], out2[dettrendvar][22,end]
-        @show out1[datavar][22,end], out2[datavar][22,end]
-        @show out1[newsvar][22,end], out2[newsvar][22,end]
-        @show out1[shockdecvar][22,end,1], out2[shockdecvar][22,end,1]
-        @show out3[forecastvar][1,end], out4[forecastvar][1,end]
-        @show out2[forecastvar][1,end], out3[forecastvar][1,end]=#
-
-        data_comp = (out2[dettrendvar] - out3[dettrendvar]) + (out2[datavar] - out3[datavar])#(out1[dettrendvar] - out2[dettrendvar]) + (out1[datavar] - out2[datavar])
+        data_comp = out1[dettrendvar] - out2[dettrendvar] + (out1[datavar] - out2[datavar])
         decomp[Symbol(:decompdata, class)] = data_comp
 
-        news_comp = out2[newsvar] - out3[newsvar]#out1[newsvar] - out2[newsvar]
+        news_comp = out1[newsvar] - out2[newsvar]
         decomp[Symbol(:decompnews, class)] = news_comp
 
         # 1(b). Shock decomposition and deterministic trend
-        shockdec_comp = out1[shockdecvar][:,:,1:min_ind1] - out4[shockdecvar][:,:,1:min_ind1] # Ny x Nh x Ne
+        shockdec_comp = out1[shockdecvar][:,:,1:min_ind1] - out2[shockdecvar][:,:,1:min_ind1] # Ny x Nh x Ne
         decomp[Symbol(:decompshockdec, class)] = shockdec_comp
 
-        dettrend_comp = out1[dettrendvar] - out4[dettrendvar]
+        dettrend_comp = out1[dettrendvar] - out2[dettrendvar]
         decomp[Symbol(:decompdettrend, class)] = dettrend_comp
 
+        trend_comp = out1[trendvar] - out2[trendvar]
+        decomp[Symbol(:decomptrend, class)] = trend_comp
+
         # Check that 1(a) and 1(b) are equal
-        #check && @assert dettrend_comp + dropdims(sum(shockdec_comp, dims = 3), dims = 3) ≈ data_comp + news_comp
+        check && @assert dettrend_comp + dropdims(sum(shockdec_comp, dims = 3), dims = 3) ≈ data_comp + news_comp
 
         # 2. Parameter re-estimation
         para_comp = out3[forecastvar] - out4[forecastvar]
         decomp[Symbol(:decomppara, class)] = para_comp
 
         # 3. Change in model
-        model_comp = out1[forecastvar][1:min_ind,:] - out2[forecastvar][1:min_ind,:]
+        model_comp = out2[forecastvar][1:min_ind,:] - out3[forecastvar][1:min_ind,:]
         decomp[Symbol(:decompmodel, class)] = model_comp
 
         # 1 + 2 + 3. Total difference
         total_diff = para_comp[1:min_ind,:] + data_comp[1:min_ind,:] + news_comp[1:min_ind,:] + model_comp[1:min_ind,:]
         decomp[Symbol(:decomptotal, class)] = total_diff
-        #=@show total_diff[1,1] ≈ out1[forecastvar][1,1] - out4[forecastvar][1,1]
-        @show total_diff[1,1], para_comp[1,1], data_comp[1,1], news_comp[1,1], model_comp[1,1]
-        @show out1[forecastvar][1,1], out4[forecastvar][1,1]=#
+
         check && @assert total_diff ≈ out1[forecastvar][1:min_ind,:] - out4[forecastvar][1:min_ind,:]
     end
 
@@ -391,7 +391,7 @@ function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vec
                 _, out[:trendobs], out[:trendpseudo] = trends(system)
             end
 
-            # Calculate deterministic ternds
+            # Calculate deterministic trends
             _, out[:dettrendobs], out[:dettrendpseudo] = deterministic_trends(m, system, s_0, T+H, 1, T+H,
                                                                               regime_inds, cond_type)
 
@@ -401,12 +401,18 @@ function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vec
                                      histshocks, 1, T + H, regime_inds, cond_type)
 
             # Applying ϵ_{1:T-k} and ϵ_{T-k+1:end}
-            _, out[:dataobs], out[:datapseudo], _ = forecast(m, system0, zeros(nstates), data_shocks;
-                                                             cond_type = cond_type)
+            m2 = deepcopy(m)
+            m2 <= Setting(:reg_forecast_start, 1)
+            m2 <= Setting(:date_forecast_start, get_setting(m2, :date_mainsample_start))
+            m2 <= Setting(:n_hist_regimes, 0)
+            m2 <= Setting(:n_fcast_regimes, get_setting(m2, :n_regimes))
+
+            _, out[:dataobs], out[:datapseudo], _ = forecast(m2, system0, zeros(nstates), data_shocks;
+                                                             cond_type = :none)
 
             news_shocks[:, T-k+1:Tstar] = histshocks[:, T-k+1:Tstar]
-            _, out[:newsobs], out[:newspseudo], _ = forecast(m, system0, zeros(nstates), news_shocks;
-                                                             cond_type = cond_type)
+            _, out[:newsobs], out[:newspseudo], _ = forecast(m2, system0, zeros(nstates), news_shocks;
+                                                             cond_type = :none)
         else
             # Calculate trends
             _, out[:trendobs], out[:trendpseudo] = trends(system)
