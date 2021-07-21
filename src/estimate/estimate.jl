@@ -33,9 +33,6 @@ not directly related to the behavior of the sampling algorithms
   eigenvectors corresponding to zero eigenvectors are not well defined, so eigenvalue
   decomposition can cause problems. Passing a precomputed matrix allows us to ensure that
   the rest of the routine has not broken.
-- `method::Symbol`: The method to use when sampling from the posterior distribution. Can
-    be either `:MH` for standard Metropolis Hastings Markov Chain Monte Carlo, or `:SMC`
-    for Sequential Monte Carlo. This should be specified by the setting `sampling_method` in `m`.
 - `mle = false`: Set to true if parameters should be estimated by maximum likelihood directly.
     If this is set to true, this function will return after estimating parameters.
 - `sampling = true`: Set to false to disable sampling from the posterior.
