@@ -271,6 +271,17 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
         end
     end
 
+    # Determine in which regime the forecast starts, after accounting for
+    # conditional forecast regimes, if applicable
+    reg_fcast_cond_start = (cond_type == :none) ? get_setting(m, :reg_forecast_start) :
+    max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end))
+
+    if n_fcast_reg < get_setting(m, :n_regimes) - reg_fcast_cond_start + 1
+        @warn "Number of forecast regimes was less than regimes - reg_fcast_cond_start + 1"
+        n_fcast_reg = get_setting(m, :n_regimes) - reg_fcast_cond_start + 1
+        m <= Setting(:n_fcast_regimes, n_fcast_reg + get_setting(m, :reg_post_conditional_end) - get_setting(m, :reg_forecast_start))
+    end
+
     Ts = Vector{Matrix{Float64}}(undef, n_fcast_reg)
     Rs = Vector{Matrix{Float64}}(undef, n_fcast_reg)
     Cs = Vector{Vector{Float64}}(undef, n_fcast_reg)
@@ -280,13 +291,6 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     Z_pseudos = Vector{Matrix{Float64}}(undef, n_fcast_reg)
     D_pseudos = Vector{Vector{Float64}}(undef, n_fcast_reg)
 
-    # Determine in which regime the forecast starts, after accounting for
-    # conditional forecast regimes, if applicable
-    reg_fcast_cond_start = (cond_type == :none) ? get_setting(m, :reg_forecast_start) :
-    max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end))
-
-    # n_regimes is incorrectly being computed, as is n_fcast_reg
-    # Unpack system
     for (ss_ind, sys_ind) in enumerate(reg_fcast_cond_start:get_setting(m, :n_regimes))
         Ts[ss_ind], Rs[ss_ind], Cs[ss_ind] = system[sys_ind, :TTT], system[sys_ind, :RRR], system[sys_ind, :CCC]
         Qs[ss_ind], Zs[ss_ind], Ds[ss_ind] = system[sys_ind, :QQ], system[sys_ind, :ZZ], system[sys_ind, :DD]
