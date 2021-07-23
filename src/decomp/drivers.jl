@@ -70,6 +70,9 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             params_old::AbstractArray = Vector{Float64}(undef, 0),
                             apply_altpolicy::Bool = false, catch_smoother_lapack::Bool = false,
                             model_decomp::Bool = false,
+                            endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
+                            enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
+                            set_zlb_regime_vals::Function = identity,
                             kwargs...) where M<:AbstractDSGEModel
 
     # Get output file names
@@ -82,7 +85,11 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     f(params_new::Vector{Float64}, params_old::Vector{Float64}) =
       decompose_forecast(m_new, m_old, df_new, df_old, params_new, params_old,
                          cond_new, cond_old, classes; apply_altpolicy = apply_altpolicy,
-                         catch_smoother_lapack = catch_smoother_lapack, kwargs...)
+                         catch_smoother_lapack = catch_smoother_lapack,
+                         endogenous_zlb_new = endogenous_zlb_new, endogenous_zlb_old = endogenous_zlb_old,
+                         enforce_zlb_new = enforce_zlb_new, enforce_zlb_old = enforce_zlb_old,
+                         set_zlb_regime_vals = set_zlb_regime_vals,
+                         kwargs...)
 
     # Single-draw forecasts
     if input_type in [:mode, :mean, :init]
@@ -155,7 +162,10 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             check::Bool = false, apply_altpolicy::Bool = false,
                             catch_smoother_lapack::Bool = false,
                             forecast_string_old::String = "",
-                            forecast_string_new::String = "") where M<:AbstractDSGEModel
+                            forecast_string_new::String = "",
+                            endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
+                            enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
+                            set_zlb_regime_vals::Function = identity) where M<:AbstractDSGEModel
 
     # Check numbers of periods
     T, k, H = decomposition_periods(m_new, m_old, df_new, df_old, cond_new, cond_old)
@@ -181,20 +191,23 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     m_old_params = copy(m_old.parameters)
     m_old_mod2par = haskey(m_old.settings, :model2para_regime) ? get_setting(m_old, :model2para_regime) : nothing
 
-    # New forecast
-    out1 = f(m_new, df_new, params_new, cond_new, outputs = [:forecast, :shockdec]) # new data, new params
-
     # Change old parameters to forecast old model with new parameters
     m_old.parameters = m_new.parameters
     if haskey(m_new.settings, :model2para_regime)
         m_old <= Setting(:model2para_regime, get_setting(m_new, :model2para_regime))
     end
 
+    # New forecast
+    out1 = f(m_new, df_new, params_new, cond_new, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new) # new data, new params
+
     # New Model, Old Data, New Parameters
-    out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:shockdec, :forecast])
+    out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new)
 
     # Old Model, Old Data, New Parameters
-    out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec])
+    out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old)
 
     # Return to old parameters
     m_old.parameters = m_old_params
@@ -203,8 +216,10 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     else
         m_old <= Setting(:model2para_regime, m_old_mod2par)
     end
+
     # Old Forecast
-    out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast, :shockdec])
+    out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old)
 
     # Initialize output dictionary
     decomp = Dict{Symbol, Array{Float64}}()
@@ -324,7 +339,8 @@ Returns `out::Dict{Symbol, Array{Float64}}`, which has keys determined as follow
 function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vector{Float64}, cond_type::Symbol,
                                 T::Int, k::Int, H::Int; apply_altpolicy::Bool = false,
                                 outputs::Vector{Symbol} = [:forecast, :shockdec], check::Bool = false,
-                                catch_smoother_lapack::Bool = false)
+                                catch_smoother_lapack::Bool = false, enforce_zlb::Bool = false,
+                                endogenous_zlb::Bool = false, set_zlb_regime_vals::Function = identity)
 
     regime_switching = haskey(m.settings, :regime_switching) ? get_setting(m, :regime_switching) : false
 
@@ -338,6 +354,24 @@ function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vec
     # Smooth and forecast
     histstates, histshocks, histpseudo, s_0 = smooth(m, df, system, cond_type = cond_type, draw_states = false,
                                                      catch_smoother_lapack = catch_smoother_lapack)
+
+    if :forecast in outputs || check
+        s_T = histstates[:, end]
+
+        if endogenous_zlb
+            forecaststates, forecastobs, forecastpseudo, forecastshocks =
+                forecast(m, system, s_T, cond_type = cond_type, enforce_zlb = false, draw_shocks = false)
+
+            _, forecastobs, forecastpseudo, histstates, histshocks, histpseudo, s_0 =
+                forecast(m, s_T, forecaststates, forecastobs, forecastpseudo, forecastshocks;
+                         cond_type = cond_type, rerun_smoother = true, draw_states = false, df = df,
+                         histstates = histstates, histshocks = histshocks, histpseudo = histpseudo,
+                         initial_states = s_0, set_zlb_regime_vals = set_zlb_regime_vals)
+        else
+            _, forecastobs, forecastpseudo, _ =
+                forecast(m, system, s_T, cond_type = cond_type, enforce_zlb = enforce_zlb, draw_shocks = false)
+        end
+    end
 
     if regime_switching
         # Get regime indices. Just want histobs, so no need to handle ZLB regime switch
@@ -363,10 +397,6 @@ function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vec
     end
 
     if :forecast in outputs || check
-        s_T = histstates[:, end]
-        _, forecastobs, forecastpseudo, _ =
-            forecast(m, system, s_T, cond_type = cond_type, enforce_zlb = false, draw_shocks = false)
-
         out[:histforecastobs]    = hcat(histobs,    forecastobs)[:, 1:T+H]
         out[:histforecastpseudo] = hcat(histpseudo, forecastpseudo)[:, 1:T+H]
     end
