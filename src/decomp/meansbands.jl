@@ -7,7 +7,7 @@ function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
     println(verbose, :low, "Start time: " * string(now()))
     begin_time = time_ns()
 
-    input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, classes, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old)
+    input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, classes, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old, model_decomp = model_decomp)
 
     for class in classes
         print(verbose, :high, "Computing " * string(class) * "...")

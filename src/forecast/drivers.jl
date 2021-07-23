@@ -1110,6 +1110,7 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                                  draw_states = uncertainty,
                                  histstates = histstates, histshocks = histshocks, histpseudo = histpseudo,
                                  initial_states = initial_states)
+
                     forecaststates, forecastobs, forecastpseudo, histstates, histshocks, histpseudo, initial_states =
                         zlb_enforced_output
 

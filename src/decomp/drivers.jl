@@ -131,7 +131,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
             write_forecast_decomposition(m_new, m_old, input_type, classes, decomp_output_files, decomps,
                                          block_number = Nullable(block), block_inds = block_inds_thin[block],
                                          forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old,
-                                         verbose = verbose)
+                                         verbose = verbose, model_decomp = model_decomp)
             GC.gc()
 
             # Calculate time to complete this block, average block time, and
@@ -436,6 +436,7 @@ function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vec
             m2 <= Setting(:date_forecast_start, get_setting(m2, :date_mainsample_start))
             m2 <= Setting(:n_hist_regimes, 0)
             m2 <= Setting(:n_fcast_regimes, get_setting(m2, :n_regimes))
+            m2 <= Setting(:reg_post_conditional_end, 1)
 
             _, out[:dataobs], out[:datapseudo], _ = forecast(m2, system0, zeros(nstates), data_shocks;
                                                              cond_type = :none)
