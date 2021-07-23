@@ -236,7 +236,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         newsvar     = Symbol(:news,         class) # Z \sum_{t=T-k+1}^{T+h} T^{T+h-t} R ϵ_t + D
 
         # Minimum forecastvar indices
-        min_ind1 = min(size(out1[shockdecvar],3), size(out4[shockdecvar],3))
+        min_ind1 = min(size(out1[shockdecvar],3), size(out2[shockdecvar],3))
         min_ind = min(size(out2[forecastvar],1), size(out3[forecastvar],1))
 
         # 1(a). Data revision and news
@@ -248,12 +248,21 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
 
         # 1(b). Shock decomposition and deterministic trend
         shockdec_comp = out1[shockdecvar][:,:,1:min_ind1] - out2[shockdecvar][:,:,1:min_ind1] # Ny x Nh x Ne
-        decomp[Symbol(:decompshockdec, class)] = shockdec_comp
+        shockdec_comp_full = out1[shockdecvar][:,:,1:min_ind1] - out4[shockdecvar][:,:,1:min_ind1] ## Want full difference
+        decomp[Symbol(:decompshockdec, class)] = shockdec_comp_full
 
         dettrend_comp = out1[dettrendvar] - out2[dettrendvar]
         decomp[Symbol(:decompdettrend, class)] = dettrend_comp
 
-        trend_comp = out1[trendvar] - out2[trendvar]
+        # Get difference in trends
+        trend_new = get_trend_dates(get_setting(m_new, :regime_dates), out1[trendvar],
+                                    date_mainsample_start(m_new), size(out1[datavar],2),
+                                    n_regs = get_setting(m_new, :n_regimes))
+        trend_old = get_trend_dates(get_setting(m_new_olddf, :regime_dates), out2[trendvar],
+                                    date_mainsample_start(m_new_olddf), size(out2[datavar],2),
+                                    n_regs = get_setting(m_new_olddf, :n_regimes))
+
+        trend_comp = trend_new - trend_old
         decomp[Symbol(:decomptrend, class)] = trend_comp
 
         # Check that 1(a) and 1(b) are equal
@@ -268,7 +277,8 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         decomp[Symbol(:decompmodel, class)] = model_comp
 
         # 1 + 2 + 3. Total difference
-        total_diff = para_comp[1:min_ind,:] + data_comp[1:min_ind,:] + news_comp[1:min_ind,:] + model_comp[1:min_ind,:]
+        total_diff = para_comp[1:min_ind,:] + data_comp[1:min_ind,:] +
+            news_comp[1:min_ind,:] + model_comp[1:min_ind,:] + trend_comp[1:min_ind,:]
         decomp[Symbol(:decomptotal, class)] = total_diff
 
         check && @assert total_diff ≈ out1[forecastvar][1:min_ind,:] - out4[forecastvar][1:min_ind,:]

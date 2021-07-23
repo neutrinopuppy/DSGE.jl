@@ -435,3 +435,28 @@ function get_forecast_output_dims(m::AbstractDSGEModel, input_type::Symbol, outp
         return (ndraws, nvars, nperiods, nshocks)
     end
 end
+
+"""
+```
+get_trend_dates(regime_dates, trends,
+    date_start, date_length; n_regs)
+```
+
+Convert the multi-regime trends (nobs x nregimes) into trends
+by quarter instead of by regime.
+"""
+function get_trend_dates(regime_dates::Dict{Int64, Date}, trends::AbstractArray,
+                         date_start::Date, date_length::Int; n_regs::Int = length(regime_dates))
+    trend_new = zeros(size(trends,1), date_length)
+
+    indings = [DSGE.iterate_quarters(date_start, i) for i in 0:date_length-1]
+
+    for i in 1:n_regs
+        if i < n_regs
+            trend_new[:, regime_dates[i] .<= indings .< regime_dates[i+1]] .= trends[:,i]
+        else
+            trend_new[:, regime_dates[i] .<= indings] .= trends[:,i]
+        end
+    end
+    return trend_new
+end
