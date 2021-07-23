@@ -43,7 +43,7 @@ function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
             end
             for shock in shocks
                 varshock = Symbol(var, "__", shock)
-                shockdec_mb.means[varshock] = decomps[var][!,shock]
+                shockdec_mb.means[!,varshock] = decomps[var][!,shock]
                 shockdec_mb.bands[varshock] = DataFrame(date = dates)
             end
         end
@@ -70,7 +70,7 @@ function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
     dettrend_mb = MeansBands(Dict(metadata), DataFrame(date = dates), Dict{Symbol, DataFrame}())
     dettrend_mb.metadata[:product] = :dettrend
     for var in vars
-        dettrend_mb.means[!,var] = individual_shocks ? decomps[var][:dettrend] : zeros(length(dates))
+        dettrend_mb.means[!,var] = individual_shocks ? decomps[var][!,:dettrend] : zeros(length(dates))
         dettrend_mb.bands[var] = DataFrame(date = dates)
     end
 
