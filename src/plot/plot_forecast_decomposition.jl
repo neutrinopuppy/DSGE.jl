@@ -130,10 +130,11 @@ The `groups` keyword argument is only used if `individual_shocks = true`.
 """
 function plot_forecast_decomposition(m_new::M, m_old::M, var::Symbol, class::Symbol,
                                      input_type::Symbol, cond_new::Symbol, cond_old::Symbol;
-                                     title::String = "", kwargs...) where M<:AbstractDSGEModel
+                                     title::String = "", trend_nostates::DataFrame = DataFrame(),
+                                     kwargs...) where M<:AbstractDSGEModel
 
     plot_forecast_decomposition(m_new, m_old, [var], class, input_type, cond_new, cond_old;
-                                titles = isempty(title) ? String[] : [title], kwargs...)
+                                titles = isempty(title) ? String[] : [title], trend_nostates = trend_nostates, kwargs...)
 end
 
 function plot_forecast_decomposition(m_new::M, m_old::M, vars::Vector{Symbol}, class::Symbol,
@@ -173,7 +174,7 @@ function plot_forecast_decomposition(m_new::M, m_old::M, vars::Vector{Symbol}, c
         plots[var] = shockdec(var, mbs..., groups;
                               hist_label = "Historical Diff", forecast_label = "Forecast Diff",
                               ylabel = series_ylabel(m_new, var, class),
-                              title = title, kwargs...)
+                              title = title, trend_nostates = trend_nostates, kwargs...)
 
         if !isempty(plotroot)
             # Save plot
