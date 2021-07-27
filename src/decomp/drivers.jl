@@ -72,7 +72,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             model_decomp::Bool = false,
                             endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
                             enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
-                            set_zlb_regime_vals::Function = identity,
+                            set_zlb_regime_vals::Function = identity, shockdec_data_only::Bool = false,
                             kwargs...) where M<:AbstractDSGEModel
 
     # Get output file names
@@ -88,7 +88,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                          catch_smoother_lapack = catch_smoother_lapack,
                          endogenous_zlb_new = endogenous_zlb_new, endogenous_zlb_old = endogenous_zlb_old,
                          enforce_zlb_new = enforce_zlb_new, enforce_zlb_old = enforce_zlb_old,
-                         set_zlb_regime_vals = set_zlb_regime_vals,
+                         set_zlb_regime_vals = set_zlb_regime_vals, shockdec_data_only = shockdec_data_only,
                          kwargs...)
 
     # Single-draw forecasts
@@ -165,7 +165,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             forecast_string_new::String = "",
                             endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
                             enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
-                            set_zlb_regime_vals::Function = identity) where M<:AbstractDSGEModel
+                            set_zlb_regime_vals::Function = identity, shockdec_data_only::Bool = false) where M<:AbstractDSGEModel
 
     # Check numbers of periods
     T, k, H = decomposition_periods(m_new, m_old, df_new, df_old, cond_new, cond_old)
@@ -248,11 +248,19 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
 
         # 1(b). Shock decomposition and deterministic trend
         shockdec_comp = out1[shockdecvar][:,:,1:min_ind1] - out2[shockdecvar][:,:,1:min_ind1] # Ny x Nh x Ne
-        shockdec_comp_full = out1[shockdecvar][:,:,1:min_ind1] - out4[shockdecvar][:,:,1:min_ind1] ## Want full difference
-        decomp[Symbol(:decompshockdec, class)] = shockdec_comp_full
+        if shockdec_data_only
+            decomp[Symbol(:decompshockdec, class)] = shockdec_comp
+        else
+            decomp[Symbol(:decompshockdec, class)] = out1[shockdecvar][:,:,1:min_ind1] -
+                out4[shockdecvar][:,:,1:min_ind1] ## Want full difference
+        end
 
         dettrend_comp = out1[dettrendvar] - out2[dettrendvar]
-        decomp[Symbol(:decompdettrend, class)] = dettrend_comp
+        if shockdec_data_only
+            decomp[Symbol(:decompdettrend, class)] = dettrend_comp
+        else
+            decomp[Symbol(:decompdettrend, class)] = out1[dettrendvar] - out4[dettrendvar]
+        end
 
         # Get difference in trends
         trend_new = get_trend_dates(get_setting(m_new, :regime_dates), out1[trendvar],
@@ -261,9 +269,16 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         trend_old = get_trend_dates(get_setting(m_new_olddf, :regime_dates), out2[trendvar],
                                     date_mainsample_start(m_new_olddf), size(out2[datavar],2),
                                     n_regs = get_setting(m_new_olddf, :n_regimes))
-
         trend_comp = trend_new - trend_old
-        decomp[Symbol(:decomptrend, class)] = trend_comp
+
+        if shockdec_data_only
+            decomp[Symbol(:decomptrend, class)] = trend_comp
+        else
+            trend4 = get_trend_dates(get_setting(m_old, :regime_dates), out4[trendvar],
+                                     date_mainsample_start(m_old), size(out4[datavar],2),
+                                     n_regs = get_setting(m_old, :n_regimes))
+            decomp[Symbol(:decomptrend, class)] = trend_new - trend4
+        end
 
         # Check that 1(a) and 1(b) are equal
         check && @assert dettrend_comp + dropdims(sum(shockdec_comp, dims = 3), dims = 3) ≈ data_comp + news_comp
