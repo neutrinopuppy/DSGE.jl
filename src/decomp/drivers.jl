@@ -392,6 +392,8 @@ function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vec
                          cond_type = cond_type, rerun_smoother = true, draw_states = false, df = df,
                          histstates = histstates, histshocks = histshocks, histpseudo = histpseudo,
                          initial_states = s_0, set_zlb_regime_vals = set_zlb_regime_vals)
+
+            system = compute_system(m, tvis = haskey(get_settings(m), :tvis_information_set))
         else
             _, forecastobs, forecastpseudo, _ =
                 forecast(m, system, s_T, cond_type = cond_type, enforce_zlb = enforce_zlb, draw_shocks = false)

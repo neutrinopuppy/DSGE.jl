@@ -784,6 +784,8 @@ end
 # rather than return the trend in states, this function will return a DataFrame of
 # all zeros since the trend in states without the trend in states is just detrending the trend!
 # This function is tested in test/forecast/shock_decompositions.jl
+## Note that if the model runs an endogenous forecast, check that each regime equilibrium conditions
+## reflects the values at the end rather than being reset.
 function prepare_means_table_trend_nostates(m::AbstractDSGEModel{S}, cond_type::Symbol, class::Symbol,
                                             start_date::Date, end_fcast_date::Date; annualize::Bool = true,
                                             apply_altpolicy::Bool = false) where {S <: Real}
