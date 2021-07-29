@@ -212,7 +212,7 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
         TTT_aug[endo_new[:e_gdi_t], endo_new[:e_gdi_covid_t]] = m[:ρ_gdi_covid]
     end
 
-    if subspec(m) in ["ss87", "ss88"]
+    if subspec(m) in ["ss87", "ss88", "ss89", "ss90", "ss91", "ss92", "ss93"]
         TTT_aug[endo_new[:e_meas_π_t], endo_new[:e_meas_π_t]] = m[:ρ_meas_π]
         TTT_aug[endo_new[:e_meas_π_t1], endo_new[:e_meas_π_t]] = 1.0
     end
@@ -272,7 +272,7 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
     RRR_aug[endo_new[:e_gdi_t], exo[:gdi_sh]] = 1.0
 
     # Measurement Error in Levels on PCE and GDP Deflator
-    if subspec(m) in ["ss87", "ss88"]
+    if subspec(m) in ["ss87", "ss88", "ss89", "ss90", "ss91", "ss92", "ss93"]
         RRR_aug[endo_new[:e_meas_π_t], exo[:meas_π_sh]] = 1.0
     end
 
