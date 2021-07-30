@@ -11,7 +11,7 @@ forecast) necessary to call the plotting function `shockdec` in
 function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
                          cond_new::Symbol, cond_old::Symbol,
                          class::Symbol; individual_shocks::Bool = false, forecast_string_old = "", forecast_string_new = "",
-                         model_decomp::Bool = false) where M<:AbstractDSGEModel
+                         model_decomp::Bool = false, shockdec_data_only::Bool = false) where M<:AbstractDSGEModel
     # Read in means
     input_file = get_decomp_mean_file(m_new, m_old, input_type, cond_new, cond_old, class, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old)
     decomps = JLD2.jldopen(input_file, "r") do file
@@ -43,7 +43,7 @@ function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
             end
             for shock in shocks
                 varshock = Symbol(var, "__", shock)
-                shockdec_mb.means[varshock] = decomps[var][!,shock]
+                shockdec_mb.means[!,varshock] = decomps[var][!,shock]
                 shockdec_mb.bands[varshock] = DataFrame(date = dates)
             end
         end
@@ -70,7 +70,7 @@ function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
     dettrend_mb = MeansBands(Dict(metadata), DataFrame(date = dates), Dict{Symbol, DataFrame}())
     dettrend_mb.metadata[:product] = :dettrend
     for var in vars
-        dettrend_mb.means[!,var] = individual_shocks ? decomps[var][:dettrend] : zeros(length(dates))
+        dettrend_mb.means[!,var] = individual_shocks ? decomps[var][!,:dettrend] : zeros(length(dates))
         dettrend_mb.bands[var] = DataFrame(date = dates)
     end
 
@@ -84,11 +84,8 @@ function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
         hist_mb.metadata[:product]   = :hist
         hist_mb.metadata[:date_inds] = OrderedDict(date => i for (i, date) in enumerate(hist_dates))
         for var in vars
-            hist_mb.means[!,var] = if individual_shocks
-                decomps[var][hist_inds, :data] + decomps[var][hist_inds, :news]
-            else
-                decomps[var][hist_inds, :total]
-            end
+            hist_mb.means[!,var] = individual_shocks && shockdec_data_only ?
+                decomps[var][hist_inds, :data] + decomps[var][hist_inds, :news] : decomps[var][hist_inds, :total]
             hist_mb.bands[var] = DataFrame(date = hist_dates)
         end
     end
@@ -103,11 +100,8 @@ function make_decomp_mbs(m_new::M, m_old::M, input_type::Symbol,
         fcast_mb.metadata[:product]   = :forecast
         fcast_mb.metadata[:date_inds] = OrderedDict(date => i for (i, date) in enumerate(fcast_dates))
         for var in vars
-            fcast_mb.means[!,var] = if individual_shocks
-                decomps[var][fcast_inds, :data] + decomps[var][fcast_inds, :news]
-            else
-                decomps[var][fcast_inds, :total]
-            end
+            fcast_mb.means[!,var] = individual_shocks && shockdec_data_only ?
+                decomps[var][fcast_inds, :data] + decomps[var][fcast_inds, :news] : decomps[var][fcast_inds, :total]
             fcast_mb.bands[var] = DataFrame(date = fcast_dates)
         end
     end
@@ -136,10 +130,11 @@ The `groups` keyword argument is only used if `individual_shocks = true`.
 """
 function plot_forecast_decomposition(m_new::M, m_old::M, var::Symbol, class::Symbol,
                                      input_type::Symbol, cond_new::Symbol, cond_old::Symbol;
-                                     title::String = "", kwargs...) where M<:AbstractDSGEModel
+                                     title::String = "", trend_nostates::DataFrame = DataFrame(),
+                                     kwargs...) where M<:AbstractDSGEModel
 
     plot_forecast_decomposition(m_new, m_old, [var], class, input_type, cond_new, cond_old;
-                                titles = isempty(title) ? String[] : [title], kwargs...)
+                                titles = isempty(title) ? String[] : [title], trend_nostates = trend_nostates, kwargs...)
 end
 
 function plot_forecast_decomposition(m_new::M, m_old::M, vars::Vector{Symbol}, class::Symbol,
@@ -149,10 +144,12 @@ function plot_forecast_decomposition(m_new::M, m_old::M, vars::Vector{Symbol}, c
                                      groups::Vector{ShockGroup} = shock_groupings(m_new),
                                      plotroot::String = figurespath(m_new, "forecast"),
                                      verbose::Symbol = :low, forecast_string_new = "", forecast_string_old = "",
-                                     model_decomp::Bool = false, kwargs...) where M<:AbstractDSGEModel
+                                     model_decomp::Bool = false, trend_nostates::DataFrame = DataFrame(),
+                                     shockdec_data_only::Bool = false,
+                                     kwargs...) where M<:AbstractDSGEModel
     # Create MeansBands
     mbs = make_decomp_mbs(m_new, m_old, input_type, cond_new, cond_old, class,
-                          individual_shocks = individual_shocks, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old, model_decomp = model_decomp)
+                          individual_shocks = individual_shocks, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old, model_decomp = model_decomp, shockdec_data_only = shockdec_data_only)
 
     # Create shock grouping
     if !individual_shocks
@@ -177,7 +174,7 @@ function plot_forecast_decomposition(m_new::M, m_old::M, vars::Vector{Symbol}, c
         plots[var] = shockdec(var, mbs..., groups;
                               hist_label = "Historical Diff", forecast_label = "Forecast Diff",
                               ylabel = series_ylabel(m_new, var, class),
-                              title = title, kwargs...)
+                              title = title, trend_nostates = trend_nostates, kwargs...)
 
         if !isempty(plotroot)
             # Save plot
