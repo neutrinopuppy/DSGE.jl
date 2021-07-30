@@ -100,7 +100,7 @@ function metropolis_hastings(proposal_dist::Distribution,
     # posterior mode, until parameters within bounds (indicated by posterior value > -∞)
     para_old = rand(propdist, rng; cc = cc0)
     post_old = -Inf
-    save("proposal_dist.jld2", "propdist", propdist.Σ)
+
     initialized = false
     while !initialized
         # This version of posterior! is not in the DSGE.jl package (which has the method signature
@@ -127,8 +127,6 @@ function metropolis_hastings(proposal_dist::Distribution,
     else # Actual parameter blocking will occur in the MH loop
         n_free_para = length(free_para_inds)
         reblock     = true
-        println("n_free_para")
-        println(n_free_para)
     end
 
     # Report number of blocks that will be used
