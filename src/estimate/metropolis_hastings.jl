@@ -191,8 +191,10 @@ function metropolis_hastings(proposal_dist::Distribution,
                                        propdist.σ[block_a, block_a]') / 2.),
                                        propdist.λ_vals[block_a])
 
-                para_draw   = rand(d_subset, rng; cc = cc)
+#                para_draw   = rand(d_subset, rng; cc = cc)
 
+                para_draw         = mvnormal_mixture_draw(para_old, d_subset, rng;
+                                                          α = α, c = cc)
                 para_new          = deepcopy(para_old)
                 para_new[block_a] = para_draw
 
