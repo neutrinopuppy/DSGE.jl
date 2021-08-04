@@ -45,8 +45,8 @@ distribution of the parameters.
 - `mhthin::Int   = 1`: Thinning parameter (for mhthin = d, keep only every dth draw)
 - `adaptive_accept::Bool = false`: Whether or not to adaptively adjust acceptance prob. after every memory block.
 - `target_accept::T = 0.25`: target accept rate when adaptively adjusting acceptance prob.
-- `α::T = 1.0`: Tuning parameter (step size) for proposal density computation in adaptive case
-- `c::T = 0.5`: Tuning parameter (mixture proportion) for proposal density computation in
+- `α::T = 1.0`: Tuning parameter (mixture proportion) for proposal density computation in adaptive case
+- `c::T = 0.5`: Tuning parameter (step size) for proposal density computation in
     adaptive case
 - `regime_switching::Bool = false`: do the parameters involve regime-switching?
 - `toggle`: if true, toggle the fields of any regime-switching parameters to regime 1.
