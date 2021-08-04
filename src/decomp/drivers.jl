@@ -43,8 +43,6 @@ output variable (see `?shock_decompositions`, `forecast_one`, and `compute_means
 - `shockdec_data_only::Bool`: whether the outputted shock decompositions should
     compare new model, new data, new params to old model, old data, new params
     or instead new model, new data to new model, old data.
-- `ignore_model_decomp::Bool`: whether to skip doing a separate model decomposition.
-    Useful if new parameters shut down old shocks which can result in gensys error.
 
 **Method 1 only:**
 
@@ -81,7 +79,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     f(params_new::Vector{Float64}, params_old::Vector{Float64}) =
       decompose_forecast(m_new, m_old, df_new, df_old, params_new, params_old,
                          cond_new, cond_old, classes; apply_altpolicy = apply_altpolicy,
-                         catch_smoother_lapack = catch_smoother_lapack,
+                         catch_smoother_lapack = catch_smoother_lapack, model_decomp = model_decomp,
                          kwargs...)
 
     # Single-draw forecasts
@@ -159,7 +157,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
                             enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
                             set_zlb_regime_vals::Function = identity, shockdec_data_only::Bool = false,
-                            ignore_model_decomp::Bool = false) where M<:AbstractDSGEModel
+                            model_decomp::Bool = false) where M<:AbstractDSGEModel
 
     # Check numbers of periods
     T, k, H = decomposition_periods(m_new, m_old, df_new, df_old, cond_new, cond_old)
@@ -200,7 +198,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
              enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new)
 
     # Old Model, Old Data, New Parameters
-    if !ignore_model_decomp
+    if model_decomp
         out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
                  enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old)
     else
