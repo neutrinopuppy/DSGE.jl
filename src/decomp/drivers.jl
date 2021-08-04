@@ -255,12 +255,11 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         decomp[Symbol(:decompnews, class)] = news_comp
 
         # 1(b). Shock decomposition and deterministic trend
-        shockdec_comp = out1[shockdecvar][:,:,1:min_ind1] - out2[shockdecvar][:,:,1:min_ind1] # Ny x Nh x Ne
+        shockdec_comp = out1[shockdecvar] - out2[shockdecvar] # Ny x Nh x Ne
         if shockdec_data_only
             decomp[Symbol(:decompshockdec, class)] = shockdec_comp
         else
-            decomp[Symbol(:decompshockdec, class)] = out1[shockdecvar][:,:,1:min_ind1] -
-                out4[shockdecvar][:,:,1:min_ind1] ## Want full difference
+            decomp[Symbol(:decompshockdec, class)] = out1[shockdecvar] - old_shocks ## Want full difference
         end
 
         dettrend_comp = out1[dettrendvar] - out2[dettrendvar]
