@@ -18,12 +18,6 @@ For example, if you want to know whether TFP or financial shocks
 drive a given forecast, then you want to compute the shock decomposition
 output variable (see `?shock_decompositions`, `forecast_one`, and `compute_meansbands`).
 
-Note that this function currently does not work for a model in which
-there are changes in the degree of "regime-switching"
-in the `TTT`, `RRR`, `CCC`, `ZZ`, and `DD` matrices, e.g.
-decomposing the changes in the forecast when the monetary policy rule changes
-or if a temporary policy is implemented that did not occur in the old forecast.
-
 ### Inputs
 
 - `m_new::M` and `m_old::M` where `M<:AbstractDSGEModel`
@@ -70,9 +64,6 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             params_old::AbstractArray = Vector{Float64}(undef, 0),
                             apply_altpolicy::Bool = false, catch_smoother_lapack::Bool = false,
                             model_decomp::Bool = false,
-                            endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
-                            enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
-                            set_zlb_regime_vals::Function = identity, shockdec_data_only::Bool = false,
                             kwargs...) where M<:AbstractDSGEModel
 
     # Get output file names
@@ -86,9 +77,6 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
       decompose_forecast(m_new, m_old, df_new, df_old, params_new, params_old,
                          cond_new, cond_old, classes; apply_altpolicy = apply_altpolicy,
                          catch_smoother_lapack = catch_smoother_lapack,
-                         endogenous_zlb_new = endogenous_zlb_new, endogenous_zlb_old = endogenous_zlb_old,
-                         enforce_zlb_new = enforce_zlb_new, enforce_zlb_old = enforce_zlb_old,
-                         set_zlb_regime_vals = set_zlb_regime_vals, shockdec_data_only = shockdec_data_only,
                          kwargs...)
 
     # Single-draw forecasts
