@@ -40,6 +40,11 @@ output variable (see `?shock_decompositions`, `forecast_one`, and `compute_means
 
 - `check::Bool`: whether to check that the individual components add up to the
   correct total difference in forecasts. This roughly doubles the runtime
+- `shockdec_data_only::Bool`: whether the outputted shock decompositions should
+    compare new model, new data, new params to old model, old data, new params
+    or instead new model, new data to new model, old data.
+- `ignore_model_decomp::Bool`: whether to skip doing a separate model decomposition.
+    Useful if new parameters shut down old shocks which can result in gensys error.
 
 **Method 1 only:**
 
@@ -153,7 +158,8 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             forecast_string_new::String = "",
                             endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
                             enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
-                            set_zlb_regime_vals::Function = identity, shockdec_data_only::Bool = false) where M<:AbstractDSGEModel
+                            set_zlb_regime_vals::Function = identity, shockdec_data_only::Bool = false,
+                            ignore_model_decomp::Bool = false) where M<:AbstractDSGEModel
 
     # Check numbers of periods
     T, k, H = decomposition_periods(m_new, m_old, df_new, df_old, cond_new, cond_old)
@@ -194,8 +200,12 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
              enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new)
 
     # Old Model, Old Data, New Parameters
-    out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
-             enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old)
+    if !ignore_model_decomp
+        out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
+                 enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old)
+    else
+        out3 = out2
+    end
 
     # Return to old parameters
     m_old.parameters = m_old_params
