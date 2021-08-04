@@ -111,6 +111,16 @@ function init_subspec!(m::Model1002)
         return ss92!(m)
     elseif subspec(m) == "ss93"
         return ss93!(m)
+    elseif subspec(m) == "ss94"
+        return ss94!(m)
+    elseif subspec(m) == "ss95"
+        return ss95!(m)
+    elseif subspec(m) == "ss96"
+        return ss96!(m)
+    elseif subspec(m) == "ss97"
+        return ss97!(m)
+    elseif subspec(m) == "ss98"
+        return ss98!(m)
     else
         error("This subspec is not defined.")
     end
@@ -6756,27 +6766,82 @@ function ss91!(m)
     set_regime_fixed!(m[:σ_corepce], 2, true)
 
     # Change valuebounds in regime 2 and keep those in regime 1
-    set_regime_valuebounds!(m[:ρ_gdpdef], 1, m[:ρ_gdpdef].valuebounds)
-    set_regime_valuebounds!(m[:σ_gdpdef], 1, m[:σ_gdpdef].valuebounds)
+    #set_regime_valuebounds!(m[:ρ_gdpdef], 1, m[:ρ_gdpdef].valuebounds)
+    #set_regime_valuebounds!(m[:σ_gdpdef], 1, m[:σ_gdpdef].valuebounds)
     set_regime_valuebounds!(m[:ρ_corepce], 1, m[:ρ_corepce].valuebounds)
     set_regime_valuebounds!(m[:σ_corepce], 1, m[:σ_corepce].valuebounds)
 
-    set_regime_valuebounds!(m[:ρ_gdpdef], 2, (0.0, m[:ρ_gdpdef].valuebounds[2]))
-    set_regime_valuebounds!(m[:σ_gdpdef], 2, (0.0, m[:σ_gdpdef].valuebounds[2]))
+    #set_regime_valuebounds!(m[:ρ_gdpdef], 2, (0.0, m[:ρ_gdpdef].valuebounds[2]))
+    #set_regime_valuebounds!(m[:σ_gdpdef], 2, (0.0, m[:σ_gdpdef].valuebounds[2]))
     set_regime_valuebounds!(m[:ρ_corepce], 2, (0.0, m[:ρ_corepce].valuebounds[2]))
     set_regime_valuebounds!(m[:σ_corepce], 2, (0.0, m[:σ_corepce].valuebounds[2]))
 
-    # Set values (priors are set already)
-    set_regime_val!(m[:ρ_gdpdef], 1, 0.5379)
-    set_regime_val!(m[:ρ_gdpdef], 2, 0.0)
-    set_regime_val!(m[:σ_gdpdef], 1, 0.1575)
-    set_regime_val!(m[:σ_gdpdef], 2, 0.0)
+    # Set values
+    ## Should I set rho_gdpdef to 0 or not?
+    #set_regime_val!(m[:ρ_gdpdef], 1, 0.5379)
+    #set_regime_val!(m[:ρ_gdpdef], 2, 0.0)
 
     set_regime_val!(m[:ρ_corepce], 1, 0.2320)
     set_regime_val!(m[:ρ_corepce], 2, 0.0)
     set_regime_val!(m[:σ_corepce], 1, 0.0999)
     set_regime_val!(m[:σ_corepce], 2, 0.0)
+end
 
+function ss86!(m)
+    ss64!(m)
+    add_sigma_mkup_iid!(m)
+end
+
+function ss87!(m)
+    ss64!(m)
+    add_meas_pi!(m)
+end
+
+function ss88!(m)
+    ss86!(m)
+    add_zero_meas_pi!(m)
+end
+
+function ss89!(m)
+    ss88!(m)
+    remove_persist_mkup!(m)
+end
+
+
+function ss90!(m)
+    ss89!(m)
+end
+
+function ss91!(m)
+    ss89!(m)
+
+    ######
+    # Add mean-reverting measurement error
+    ######
+    add_meas_pi!(m)
+
+    # Set regime value bounds
+    set_regime_valuebounds!(m[:ρ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:ρ_meas_π], 2, (1.0e-8, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 2, (1.0e-8, 5.0))
+
+    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
+    set_regime_val!(m[:ρ_meas_π], 1, 0.)
+    set_regime_val!(m[:ρ_meas_π], 2, 0.2320)
+    set_regime_val!(m[:σ_meas_π], 1, 0.)
+    set_regime_val!(m[:σ_meas_π], 2, 0.0999)
+
+    # Set prior for standard deviation to be large since we are removing other measurement error
+    set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
+    prior2 = get(m[:σ_meas_π].prior)
+    prior2.τ = 0.2
+    set_regime_prior!(m[:σ_meas_π], 2, prior2)
+
+    ######
+    # Remove iid inflation measurement error
+    ######
+    rm_iid_pce_meas_err!(m)
 end
 
 function ss92!(m)
@@ -6786,72 +6851,55 @@ end
 function ss93!(m)
     ss87!(m)
 
+    # Set regime value bounds
+    set_regime_valuebounds!(m[:ρ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:ρ_meas_π], 2, (1.0e-8, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 2, (1.0e-8, 5.0))
+
+    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
+    set_regime_val!(m[:ρ_meas_π], 1, 0.)
+    set_regime_val!(m[:ρ_meas_π], 2, 0.2320)
+    set_regime_val!(m[:σ_meas_π], 1, 0.)
+    set_regime_val!(m[:σ_meas_π], 2, 0.0999)
+
+    # Set prior for standard deviation to be large since we are removing other measurement error
+    set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
+    prior2 = get(m[:σ_meas_π].prior)
+    prior2.τ = 0.2
+    set_regime_prior!(m[:σ_meas_π], 2, prior2)
+
     ######
     # Remove iid inflation measurement error
     ######
-    get_setting(m, :model2para_regime)[:ρ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:σ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:ρ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:σ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    for i in 8:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:ρ_gdpdef][i] = 1
-        get_setting(m, :model2para_regime)[:σ_gdpdef][i] = 1
-        get_setting(m, :model2para_regime)[:ρ_corepce][i] = 1
-        get_setting(m, :model2para_regime)[:σ_corepce][i] = 1
-    end
+    rm_iid_pce_meas_err!(m)
+end
 
-    # Change valuebounds in regime 2 and keep those in regime 1
-    set_regime_valuebounds!(m[:ρ_gdpdef], 1, m[:ρ_gdpdef].valuebounds)
-    set_regime_valuebounds!(m[:σ_gdpdef], 1, m[:σ_gdpdef].valuebounds)
-    set_regime_valuebounds!(m[:ρ_corepce], 1, m[:ρ_corepce].valuebounds)
-    set_regime_valuebounds!(m[:σ_corepce], 1, m[:σ_corepce].valuebounds)
+function ss94!(m)
+    ss88!(m)
+end
 
-    set_regime_valuebounds!(m[:ρ_gdpdef], 2, (0.0, m[:ρ_gdpdef].valuebounds[2]))
-    set_regime_valuebounds!(m[:σ_gdpdef], 2, (0.0, m[:σ_gdpdef].valuebounds[2]))
-    set_regime_valuebounds!(m[:ρ_corepce], 2, (0.0, m[:ρ_corepce].valuebounds[2]))
-    set_regime_valuebounds!(m[:σ_corepce], 2, (0.0, m[:σ_corepce].valuebounds[2]))
+function ss95!(m)
+    ss90!(m)
+end
 
-    # Set values (priors are set already)
-    set_regime_val!(m[:ρ_gdpdef], 1, 0.5379)
-    set_regime_val!(m[:ρ_gdpdef], 2, 0.0)
-    set_regime_val!(m[:σ_gdpdef], 1, 0.1575)
-    set_regime_val!(m[:σ_gdpdef], 2, 0.0)
+function ss96!(m)
+    ss92!(m)
+end
 
-    set_regime_val!(m[:ρ_corepce], 1, 0.2320)
-    set_regime_val!(m[:ρ_corepce], 2, 0.0)
-    set_regime_val!(m[:σ_corepce], 1, 0.0999)
-    set_regime_val!(m[:σ_corepce], 2, 0.0)
+# Model 93 with higher prior mean
+function ss97!(m)
+    ss93!(m)
+    prior2 = get(m[:σ_meas_π].prior)
+    prior2.τ = 0.4
+    set_regime_prior!(m[:σ_meas_π], 2, prior2)
+end
 
-    # Fix shocks to 0 in para regime 1
-    set_regime_fixed!(m[:ρ_gdpdef], 1, false)
-    set_regime_fixed!(m[:ρ_gdpdef], 2, true)
-    set_regime_fixed!(m[:σ_gdpdef], 1, false)
-    set_regime_fixed!(m[:σ_gdpdef], 2, true)
+# Model 97 with mean reversion in biidc shock
+function ss98!(m)
+    ss97!(m)
 
-    set_regime_fixed!(m[:ρ_corepce], 1, false)
-    set_regime_fixed!(m[:ρ_corepce], 2, true)
-    set_regime_fixed!(m[:σ_corepce], 1, false)
-    set_regime_fixed!(m[:σ_corepce], 2, true)
-
-    # Change valuebounds in regime 2 and keep those in regime 1
-    set_regime_valuebounds!(m[:ρ_gdpdef], 1, m[:ρ_gdpdef].valuebounds)
-    set_regime_valuebounds!(m[:σ_gdpdef], 1, m[:σ_gdpdef].valuebounds)
-    set_regime_valuebounds!(m[:ρ_corepce], 1, m[:ρ_corepce].valuebounds)
-    set_regime_valuebounds!(m[:σ_corepce], 1, m[:σ_corepce].valuebounds)
-
-    set_regime_valuebounds!(m[:ρ_gdpdef], 2, (0.0, m[:ρ_gdpdef].valuebounds[2]))
-    set_regime_valuebounds!(m[:σ_gdpdef], 2, (0.0, m[:σ_gdpdef].valuebounds[2]))
-    set_regime_valuebounds!(m[:ρ_corepce], 2, (0.0, m[:ρ_corepce].valuebounds[2]))
-    set_regime_valuebounds!(m[:σ_corepce], 2, (0.0, m[:σ_corepce].valuebounds[2]))
-
-    # Set values (priors are set already)
-    set_regime_val!(m[:ρ_gdpdef], 1, 0.5379)
-    set_regime_val!(m[:ρ_gdpdef], 2, 0.0)
-    set_regime_val!(m[:σ_gdpdef], 1, 0.1575)
-    set_regime_val!(m[:σ_gdpdef], 2, 0.0)
-
-    set_regime_val!(m[:ρ_corepce], 1, 0.2320)
-    set_regime_val!(m[:ρ_corepce], 2, 0.0)
-    set_regime_val!(m[:σ_corepce], 1, 0.0999)
-    set_regime_val!(m[:σ_corepce], 2, 0.0)
+    # Note that here in eqcond we liberate rho_biidc - the higher it is, the less negative the rho
+    ## Don't do multiple regimes because sigma_biidc is 0 outside Covid
+    ## so it will just persist the after effects of Covid which is fine.
 end

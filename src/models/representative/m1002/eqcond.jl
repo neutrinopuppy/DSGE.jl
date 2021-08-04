@@ -403,11 +403,17 @@ function eqcond(m::Model1002, reg::Int)
     Γ1[eq[:eq_b], endo[:b_t]] = m[:ρ_b]
     Ψ[eq[:eq_b], exo[:b_sh]]  = 1.
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86", "ss87", "ss88", "ss89", "ss90", "ss91", "ss92", "ss93"]
+    if parse(Int, SubString(subspec(m),3,4)) >= 59
         # iid shock to Euler equation
         Γ0[eq[:eq_biidc], endo[:biidc_t]] = 1.
         Γ1[eq[:eq_biidc], endo[:biidc_t]] = m[:ρ_biidc] # c b/c will only affect consumption
         Ψ[eq[:eq_biidc], exo[:biidc_sh]]  = 1.
+
+        if subspec(m) in ["ss98"]
+            Γ0[eq[:eq_biidc_sh], endo[:biidc_sh1]] = 1.
+            Ψ[eq[:eq_biidc_sh], exo[:biidc_sh]] = 1.
+            Γ1[eq[:eq_biidc], endo[:biidc_sh1]] = m[:ρ_biidc_sh] - 1.0
+        end
 
         Γ0[eq[:eq_euler], endo[:biidc_t]]   = -1.
         Γ0[eq[:eq_euler_f], endo[:biidc_t]] = -1.
@@ -427,13 +433,16 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_λ_f1], endo[:λ_f_t1]] = 1.
     Ψ[eq[:eq_λ_f1], exo[:λ_f_sh]]   = 1.
 
-    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92"]
+    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
         Ψ[eq[:eq_λ_f], exo[:λ_f_iid_sh]] = 1.0
-        if subspec(m) in ["ss88", "ss90", "ss92"]
+        if subspec(m) in ["ss88", "ss90", "ss92", "ss94", "ss95", "ss96"]
             Γ1[eq[:eq_λ_f], endo[:λ_f_iid_sh1]] = -1.0
 
             Γ0[eq[:eq_λ_f_sh], endo[:λ_f_iid_sh1]] = 1.
             Ψ[eq[:eq_λ_f_sh], exo[:λ_f_iid_sh]] = 1.
+        end
+        if subspec(m) in ["ss94", "ss95", "ss96"]
+            Γ1[eq[:eq_λ_f], endo[:λ_f_iid_sh1]] = m[:ρ_λ_f_iid] - 1.0
         end
     end
 

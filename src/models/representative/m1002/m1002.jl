@@ -762,6 +762,12 @@ buted to steady-state inflation.",
                        tex_label="amplify inflation measurement error")
     end
 
+    if subspec(m) in ["ss98"]
+        m <= parameter(:ρ_biidc_sh, 0.75, (0., 0.999), (0., 0.999), ModelConstructors.Untransformed(), BetaAlt(0.5, 0.2), fixed=false,
+                       description="ρ_biidc_sh: AR(1) coefficient for the shock of the preference process.",
+                       tex_label="\\rho_{b, iid, c, sh}")
+    end
+
     if haskey(get_settings(m), :add_initialize_pgap_ygap_pseudoobs) ?
         get_setting(m, :add_initialize_pgap_ygap_pseudoobs) : false
         m <= parameter(:σ_pgap, 0., (0., 1e2), (0., 5.), ModelConstructors.Exponential(),
@@ -862,11 +868,18 @@ buted to steady-state inflation.",
     m <= parameter(:δ_gdi, 0., (-10., 10.), (-10., -10.), ModelConstructors.Untransformed(), Normal(0.00, 2.), fixed=false,
                    tex_label="\\delta_{gdi}")
 
-    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92"]
+    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
         m <= parameter(:σ_λ_f_iid, 0.0, (0., 100.), (0., 100.), ModelConstructors.Exponential(), RootInverseGamma(10.0, sqrt(25.1)),
                        fixed=false,
-                       description="σ_λ_f_iid: The standard deviation of the shock to the price markup.",
+                       description="σ_λ_f_iid: The standard deviation of the mean-reverting shock to the price markup.",
                        tex_label="\\sigma_{\\lambda_f, ziid}")
+    end
+
+    if subspec(m) in ["ss94", "ss95", "ss96"]
+        m <= parameter(:ρ_λ_f_iid, 0.8827, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2),
+                       fixed=false,
+                       description="ρ_λ_f_iid: The persistence of the mean-reverting shock to the price markup.",
+                       tex_label="\\rho_{\\lambda_f, ziid}")
     end
 
     # steady states
