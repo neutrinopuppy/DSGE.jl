@@ -20,7 +20,7 @@ function hessian!(m::Union{AbstractDSGEModel,AbstractVARModel},
     para_free_inds = ModelConstructors.get_free_para_inds(get_parameters(m);
                                                           regime_switching = regime_switching, toggle = toggle)
 
-    # Compute hessian only for freem parameters with indices less than max. Useful for
+    # Compute hessian only for free parameters with indices less than max. Useful for
     # testing purposes.
     max_free_ind = n_hessian_test_params(m)
     if max_free_ind < maximum(para_free_inds)

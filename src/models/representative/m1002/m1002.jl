@@ -179,7 +179,7 @@ function init_model_indices!(m::Model1002)
         push!(endogenous_states, :λ_f_t_persist)
     end
     if subspec(m) in ["ss88", "ss90", "ss92", "ss94", "ss95", "ss96"]
-        push!(endogenous_states, :λ_f_iid_mr)
+        push!(endogenous_states, :λ_f_mr)
         push!(equilibrium_conditions, :eq_λ_f_mr)
     end
     if subspec(m) in ["ss98"]
