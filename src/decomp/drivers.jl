@@ -232,8 +232,20 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         newsvar     = Symbol(:news,         class) # Z \sum_{t=T-k+1}^{T+h} T^{T+h-t} R ϵ_t + D
 
         # Minimum forecastvar indices
-        min_ind1 = min(size(out1[shockdecvar],3), size(out2[shockdecvar],3))
         min_ind = min(size(out2[forecastvar],1), size(out3[forecastvar],1))
+
+        ## For shockdec, insert zeroes if shock in new model not in the old one
+        if length(m_new.exogenous_shocks) > length(m_old.exogenous_shocks)
+            old_shocks = zeros(size(out1[shockdecvar]))
+            new_exog_keys = string.(keys(m_new.exogenous_shocks))
+            old_exog_keys = string.(keys(m_old.exogenous_shocks))
+            for i in 1:size(old_shocks, 3)
+                indi = findfirst(x -> x == new_exog_keys[i], old_exog_keys)
+                if !isnothing(indi)
+                    old_shocks[:,:,i] = out4[shockdecvar][:,:,indi]
+                end
+            end
+        end
 
         # 1(a). Data revision and news
         data_comp = out1[dettrendvar] - out2[dettrendvar] + (out1[datavar] - out2[datavar])
