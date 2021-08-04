@@ -6569,14 +6569,7 @@ function ss85!(m::Model1002)
     ModelConstructors.toggle_regime!(m.parameters, 1) # ensure that regimes are toggled to regime 1
 end
 
-function ss86!(m)
-    ss64!(m)
-#=
-    m <= parameter(:σ_λ_f_iid, 0.0, (0., 100.), (0., 100.), ModelConstructors.Exponential(), RootInverseGamma(10.0, sqrt(25.1)),
-                   fixed=false,
-                   description="σ_λ_f_iid: The standard deviation of the shock to the price markup.",
-                   tex_label="\\sigma_{\\lambda_f, iid}")
-=#
+function add_sigma_mkup_iid!(m)
     get_setting(m, :model2para_regime)[:σ_λ_f_iid] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 3)
     for i in 6:get_setting(m, :n_regimes)
         get_setting(m, :model2para_regime)[:σ_λ_f_iid][i] = 1
@@ -6600,15 +6593,19 @@ function ss86!(m)
 end
 
 
-function ss87!(m)
-    ss64!(m)
-
+function add_meas_pi!(m)
     get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     for i in 8:get_setting(m, :n_regimes)
         get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 1
         get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
     end
+
+    # Set regime value bounds
+    set_regime_valuebounds!(m[:ρ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:ρ_meas_π], 2, (1.0e-8, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 2, (1.0e-8, 5.0))
 
     # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
     set_regime_val!(m[:ρ_meas_π], 1, 0.)
@@ -6623,9 +6620,7 @@ function ss87!(m)
     set_regime_fixed!(m[:σ_meas_π], 2, false)
 end
 
-function ss88!(m)
-    ss86!(m)
-
+function add_zero_meas_pi!(m)
     # Set measurement errors from ss87 to 0
     get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
@@ -6647,9 +6642,7 @@ function ss88!(m)
     set_regime_fixed!(m[:σ_meas_π], 2, true)
 end
 
-function ss89!(m)
-    ss88!(m)
-
+function remove_persist_mkup!(m)
     # get_setting(m, :model2para_regime)[:ρ_λ_f] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2)
     get_setting(m, :model2para_regime)[:σ_λ_f] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2)
     for i in 6:get_setting(m, :n_regimes)
@@ -6670,84 +6663,35 @@ function ss89!(m)
     set_regime_fixed!(m[:σ_λ_f], 2, true)
 end
 
+function rm_iid_pce_meas_err!(m)
 
-function ss90!(m)
-    ss89!(m)
-end
-
-function ss91!(m)
-    ss89!(m)
-
-    ######
-    # Add mean-reverting measurement error
-    ######
-    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    for i in 8:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 1
-        get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
-    end
-
-    # Set regime value bounds
-    set_regime_valuebounds!(m[:ρ_meas_π], 1, (0.0, 5.0))
-    set_regime_valuebounds!(m[:σ_meas_π], 1, (0.0, 5.0))
-    set_regime_valuebounds!(m[:ρ_meas_π], 2, (1.0e-8, 5.0))
-    set_regime_valuebounds!(m[:σ_meas_π], 2, (1.0e-8, 5.0))
-
-    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
-    set_regime_val!(m[:ρ_meas_π], 1, 0.)
-    set_regime_val!(m[:ρ_meas_π], 2, 0.2320)
-    set_regime_val!(m[:σ_meas_π], 1, 0.)
-    set_regime_val!(m[:σ_meas_π], 2, 0.0999)
-
-    # Fix shocks to 0 in para regime 1
-    set_regime_fixed!(m[:ρ_meas_π], 1, true)
-    set_regime_fixed!(m[:ρ_meas_π], 2, false)
-    set_regime_fixed!(m[:σ_meas_π], 1, true)
-    set_regime_fixed!(m[:σ_meas_π], 2, false)
-
-    # Set regime value bounds
-    set_regime_valuebounds!(m[:ρ_meas_π], 1, (0.0, 5.0))
-    set_regime_valuebounds!(m[:σ_meas_π], 1, (0.0, 5.0))
-    set_regime_valuebounds!(m[:ρ_meas_π], 2, (1.0e-8, 5.0))
-    set_regime_valuebounds!(m[:σ_meas_π], 2, (1.0e-8, 5.0))
-
-    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
-    set_regime_val!(m[:ρ_meas_π], 1, 0.)
-    set_regime_val!(m[:ρ_meas_π], 2, 0.2320)
-    set_regime_val!(m[:σ_meas_π], 1, 0.)
-    set_regime_val!(m[:σ_meas_π], 2, 0.0999)
-
-    ######
-    # Remove iid inflation measurement error
-    ######
-    get_setting(m, :model2para_regime)[:ρ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:σ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
+    #get_setting(m, :model2para_regime)[:ρ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
+    #get_setting(m, :model2para_regime)[:σ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     get_setting(m, :model2para_regime)[:ρ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     get_setting(m, :model2para_regime)[:σ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     for i in 8:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:ρ_gdpdef][i] = 1
-        get_setting(m, :model2para_regime)[:σ_gdpdef][i] = 1
+        #get_setting(m, :model2para_regime)[:ρ_gdpdef][i] = 1
+        #get_setting(m, :model2para_regime)[:σ_gdpdef][i] = 1
         get_setting(m, :model2para_regime)[:ρ_corepce][i] = 1
         get_setting(m, :model2para_regime)[:σ_corepce][i] = 1
     end
 
     # Change valuebounds in regime 2 and keep those in regime 1
-    set_regime_valuebounds!(m[:ρ_gdpdef], 1, m[:ρ_gdpdef].valuebounds)
-    set_regime_valuebounds!(m[:σ_gdpdef], 1, m[:σ_gdpdef].valuebounds)
+    #set_regime_valuebounds!(m[:ρ_gdpdef], 1, m[:ρ_gdpdef].valuebounds)
+    #set_regime_valuebounds!(m[:σ_gdpdef], 1, m[:σ_gdpdef].valuebounds)
     set_regime_valuebounds!(m[:ρ_corepce], 1, m[:ρ_corepce].valuebounds)
     set_regime_valuebounds!(m[:σ_corepce], 1, m[:σ_corepce].valuebounds)
 
-    set_regime_valuebounds!(m[:ρ_gdpdef], 2, (0.0, m[:ρ_gdpdef].valuebounds[2]))
-    set_regime_valuebounds!(m[:σ_gdpdef], 2, (0.0, m[:σ_gdpdef].valuebounds[2]))
+    #set_regime_valuebounds!(m[:ρ_gdpdef], 2, (0.0, m[:ρ_gdpdef].valuebounds[2]))
+    #set_regime_valuebounds!(m[:σ_gdpdef], 2, (0.0, m[:σ_gdpdef].valuebounds[2]))
     set_regime_valuebounds!(m[:ρ_corepce], 2, (0.0, m[:ρ_corepce].valuebounds[2]))
     set_regime_valuebounds!(m[:σ_corepce], 2, (0.0, m[:σ_corepce].valuebounds[2]))
 
     # Set values (priors are set already)
-    set_regime_val!(m[:ρ_gdpdef], 1, 0.5379)
-    set_regime_val!(m[:ρ_gdpdef], 2, 0.0)
-    set_regime_val!(m[:σ_gdpdef], 1, 0.1575)
-    set_regime_val!(m[:σ_gdpdef], 2, 0.0)
+    #set_regime_val!(m[:ρ_gdpdef], 1, 0.5379)
+    #set_regime_val!(m[:ρ_gdpdef], 2, 0.0)
+    #set_regime_val!(m[:σ_gdpdef], 1, 0.1575)
+    #set_regime_val!(m[:σ_gdpdef], 2, 0.0)
 
     set_regime_val!(m[:ρ_corepce], 1, 0.2320)
     set_regime_val!(m[:ρ_corepce], 2, 0.0)
@@ -6755,10 +6699,10 @@ function ss91!(m)
     set_regime_val!(m[:σ_corepce], 2, 0.0)
 
     # Fix shocks to 0 in para regime 1
-    set_regime_fixed!(m[:ρ_gdpdef], 1, false)
-    set_regime_fixed!(m[:ρ_gdpdef], 2, true)
-    set_regime_fixed!(m[:σ_gdpdef], 1, false)
-    set_regime_fixed!(m[:σ_gdpdef], 2, true)
+    #set_regime_fixed!(m[:ρ_gdpdef], 1, false)
+    #set_regime_fixed!(m[:ρ_gdpdef], 2, true)
+    #set_regime_fixed!(m[:σ_gdpdef], 1, false)
+    #set_regime_fixed!(m[:σ_gdpdef], 2, true)
 
     set_regime_fixed!(m[:ρ_corepce], 1, false)
     set_regime_fixed!(m[:ρ_corepce], 2, true)
