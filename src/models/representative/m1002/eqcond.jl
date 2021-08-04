@@ -425,26 +425,35 @@ function eqcond(m::Model1002, reg::Int)
     Ψ[eq[:eq_μ], exo[:μ_sh]]  = 1.
 
     # Price mark-up shock
-    Γ0[eq[:eq_λ_f], endo[:λ_f_t]]  = 1.
-    Γ1[eq[:eq_λ_f], endo[:λ_f_t]]  = m[:ρ_λ_f]
-    Γ1[eq[:eq_λ_f], endo[:λ_f_t1]] = -m[:η_λ_f]
-    Ψ[eq[:eq_λ_f], exo[:λ_f_sh]]   = 1.
+    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
+        Γ0[eq[:eq_λ_f_persist], endo[:λ_f_t_persist]]  = 1.
+        Γ1[eq[:eq_λ_f_persist], endo[:λ_f_t_persist]]  = m[:ρ_λ_f]
+        Γ1[eq[:eq_λ_f_persist], endo[:λ_f_t1]] = -m[:η_λ_f]
+        Ψ[eq[:eq_λ_f_persist], exo[:λ_f_sh]]   = 1.
+
+        Γ0[eq[:eq_λ_f], endo[:λ_f_t]]  = 1.
+        Γ0[eq[:eq_λ_f], endo[:λ_f_t_persist]]  = -1.
+        Ψ[eq[:eq_λ_f], exo[:λ_f_iid_sh]] = 1.0
+
+        if subspec(m) in ["ss88", "ss90", "ss92", "ss94", "ss95", "ss96"]
+            Γ0[eq[:eq_λ_f_mr], endo[:λ_f_mr]] = 1.0
+            Γ1[eq[:eq_λ_f_mr], endo[:λ_f_mr]] = m[:ρ_λ_f_iid]
+
+            Ψ[eq[:eq_λ_f_mr], exo[:λ_f_iid_sh]] = 1.0
+            Ψ[eq[:eq_λ_f], exo[:λ_f_iid_sh]] = 0.0
+
+            Γ0[eq[:eq_λ_f], endo[:λ_f_mr]] = -1.0
+            Γ1[eq[:eq_λ_f], endo[:λ_f_mr]] = -1.0
+        end
+    else
+        Γ0[eq[:eq_λ_f], endo[:λ_f_t]]  = 1.
+        Γ1[eq[:eq_λ_f], endo[:λ_f_t]]  = m[:ρ_λ_f]
+        Γ1[eq[:eq_λ_f], endo[:λ_f_t1]] = -m[:η_λ_f]
+        Ψ[eq[:eq_λ_f], exo[:λ_f_sh]]   = 1.
+    end
 
     Γ0[eq[:eq_λ_f1], endo[:λ_f_t1]] = 1.
     Ψ[eq[:eq_λ_f1], exo[:λ_f_sh]]   = 1.
-
-    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
-        Ψ[eq[:eq_λ_f], exo[:λ_f_iid_sh]] = 1.0
-        if subspec(m) in ["ss88", "ss90", "ss92", "ss94", "ss95", "ss96"]
-            Γ1[eq[:eq_λ_f], endo[:λ_f_iid_sh1]] = -1.0
-
-            Γ0[eq[:eq_λ_f_sh], endo[:λ_f_iid_sh1]] = 1.
-            Ψ[eq[:eq_λ_f_sh], exo[:λ_f_iid_sh]] = 1.
-        end
-        if subspec(m) in ["ss94", "ss95", "ss96"]
-            Γ1[eq[:eq_λ_f], endo[:λ_f_iid_sh1]] = m[:ρ_λ_f_iid] - 1.0
-        end
-    end
 
     # Wage mark-up shock
     Γ0[eq[:eq_λ_w], endo[:λ_w_t]]  = 1.

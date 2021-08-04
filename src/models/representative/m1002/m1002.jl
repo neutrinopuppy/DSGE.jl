@@ -174,9 +174,13 @@ function init_model_indices!(m::Model1002)
     if parse(Int, SubString(subspec(m),3,4)) >= 87
         push!(endogenous_states_augmented, :e_meas_π_t, :e_meas_π_t1)
     end
+    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
+        push!(equilibrium_conditions, :eq_λ_f_persist)
+        push!(endogenous_states, :λ_f_t_persist)
+    end
     if subspec(m) in ["ss88", "ss90", "ss92", "ss94", "ss95", "ss96"]
-        push!(endogenous_states, :λ_f_iid_sh1)
-        push!(equilibrium_conditions, :eq_λ_f_sh)
+        push!(endogenous_states, :λ_f_iid_mr)
+        push!(equilibrium_conditions, :eq_λ_f_mr)
     end
     if subspec(m) in ["ss98"]
         push!(equilibrium_conditions, :eq_biidc_sh)
@@ -878,6 +882,11 @@ buted to steady-state inflation.",
     if subspec(m) in ["ss94", "ss95", "ss96"]
         m <= parameter(:ρ_λ_f_iid, 0.8827, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2),
                        fixed=false,
+                       description="ρ_λ_f_iid: The persistence of the mean-reverting shock to the price markup.",
+                       tex_label="\\rho_{\\lambda_f, ziid}")
+    elseif subspec(m) in ["ss88", "ss90", "ss92"]
+        m <= parameter(:ρ_λ_f_iid, 0.0, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2),
+                       fixed=true,
                        description="ρ_λ_f_iid: The persistence of the mean-reverting shock to the price markup.",
                        tex_label="\\rho_{\\lambda_f, ziid}")
     end
