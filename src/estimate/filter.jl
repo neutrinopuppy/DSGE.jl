@@ -381,7 +381,13 @@ function filter(m::PoolModel, data::AbstractArray,
     end
 
     # Compute transition and measurement equations
-    Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
+    ## TODO: Save time by just doing compute_system on 1 worker and then sending to
+    ### each worker. But sendto and passobj are not working on functions.
+    if (haskey(tuning, :parallel) && get_setting(tuning, :parallel)) || parallel
+        @everywhere Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
+    else
+        Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
+    end
 
     # Check initial states
     n_particles = haskey(tuning, :n_particles) ? tuning[:n_particles] : 1000
