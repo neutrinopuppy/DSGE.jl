@@ -380,10 +380,24 @@ function filter(m::PoolModel, data::AbstractArray,
         tuning[:n_presample_periods] = Nt0
     end
 
+    # Check tuning
+    if isempty(tuning)
+        try
+            tuning = get_setting(m, :tuning)
+        catch
+            if get_setting(m, :weight_type) == :dynamic
+                @warn "no tuning parameters provided; using default tempered particle filter values"
+            end
+        end
+    end
+    if haskey(tuning, :parallel) # contains parallel? change keyword to that if so
+        parallel = tuning[:parallel]
+    end
+
     # Compute transition and measurement equations
     ## TODO: Save time by just doing compute_system on 1 worker and then sending to
     ### each worker. But sendto and passobj are not working on functions.
-    if (haskey(tuning, :parallel) && get_setting(tuning, :parallel)) || parallel
+    if parallel
         @everywhere Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
     else
         Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
@@ -398,20 +412,6 @@ function filter(m::PoolModel, data::AbstractArray,
         if size(s_0,2) != n_particles
             error("s0 does not contain enough particles")
         end
-    end
-
-    # Check tuning
-    if isempty(tuning)
-        try
-            tuning = get_setting(m, :tuning)
-        catch
-            if get_setting(m, :weight_type) == :dynamic
-                @warn "no tuning parameters provided; using default tempered particle filter values"
-            end
-        end
-    end
-    if haskey(tuning, :parallel) # contains parallel? change keyword to that if so
-        parallel = tuning[:parallel]
     end
 
     # Check if PoolModel has fixed_sched. If not, assume no tempering
