@@ -398,6 +398,7 @@ function filter(m::PoolModel, data::AbstractArray,
     ## TODO: Save time by just doing compute_system on 1 worker and then sending to
     ### each worker. But sendto and passobj are not working on functions.
     if parallel
+        sendto(workers(), m=m)
         @everywhere Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
     else
         Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
