@@ -545,7 +545,8 @@ function posterior_table(m::AbstractDSGEModel, post_means::Vector, post_bands::M
         entries = Vector{PosteriorTableEntry}()
         for para in params
             para_i = m.keys[para.key]
-            append!(entries, [PosteriorTableEntry(para.key, 1, para.fixed, para.tex_label, post_means[para_i], post_bands[para_i, :])])
+            fixed = haskey(para.regimes, :fixed) ? para.regimes[:fixed][1] : para.fixed
+            append!(entries, [PosteriorTableEntry(para.key, 1, fixed, para.tex_label, post_means[para_i], post_bands[para_i, :])])
             if haskey(para.regimes, :value)
                 for reg in keys(para.regimes[:value])
                     if reg > 1
