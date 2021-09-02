@@ -6427,6 +6427,7 @@ function ss85!(m::Model1002)
                 set_regime_val!(m[:σ_z_p], 2, 0.)
 
                 # Fix σ_z_p = 0 in para regime 2
+                m[:σ_z_p].fixed = false
                 set_regime_fixed!(m[:σ_z_p], 1, false)
                 set_regime_fixed!(m[:σ_z_p], 2, true)
             else
@@ -6488,6 +6489,7 @@ function ss85!(m::Model1002)
             end
 
             # Fix shocks to 0 in para regime 1
+            m[pk].fixed = true
             set_regime_fixed!(m[pk], 1, true)
             set_regime_fixed!(m[pk], 2, false)
             set_regime_fixed!(m[pk], 3, false)
@@ -6530,6 +6532,7 @@ function ss85!(m::Model1002)
             set_regime_val!(m[pk], 2, 4.)
 
             # Fix shocks to 0 in para regime 1
+            m[pk].fixed = true
             set_regime_fixed!(m[pk], 1, true)
             set_regime_fixed!(m[pk], 2, false)
 
@@ -6552,6 +6555,7 @@ function ss85!(m::Model1002)
             set_regime_val!(m[pk], 2, 20.)
 
             # Fix shocks to their calibrated values
+            m[pk].fixed = true
             set_regime_fixed!(m[pk], 1, true)
             set_regime_fixed!(m[pk], 2, true)
         end
@@ -6614,6 +6618,8 @@ function add_meas_pi!(m)
     set_regime_val!(m[:σ_meas_π], 2, 0.0999)
 
     # Fix shocks to 0 in para regime 1
+    m[:ρ_meas_π].fixed = true
+    m[:σ_meas_π].fixed = true
     set_regime_fixed!(m[:ρ_meas_π], 1, true)
     set_regime_fixed!(m[:ρ_meas_π], 2, false)
     set_regime_fixed!(m[:σ_meas_π], 1, true)
@@ -6636,6 +6642,8 @@ function add_zero_meas_pi!(m)
     set_regime_val!(m[:σ_meas_π], 2, 0.0)
 
     # Fix shocks to 0 in para regime 1
+    m[:ρ_meas_π].fixed = true
+    m[:σ_meas_π].fixed = true
     set_regime_fixed!(m[:ρ_meas_π], 1, true)
     set_regime_fixed!(m[:ρ_meas_π], 2, true)
     set_regime_fixed!(m[:σ_meas_π], 1, true)
@@ -6659,6 +6667,7 @@ function remove_persist_mkup!(m)
     # Fix shocks to 0 in para regime 2
     # set_regime_fixed!(m[:ρ_meas_π], 1, false)
     # set_regime_fixed!(m[:ρ_meas_π], 2, true)
+    m[:σ_λ_f].fixed = false
     set_regime_fixed!(m[:σ_λ_f], 1, false)
     set_regime_fixed!(m[:σ_λ_f], 2, true)
 end
@@ -6703,6 +6712,9 @@ function rm_iid_pce_meas_err!(m)
     #set_regime_fixed!(m[:ρ_gdpdef], 2, true)
     #set_regime_fixed!(m[:σ_gdpdef], 1, false)
     #set_regime_fixed!(m[:σ_gdpdef], 2, true)
+
+    m[:ρ_corepce].fixed = false
+    m[:σ_corepce].fixed = false
 
     set_regime_fixed!(m[:ρ_corepce], 1, false)
     set_regime_fixed!(m[:ρ_corepce], 2, true)
