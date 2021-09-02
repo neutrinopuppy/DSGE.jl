@@ -172,7 +172,7 @@ end
 moment_tables(m; percent = 0.90, subset_inds = 1:0, subset_string = "",
     groupings = Dict{String, Vector{Parameter}}(), use_mode = false,
     tables = [:prior_posterior_means, :moments, :prior, :posterior],
-    caption = true, outdir = "", verbose = :none)
+    caption = true, outdir = "", params = [], verbose = :none)
 ```
 
 Computes prior and posterior parameter moments. Tabulates prior mean, posterior
@@ -197,6 +197,7 @@ if it is nonempty, or else in `tablespath(m, \"estimate\")`.
 - `tables::Vector{Symbol}`: which tables to produce
 - `caption::Bool`: whether to include table captions
 - `outdir::String`: where to save output tables
+- `params::Array{Float64}`: Pass in parameters instead of using load_draws
 - `verbose::Symbol`: desired frequency of function progress messages printed to
   standard out. One of `:none`, `:low`, or `:high`
   """
@@ -204,20 +205,22 @@ if it is nonempty, or else in `tablespath(m, \"estimate\")`.
                          subset_inds::AbstractRange{Int64} = 1:0, subset_string::String = "",
                          groupings::AbstractDict{String, Vector{Parameter}} = Dict{String, Vector{Parameter}}(),
                          tables = [:prior_posterior_means, :moments, :prior, :posterior],
-                         caption = true, outdir = "",
+                         caption = true, outdir = "", params::Array{Float64} = [],
                          verbose::Symbol = :low, use_mode::Bool = false)
 
       ### 1. Load parameter draws from Metropolis-Hastings
 
-      params = if !isempty(subset_inds)
-          # Use subset of draws
-          if isempty(subset_string)
-              error("Must supply a nonempty subset_string if subset_inds is nonempty")
+      if length(params) == 0
+          params = if !isempty(subset_inds)
+              # Use subset of draws
+              if isempty(subset_string)
+                  error("Must supply a nonempty subset_string if subset_inds is nonempty")
+              end
+              load_draws(m, :subset; subset_inds = subset_inds, verbose = verbose)
+          else
+              # Use all draws
+              load_draws(m, :full; verbose = verbose)
           end
-          load_draws(m, :subset; subset_inds = subset_inds, verbose = verbose)
-      else
-          # Use all draws
-          load_draws(m, :full; verbose = verbose)
       end
 
       ### 2. Compute posterior moments
