@@ -245,6 +245,8 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                     old_shocks[:,:,i] = out4[shockdecvar][:,:,indi]
                 end
             end
+        else
+            old_shocks = out4[shockdecvar]
         end
 
         # 1(a). Data revision and news
