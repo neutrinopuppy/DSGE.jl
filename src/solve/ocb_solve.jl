@@ -96,11 +96,20 @@ function ocb_compute_system(m::AbstractDSGEModel; verbose::Symbol = :none)
         end
     end
 
+
+    # ugh. this is the worst part.
     # Use our modified binary search to run through possible ls and ks (currently, just
     # running through k, assuming l = 0) for all altpols
     # though our binary search mod is based on forecast path, which we'll no longer have
     # so this turns into a pure binary search
     # we need to solve for l_t, k_t for each alternative policy
+
+    #hmmmm.
+    # we'd have to smooth up the first zlb period start using talyor transitions
+    # then get the transitions up to the next zlb period start, then smooth again?
+    # that seems pretty time intensive
+    #histstates, histshocks, histpseudo, initial_states = smooth(m
+
     for zlb_regime_dict in zlb_period_dicts
         for t in 1:n # however many total regimes we have. there has to be a way to cut this
             # down
@@ -109,6 +118,8 @@ function ocb_compute_system(m::AbstractDSGEModel; verbose::Symbol = :none)
             # binary search!! the simple, friendly version. huzzah.
             # since we aren't picking our initial guess off of a forecast path, I don't think
             # it really makes sense to use our +-a couple setup from current endo
+
+            # z+t = C + T*z_t1
 
             # figure out and implement the check
 
@@ -187,6 +198,7 @@ function ocb_compute_system(m::AbstractDSGEModel; verbose::Symbol = :none)
 
     # Return array of transition matrices (... these could probably change before covid regimes now too,
     # which is fun)
+    return TTTs, RRRs, CCCs
 
 end
 
