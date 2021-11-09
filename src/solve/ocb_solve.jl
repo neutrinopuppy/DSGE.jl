@@ -11,6 +11,11 @@
 # :imperfect_credibility_weights => mapping of t to weights--if no weights in a given period,
 # use the first zlb_period_dict's mats. only solve mats for altpols if there are weights!!
 
+# NOTES
+# the zlb_period setup is silly. I am devising a better version, will have it pushed in
+# the morning.
+# I still haven't really thought through the filtering setup.
+
 
 # replacement for regime_eqcond_info? replace with a set of these per altpol?
 # but we'd still need weights somewhere
@@ -97,19 +102,14 @@ function ocb_compute_system(m::AbstractDSGEModel; verbose::Symbol = :none)
     end
 
 
-    # ugh. this is the worst part.
     # Use our modified binary search to run through possible ls and ks (currently, just
     # running through k, assuming l = 0) for all altpols
     # though our binary search mod is based on forecast path, which we'll no longer have
     # so this turns into a pure binary search
     # we need to solve for l_t, k_t for each alternative policy
 
-    #hmmmm.
-    # we'd have to smooth up the first zlb period start using talyor transitions
-    # then get the transitions up to the next zlb period start, then smooth again?
-    # that seems pretty time intensive
-    #histstates, histshocks, histpseudo, initial_states = smooth(m
-
+    # this is stupid. why am I doing this for each zlb period (facepalm)
+    # the whole zlb_regime setup as it currently exists is silly
     for zlb_regime_dict in zlb_period_dicts
         for t in 1:n # however many total regimes we have. there has to be a way to cut this
             # down
@@ -119,13 +119,32 @@ function ocb_compute_system(m::AbstractDSGEModel; verbose::Symbol = :none)
             # since we aren't picking our initial guess off of a forecast path, I don't think
             # it really makes sense to use our +-a couple setup from current endo
 
-            # z+t = C + T*z_t1
+            # we'd have to filter up the first zlb period start using talyor transitions
+            # then get the transitions up to the next zlb period start, then filter again?
+            # that seems pretty time intensive
 
+            # ok, assuming we have a state for the current time period, s_t:
+            k = 0
+            h = k_max
+            l = 0
+            while true
+                T, R, C = preprocessed_mats[zlb_regime_dict.actual_policy_dict[t]][k]
+                # s_t1 = C + T*s_t
+                # indexing
+                if (nom > 0 & nom_t1 < 0) | (nom > 0 & k==0)
+                    break
+                elseif nom > 0 & nom_t1 > 0
+                    h = k
+                elseif nom < 0
+                    l = k
+                end
+                k = floor((h-l)/2)+l
+            end
             # figure out and implement the check
 
             # ^^ above finds l_t, k_t for the given perfcred policy
             zlb_regime_dict.l_ts[t] = 0
-            zlb_regime_dict.k_ts[t] = x #whatever we found above
+            zlb_regime_dict.k_ts[t] = k #whatever we found above
         end
     end
 
