@@ -1,295 +1,192 @@
-# behold, the solve method (this is gen_sys, because the universe hates us)
-function solve_ocb(m::AbstractDSGEModel; l_max::Int32 = 3, k_max::Int32 = 17, parallel::Bool = false, verbose::Symbol = :none)
-    Γ0, Γ1, C, Ψ, Π = eqcond(m)
+# BROAD STROKES
+# 1. preprocess terminal & k_max periods back of zlb from every available liftoff policy
+# 2. find l_t, k_t, for each alternative policy (full credibility), using the preprocessed
+#    matrices above
+# 3. mix (and no need to find l&k) :)
 
-    # set default values of l_max
-    if l_max < 2 and k_max > 0
-        @warn " l_max must be at least 2 (is $l_max). Correcting..."
-        l_max = 2
-    end
-    l_max += 1
-
-    m <= Setting(:lks, [l_max, k_max])
-
-    # TODO what is thiiiiis
-    # start
-    vv0 = get_setting(m, :vv)
-
-    # z-space is the space of the original variables
-    dimx = length(vv0)
-    dimeps = length(m.shocks)
-
-    # y-space is the space of the original variables augmented by the shocks
-    c_arg = list(vv0)[get_setting(m, :const_var)]
-    fc0 = -fc0/fb0[c_arg]
-    fb0 = -fb0/fb0[c_arg]
-
-    # create auxiliry vars for those both in A & C
-    inall = ~fast0(AA0, 0) & ~fast0(CC0, 0)
-    if np.any(inall)
-        vv0 = np.hstack((vv0, [v + '_lag' for v in vv0[inall]]))
-        AA0 = np.pad(AA0, ((0, sum(inall)), (0, sum(inall))))
-        BB0 = np.pad(BB0, ((0, sum(inall)), (0, sum(inall))))
-        CC0 = np.pad(CC0, ((0, sum(inall)), (0, sum(inall))))
-        DD0 = np.pad(DD0, ((0, sum(inall)), (0, 0)))
-        fb0 = np.pad(fb0, (0, sum(inall)))
-        fc0 = np.pad(fc0, (0, sum(inall)))
-
-        if ZZ0 != nothing
-            ZZ0 = np.pad(ZZ0, ((0, 0), (0, sum(inall))))
-        end
-        BB0[-sum(inall):, -sum(inall):] = np.eye(sum(inall))
-        BB0[-sum(inall):, :-sum(inall)][:, inall] = -np.eye(sum(inall))
-        CC0[:, -sum(inall):] = CC0[:, :-sum(inall)][:, inall]
-        CC0[:, :-sum(inall)][:, i  nall] = 0
-    end
-    # create representation in y-space
-    A0 = np.pad(AA0, ((0, dimeps), (0, dimeps)))
-    BB0 = sl.block_diag(BB0, np.eye(dimeps))
-    CC0 = np.block([[CC0, DD0], [np.zeros((dimeps, AA0.shape[1]))]])
-    fb0 = np.pad(fb0, (0, dimeps))
-    if fd0 != nothing
-        fc0 = -np.hstack((fc0, fd0))
-    else
-        fc0 = np.pad(fc0, (0, dimeps))
-    end
-    inq = ~fast0(CC0, 0) | ~fast0(fc0)
-    inp = (~fast0(AA0, 0) | ~fast0(BB0, 0)) & ~inq
-
-    # check dimensionality
-    dimq = sum(inq)
-    dimp = sum(inp)
-    #
-    #             # create hx. Do this early so that the procedure can be stopped if get_hx_only
-    if ZZ0 != nothing
-        # must create dummies
-        zp = np.empty(dimp)
-        zq = np.empty(dimq)
-        zc = np.empty(1)
-    else
-        zp = ZZ0[:, inp[:-dimeps]]
-        zq = ZZ0[:, inq[:-dimeps]]
-        zc = ZZ1
-    end
-
-    AA = np.pad(AA0, ((0, 1), (0, 0)))
-    BBU = np.vstack((BB0, fb0))
-    CCU = np.vstack((CC0, fc0))
-    BBR = np.pad(BB0, ((0, 1), (0, 0)))
-    CCR = np.pad(CC0, ((0, 1), (0, 0)))
-    BBR[-1, list(vv0).index(str(self.const_var))] = -1
-
-    fb0[list(vv0).index(str(self.const_var))] = 0
-
-    self.svv = vv0[inq[:-dimeps]]
-    self.cvv = vv0[inp[:-dimeps]]
-    self.vv = np.hstack((self.cvv, self.svv))
-
-    self.dimx = len(self.vv)
-    self.dimq = dimq
-    self.dimp = dimp
-    self.dimy = dimp+dimq
-    self.dimeps = dimeps
-    self.hx = zp, zq, zc
-
-    if get_hx_only
-        return self
-    end
-
-    PU = -np.hstack((BBU[:, inq], AA[:, inp]))
-    MU = np.hstack((CCU[:, inq], BBU[:, inp]))
-
-    PR = -np.hstack((BBR[:, inq], AA[:, inp]))
-    MR = np.hstack((CCR[:, inq], BBR[:, inp]))
-    gg = np.pad([float(self.x_bar)], (dimp+dimq-1, 0))
-
-    # avoid QL in jitted funcs
-    R, Q = sl.rq(MU.T)
-    MU = R.T
-    PU = Q @ aca(PU)
-
-    R, Q = sl.rq(MR.T)
-    MR = R.T
-    PR = Q @ aca(PR)
-    gg = Q @ gg
-
-    if solution == nothing
-        solution = :klein
-    end
-
-    if isinstance(solution, str)
-        if solution == :speed_kills
-            omg, lam = speed_kills(PU, MU, dimp, dimq, tol=1e-4)
-        else
-            omg, lam = klein(PU, MU, nstates=dimq, verbose=verbose, force=False)
-        end
-    else
-        omg, lam = solution
-    end
+# NEW SETTINGS
+# :l_max, :k_max
+# :zlb_period_dicts => array of altpolicies, each corresponding to an array of
+# zlbPeriodEntries
+# :imperfect_credibility_weights => mapping of t to weights--if no weights in a given period,
+# use the first zlb_period_dict's mats. only solve mats for altpols if there are weights!!
 
 
-    # finally add relevant stuff to the class
-
-    fq0 = fc0[inq]
-    fp1 = fb0[inp]
-    fq1 = fb0[inq]
-
-    self.sys = omg, lam, self.x_bar
-    self.ff = fq1, fp1, fq0
-
-    # preprocess all system matrices until (l_max, k_max)
-    #
-    preprocess(self, PU, MU, PR, MR, gg, fq1, fp1, fq0, parallel, verbose)
-
-    if verbose == :full
-        print('[get_sys:]'.ljust(15, ' ')+' Creation of system matrices finished in %ss.' %
-              np.round(time.time() - st, 3))
-    end
-    return m
+# replacement for regime_eqcond_info? replace with a set of these per altpol?
+# but we'd still need weights somewhere
+# so, a new array to hold reg => weights...?
+mutable struct zlbPeriodEntry
+    start_date::Date
+    end_date::Date # this would be empty unless we have a zlb of fixed length
+    terminal_policy::AltPolicy
 end
 
-
-
-
-
-
-
-# PREPROCESS -- this is the function called in gen_sys (the solution func in Boehl's code that... uses klein, not gensys. yep, thanks for that)
-# driver for jitted preprocessing
-# l_max: expected number of periods until the constraint binds
-# k_max: expected number of periods for which the constraint binds
-function preprocess(m::AbstractDSGEModel, PU::AbstractMatrix{S}, MY::AbstractMatrix{S}, PR::AbstractMatrix{S}, MR::AbstractMatrix{S}, gg::AbstractMatrix{S}, fq1::S, fp1::S, fq0::S; l_max::Int64 = 3, k_max::Int64 = 17, parallel::Bool = false, verbose::Symbol = :none) where S <: Real
-    # hm. this is driver that calls jittable--I'll get back to this
+# terrible name. @me, do better
+mutable struct altPolicyZLBDict
+    zlb_periods::Array{zlbPeriodEntry}
+    l_ts::Array{Int32}
+    k_ts::Array{Int32}
+    actual_policy_dict::Array{Symbol} # dict of t -> policy (during zlb, this would still
+    # be liftoff policy)
 end
 
+# ^^ write constructors for these
 
 
+# NOTE: @shlok if you end up working with this before I get it into readable form, I sincerely apologize
 
+# NOTE: ALL OF THIS IS SET UP WITH L = 0. to add l, we'd need to add an l dimension to each
+# entry in preprocessed_mats
 
+# all pseudocode
 
-PU, MU, PR, MR, gg, fq1, fp1, fq0, omg, lam, x_bar, l_max, k_max
+function ocb_compute_system(m::AbstractDSGEModel; verbose::Symbol = :none)
 
-function preprocess_jittable(P_hat::AbstractMatrix{S}, M_hat::AbstractMatrix{S}, P::AbstractMatrix{S}, M::AbstractMatrix{S}, h, fq1, fp1, fq0, TTT::AbstractMatrix{S}, RRR::AbstractMatrix{S}, x_bar::Float64, l_max::Int64, k_max::Int64) where S <: Real
-    p, q = size(TTT)
-    l_max += 1
-    k_max += 1
+    # Preprocess for each possible terminal condition
+    # As Shlok notes in his doc, may be more effective to store these as we go. shall start with the simpler version
+    # (preprocessing everything) and leave that to later
+    l_max = get_setting(m, :l_max)
+    k_max = get_setting(m, :k_max)
 
-    M_hat_22 = M_hat_22[p:end, q:end]
-    if norm(M_hat_22) > 1/ϵ # NOTE: in the original code, this epsilon is a model setting
-        @warn "At least one control intedermined."
-    end
+    preprocessed_mats = Dict()
 
+    zlb_period_dicts = get_setting(m, :zlb_period_dicts)
+    # Dict of terminal policy => [(end => (TTT, RRR, CCC)), (end-1 => (TTT, RRR, CCC)), ...]
+    # should just be storing Ts?
+    for zlb_period_dict in zlb_period_dicts
+        for zlb_period in zlb_period_dict.zlb_periods
+            # this all is set up as if we had perfect cred
+            altkey = zlb_period.terminal_policy.key
+            if !haskey(preprocessed_mats, altkey)
+                preprocessed_mats[altkey] = Dict()
+                # keys into this subdict are the length of the zlb prior to the entry matrices
+                preprocessed_mats[altkey][0] = [zlb_period.terminal_policy.solve(m)]
+                # this is a stupid way to do this. putting something on paper now, will fix it
+                # later
+                # Get equilibrium condition matrices for zlb
+                Γ0_zlb, Γ1_zlb, C_zlb, Ψ_zlb, Π_zlb = zlb_rule_eqcond(m)
+                # Get equilibrium condition matrices for terminal policy
+                Γ0_fin, Γ1_fin, C_fin, Ψ_fin, Π_fin = zlb_period.terminal_policy.solve(m)
+                # great code, me. peak efficiency. killin it. /s
+                Γ0s = Array{Array{Float64}}(undef, k_max+1)
+                Γ1s = Array{Array{Float64}}(undef, k_max+1)
+                Cs = Array{Array{Float64}}(undef, k_max+1)
+                Ψs = Array{Array{Float64}}(undef, k_max+1)
+                Πs = Array{Array{Float64}}(undef, k_max+1)
+                for k in 1:k_max
+                    Γ0s[k] = Γ0_zlb
+                    Γ1s[k] = Γ1_zlb
+                    Cs[k]  = C_zlb
+                    Ψs[k]  = Ψ_zlb
+                    Πs[k]  = Π_zlb
+                end
+                # man, this is grim
+                Γ0s[k] = Γ0_fin
+                Γ1s[k] = Γ1_fin
+                Cs[k]  = C_fin
+                Ψs[k]  = Ψ_fin
+                Πs[k]  = Π_fin
 
-    M_hat_22i = inv(M_hat_22)
-    M_hat[q:end] = M_hat_22i * M_hat[q:end]
-    P_hat[q:end] = M_hat_22i * P_hat[q:end]
-
-    M_22 = M[q:end, q:end]
-    M_22i = inv(M_22)
-    M[q:end] = M22i * M[q:end]
-    P[q:end] = M22i * P[q:end]
-    h[q:end] = M22i * h[q:end]
-
-    pmat  = Array{Float64}(undef, l_max, k_max, p, q)
-    qmat  = Array{Float64}(undef, l_max, k_max, p, q)
-    pterm = Array{Float64}(undef, l_max, k_max, p)
-    qterm = Array{Float64}(undef, l_max, k_max, p)
-
-    pmat[0,0] = omg
-    pterm[0,0] = zeros(p)
-    qmat[0,0] = lam
-    qterm[0,0] = zeros(q)
-
-    for l in 0:l_max
-        for k in 0:k_max
-            if k || l
-                l_last = max(l-1,0)
-                k_last = l ? k : max(k-1, 0)
-
-                qmat[l,k], qterm[l,k] = get_lam(pmat[l_last, k_last],
-                                                pterm[l_last, k_last],
-                                                P_hat, M_hat, P, M, h, l)
-
-                pmat[l,k], pterm[l,k] = get_omg(pmat[l_last, k_last],
-                                                pterm[l_last, k_last],
-                                                qmat[l,k], qterm[l,k],
-                                                P_hat, M_hat, P, M, h, l)
-            end
-        end
-    end
-
-    bmat = Array{Float64}(undef, 5, l_max, k_max, q)
-    bterm = Array{Float64}(undef, 5, l_max, k_max)
-
-
-    for l in 0:l_max
-        @distributed for k in 0:k_max
-            lam = I(q)
-            xi = zeros(q)
-
-            for s in 0:l+k+1
-                l_loc = max(l-s, 0)
-                k_loc = max(min(k, k+l-s), 0)
-
-                y2r = fp1 * pmat[l_loc, k_loc] + fq1 * qmat[l_loc, k_loc] + fq0
-                cr = fp1 * pterm[l_loc, k_loc] + fq1 * qterm[l_loc, k_loc]
-
-                if s == 0
-                    bmat[0, l, k] = y2r * lam
-                    bterm[0, l, k] = cr + y2r * xi
-                elseif s == l-1
-                    bmat[1, l, k] = y2r * lam
-                    bterm[1, l, k] = cr + y2r * xi
-                elseif s == l
-                    bmat[2, l, k] = y2r * lam
-                    bterm[2, l, k] = cr + y2r * xi
-                elseif s == l+k-1
-                    bmat[3, l, k] = y2r * lam
-                    bterm[3, l, k] = cr + y2r * xi
-                elseif s == l+k
-                    bmat[4, l, k] = y2r * lam
-                    bterm[4, l, k] = cr + y2r * xi
-
-                    lam = qmat[l_loc, k_loc] * lam
-                    xi = qmat[l_loc, k_loc] * xi + qterm[l_loc, k_loc]
+                # run recursion
+                Tcals, Rcals, Ccals = gensys2(m, Γ0s, Γ1s, Cs, Ψs, Πs, preprocessed_mats[altkey][0][1], preprocessed_mats[altkey][0][2], preprocessed_mats[altkey][0][3], k_max) # this might be k_max + 1
+                for k in 1:k_max
+                    preprocessed_mats[altkey][k] = [Tcals[k_max+1-k], Rcals[k_max+1-k], Ccals[k_max+1-k]]
                 end
             end
         end
     end
 
-    return pmat, qmat, pterm, qterm, bmat, bterm
+    # Use our modified binary search to run through possible ls and ks (currently, just
+    # running through k, assuming l = 0) for all altpols
+    # though our binary search mod is based on forecast path, which we'll no longer have
+    # so this turns into a pure binary search
+    # we need to solve for l_t, k_t for each alternative policy
+    for zlb_regime_dict in zlb_period_dicts
+        for t in 1:n # however many total regimes we have. there has to be a way to cut this
+            # down
+            # guess 0
+            # guess k_max/2
+            # binary search!! the simple, friendly version. huzzah.
+            # since we aren't picking our initial guess off of a forecast path, I don't think
+            # it really makes sense to use our +-a couple setup from current endo
+
+            # figure out and implement the check
+
+            # ^^ above finds l_t, k_t for the given perfcred policy
+            zlb_regime_dict.l_ts[t] = 0
+            zlb_regime_dict.k_ts[t] = x #whatever we found above
+        end
+    end
+
+    # then mash them together!
+    TTTs = Array{Array{Float64}}(undef, n)
+    RRRs = Array{Array{Float64}}(undef, n)
+    CCCs = Array{Array{Float64}}(undef, n)
+    # this combination is based heavily on gensys_uncertain_altpol, see
+    # src/solve/gensys_uncertain_altpol.jl:183
+    for t in 1:n
+        if haskey(get_setting(m, :imperfect_credibility_weights), t)
+            weights = get_setting(m, :imperfect_credibility_seights)[t]
+
+            # first, sort out the gamma tils:
+            # hmmmm. this is probably wrong. why are we using one of the altpols over the
+            # other, anyways?
+            if zlb_period_dicts[1].l_ts[t] = 0 && zlb_period_dicts[1].k_ts[t] > 0
+                #then we are in a zlb regime
+                Γ0, Γ1, C, Ψ, Π = zlb_rule_eqcond(m)
+                # then we find what policy we're currently under. it occurs to me that the zlb
+                # period setup I have currently written up assumes that we change policies only
+                # after a zlb, which is obviously problematic.
+            else
+                current_policy = AltPol(:talyor) # whatever the format for this is
+                for i = 1:length(zlb_period_dicts[1].zlb_periods)
+                    # this is not how regime_dates works. we'd need to add a setting/change this
+                    # one to fit
+                    if zlb_period_dicts[1].zlb_periods[i].start_date <= get_setting(m, :regime_dates)[i]
+                        current_policy = zlb_period_dicts[1].zlb_periods[i].terminal_policy
+                    else
+                        break
+                    end
+                end
+                Γ0, Γ1, C, Ψ, Π = current_policy.eqcond(m)
+            end
+
+            Γ0_til, Γ1_til, Γ2_til, C_til, Ψ_til = gensys_to_predictable_form(Γ0, Γ1, C, Ψ, Π)
+
+            # pick out the liftoff policies we're mixing
+            actual_policies = Array{Symbol}(undef, length(weights))
+            for i = 1:length(weights)
+                actual_policies[i] = zlb_period_dicts[i].actual_policy_dict[t]
+            end
+
+            # ok, now take the combination (using the relevant preprocessed matrices
+            # indexed by each pols l_ts&k_ts for the t in question
+            inds = 1:n_states(m)
+            T̅, C̅ = (prob_vec[1] == 0.) ? (zeros(size(Γ0_til)), zeros(size(C))) :
+            (prob_vec[1] .* (@view preprocessed_mats[actual_policies[1]][zlb_period_dicts[1].k_ts[t]][1][inds, inds]), prob_vec[1] .* (@view preprocessed_mats[actual_policies[1]][zlb_period_dicts[1].k_ts[t]][2][inds]))
+
+            has_pos_prob = findall(x -> x > 0., (@view weights[2:end]))
+
+            for i in has_pos_prob
+                T̅ .+= weights[i + 1] * (@view preprocessed_mats[actual_policies[i]][zlb_period_dicts[i].k_ts[t]][1][inds, inds])
+                C̅ .+= weights[i + 1] * (@view preprocessed_mats[actual_policies[i]][zlb_period_dicts[i].k_ts[t]][2][inds])
+            end
+
+            Lmat = (Γ2_til * T̅ + Γ0_til)
+            TTTs[t] = Lmat \ Γ1_til
+            RRRs[t] = Lmat \ Ψ_til
+            CCCs[t] = Lmat \ (C_til - Γ2_til * C̅)
+        else
+
+            actual_policy = zlb_period_dicts[1].actual_policy_dict[t] # this is liftoff pol in zlb
+            TTTs[t], RRRs[t], CCCs[t] = preprocessed_mats[actual_policy][zlb_period_dicts[1].k_ts[t]]
+        end
+    end
+
+    # sort out measurement eqs
+
+    # Return array of transition matrices (... these could probably change before covid regimes now too,
+    # which is fun)
+
 end
 
-
-
-function get_lam(Ω, ψ, P_hat, M_hat, P, M, h, l)
-    dimp, dimq = size(Ω)
-
-    A = l ? P_hat : P
-    B = l ? M_hat : M
-    c = l ? zeros(dimq) : h[1:dimq]
-
-    # original code uses contiguous arrays here
-    inv = inv(A[1:dimq, 1:dimq] + A[1:dimq, dimq:end] * Ω)
-    λ = inv * B[1:dimq, 1:dimq]
-    xi = inv * (c - A[1:dimq, dimq:end]) * ψ
-
-    return λ, xi
-    end
-
-    function get_omg(Ω, ψ, λ, xi, P_hat, M_hat, P, M, h, l)
-        dimp, dimq = size(Ω)
-
-        A = l ? P_hat : P
-        B = l ? M_hat : M
-        c = l ? zeros(dimp) : h[dimq:end]
-
-        dum = A[dimq:end. 1:dimq] + A[dimq:end, dimq:end] * Ω
-        ψ = dum * xi + A[dimq:end, dimq:end] * ψ - c
-        Ω = dum * λ - B[dimq:end, 1:dimq]
-
-        return Ω, ψ
-    end
-
-
-    function
