@@ -1,14 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
 ############ THE FOLLOWING ARE THE DIRECT TRANSLATIONS OF THE PYTHON CODE
 
 
