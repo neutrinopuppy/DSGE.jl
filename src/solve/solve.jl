@@ -406,12 +406,12 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
         preprocessed_transitions = get_setting(m, :preprocessed_transitions)
         altpol_key = alternative_policy(m).key
         if haskey(preprocessed_transitions, altpol_key)
-            # we're looking for the liftoff regime, so zlb length 0
-            if !isnothing(preprocessed_transitions[altpol_key][0])
+            # we're looking for the liftoff regime, so zlb length 0 (index 1. thanks julia.)
+            if !isnothing(preprocessed_transitions[altpol_key][1])
                 println("using saved mats")
-                TTT_final = preprocessed_transitions[altpol_key][0][:TTT]
-                RRR_final = preprocessed_transitions[altpol_key][0][:RRR]
-                CCC_final = preprocessed_transitions[altpol_key][0][:CCC]
+                TTT_final = preprocessed_transitions[altpol_key][1][:TTT]
+                RRR_final = preprocessed_transitions[altpol_key][1][:RRR]
+                CCC_final = preprocessed_transitions[altpol_key][1][:CCC]
             end
         end
     end
