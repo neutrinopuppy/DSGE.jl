@@ -12,7 +12,6 @@ a second-order perturbation.
 function gensys2(m::AbstractDSGEModel, Γ0::Matrix{Float64}, Γ1::Matrix{Float64}, C::Vector{Float64},
                  Ψ::Matrix{Float64}, Π::Matrix{Float64}, TTT::Matrix{Float64}, RRR::Matrix{Float64},
                  CCC::Vector{Float64}, T_switch::Int)
-@show "15"
     Γ0_til, Γ1_til, Γ2_til, C_til, Ψ_til =
         gensys_to_predictable_form(Γ0, Γ1, C, Ψ, Π; use_sparse = (haskey(get_settings(m), :gensys2_sparse_matrices) &&
                                                                   get_setting(m, :gensys2_sparse_matrices)))
@@ -43,7 +42,6 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
                  TTT::Matrix{Float64}, RRR::Matrix{Float64},
                  CCC::Vector{Float64}, T_switch::Int;
                  liftoff_policy::Symbol = :default_policy)
-@show "46"
     ntil = length(Γ0s)
     use_sparse = haskey(get_settings(m), :gensys2_sparse_matrices) &&
         get_setting(m, :gensys2_sparse_matrices)
