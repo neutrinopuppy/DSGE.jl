@@ -12,8 +12,7 @@ a second-order perturbation.
 function gensys2(m::AbstractDSGEModel, Γ0::Matrix{Float64}, Γ1::Matrix{Float64}, C::Vector{Float64},
                  Ψ::Matrix{Float64}, Π::Matrix{Float64}, TTT::Matrix{Float64}, RRR::Matrix{Float64},
                  CCC::Vector{Float64}, T_switch::Int)
-
-    @show "16"
+@show "15"
     Γ0_til, Γ1_til, Γ2_til, C_til, Ψ_til =
         gensys_to_predictable_form(Γ0, Γ1, C, Ψ, Π; use_sparse = (haskey(get_settings(m), :gensys2_sparse_matrices) &&
                                                                   get_setting(m, :gensys2_sparse_matrices)))
@@ -42,10 +41,9 @@ end
 function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vector{Matrix{Float64}},
                  Cs::Vector{Vector{Float64}}, Ψs::Vector{Matrix{Float64}}, Πs::Vector{Matrix{Float64}},
                  TTT::Matrix{Float64}, RRR::Matrix{Float64},
-                 CCC::Vector{Float64}, T_switch::Int,
+                 CCC::Vector{Float64}, T_switch::Int;
                  liftoff_policy::Symbol = :default_policy)
-
-    @show "46"
+@show "46"
     ntil = length(Γ0s)
     use_sparse = haskey(get_settings(m), :gensys2_sparse_matrices) &&
         get_setting(m, :gensys2_sparse_matrices)
@@ -76,7 +74,7 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
     for t = 1:(T_switch-1)
         preprocessed_transitions = haskey(get_settings(m), :preprocessed_transitions) ? get_setting(m, :preprocessed_transitions) : nothing
         # check if we've preprocessed the matrix in question
-        if !isnothing(preprocessed_transitions) && !isnothing(preprocessed_transitions[liftoff_policy][t])
+        if !isnothing(preprocessed_transitions) && !isnothing(preprocessed_transitions[liftoff_policy][t+1])
             Tcal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:TTT]
             Rcal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:RRR]
             Ccal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:CCC]
@@ -90,9 +88,9 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
                 if isnothing(preprocessed_transitions[liftoff_policy][t+1])
                     preprocessed_transitions[liftoff_policy][t+1] = Dict()
                 end
-                preprocessed_transitions[liftoff_policy][k+1][:TTT] = Tcal[end-k]
-                preprocessed_transitions[liftoff_policy][k+1][:RRR] = Rcal[end-k]
-                preprocessed_transitions[liftoff_policy][k+1][:CCC] = Ccal[end-k]
+                preprocessed_transitions[liftoff_policy][t+1][:TTT] = Tcal[end-t]
+                preprocessed_transitions[liftoff_policy][t+1][:RRR] = Rcal[end-t]
+                preprocessed_transitions[liftoff_policy][t+1][:CCC] = Ccal[end-t]
             end
         end
 

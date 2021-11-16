@@ -325,7 +325,6 @@ function solve_non_gensys2_regimes!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}
                 # to my great chagrin)
                 # so no zlb -> index = 1
                 if !isnothing(preprocessed_transitions[altpol_key][1])
-                println("using saved mats")
                     TTTs[reg] = preprocessed_transitions[altpol_key][1][:TTT]
                     RRRs[reg] = preprocessed_transitions[altpol_key][1][:RRR]
                     CCCs[reg] = preprocessed_transitions[altpol_key][1][:CCC]
@@ -408,7 +407,6 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
         if haskey(preprocessed_transitions, altpol_key)
             # we're looking for the liftoff regime, so zlb length 0 (index 1. thanks julia.)
             if !isnothing(preprocessed_transitions[altpol_key][1])
-                println("using saved mats")
                 TTT_final = preprocessed_transitions[altpol_key][1][:TTT]
                 RRR_final = preprocessed_transitions[altpol_key][1][:RRR]
                 CCC_final = preprocessed_transitions[altpol_key][1][:CCC]
@@ -449,7 +447,6 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
     if uncertain_temporary_altpolicy
         # TODO sort this out for saved matrices--not even sure if it makes sense tbh since we might be
         # recursing from a mix
-        @show "453"
         # Setup
         ffreg = first(gensys2_regimes) + 1
         altpols = get_setting(m, :alternative_policies)
@@ -496,10 +493,12 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
 
         # Calculate gensys2 matrices under belief that the desired lift-off policy will occur
         # TODO: generalize to having multiple distinct sets of regimes which are gensys2 regimes
+        @show "496"
         Tcal, Rcal, Ccal = gensys2(m, Γ0s[gensys2_regimes], Γ1s[gensys2_regimes],
                                    Cs[gensys2_regimes], Ψs[gensys2_regimes], Πs[gensys2_regimes],
                                    TTT_final, RRR_final, CCC_final,
-                                   length(gensys2_regimes) - 1)
+                                   length(gensys2_regimes) - 1,
+                                   liftoff_policy = alternative_policy(m).key)
         Tcal[end] = TTT_final
         Rcal[end] = RRR_final
         Ccal[end] = CCC_final
@@ -539,7 +538,7 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
         Tcal, Rcal, Ccal = gensys2(m, Γ0s[gensys2_regimes], Γ1s[gensys2_regimes],
                                    Cs[gensys2_regimes], Ψs[gensys2_regimes], Πs[gensys2_regimes],
                                    TTT_final, RRR_final, CCC_final,
-                                   length(gensys2_regimes) - 1)
+                                   length(gensys2_regimes) - 1, liftoff_policy = alternative_policy(m).key)
 
         if uncertain_altpolicy
             Tcal[end] = TTT_final_weighted
@@ -559,7 +558,7 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
     end
 
     return TTTs, RRRs, CCCs
-    end
+end
 
 """
 ```
