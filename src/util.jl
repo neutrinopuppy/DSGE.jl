@@ -309,6 +309,7 @@ function find_param_ind(params::Vector{AbstractParameter{Float64}}, para_one::Sy
         if !isempty(params[i].regimes) && params[i].key != para_one
             j += length(params[i].regimes[:value])-1
         elseif params[i].key == para_one
+            @assert haskey(params[i].regimes[:value], regime)
             return j += regime - 1
         end
     end
