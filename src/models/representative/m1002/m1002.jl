@@ -522,7 +522,7 @@ buted to steady-state inflation.",
                    tex_label="\\rho_{\\mu}")
 
     m <= parameter(:ρ_ztil, 0.9446, (0., 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
-                   description="ρ_ztil: AR(1) coefficient in the technology process.",
+                   description="ρ_{ztil}: AR(1) coefficient in the technology process.",
                    tex_label="\\rho_{\\tilde{z}}")
 
     m <= parameter(:ρ_λ_f, 0.8827, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,

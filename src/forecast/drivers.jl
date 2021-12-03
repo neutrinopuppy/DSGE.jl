@@ -524,7 +524,8 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                       show_failed_percent::Bool = false, only_filter::Bool = false,
                       verbose::Symbol = :low, testing_carter_kohn::Bool = false,
                       trend_nostates_obs = Array{(0,0)}, trend_nostates_pseudo = Array{(0,0)},
-                      full_shock_decomp::Bool = true, n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[])
+                      full_shock_decomp::Bool = true, n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[],
+                      use_changing_systems::Bool = false)
 
     ### Common Setup
 
@@ -575,7 +576,7 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                 catch_smoother_lapack = catch_smoother_lapack,
                                                 testing_carter_kohn = testing_carter_kohn, trend_nostates_obs = trend_nostates_obs,
                                                 trend_nostates_pseudo = trend_nostates_pseudo, full_shock_decomp = full_shock_decomp,
-                                                n_back = n_back, back_shocks = back_shocks)
+                                                n_back = n_back, back_shocks = back_shocks, use_changing_systems = use_changing_systems)
 
             write_forecast_outputs(m, input_type, output_vars, forecast_output_files,
                                    forecast_output; df = df, block_number = Nullable{Int64}(),
@@ -672,7 +673,8 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                                  nan_endozlb_failures = nan_endozlb_failures,
                                                                  catch_smoother_lapack = catch_smoother_lapack,
                                                                  testing_carter_kohn = testing_carter_kohn,
-                                                                 n_back = n_back, back_shocks = back_shocks),
+                                                                 n_back = n_back, back_shocks = back_shocks,
+                                                                 use_changing_systems = use_changing_systems),
                                       params_for_map)
 
             # Assemble outputs from this block and write to file
@@ -789,7 +791,8 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                            catch_smoother_lapack::Bool = false, testing_carter_kohn::Bool = false,
                            return_loglh::Bool = false, trend_nostates_obs = Array{(0,0)},
                            trend_nostates_pseudo = Array{(0,0)}, full_shock_decomp::Bool = false,
-                           n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[])
+                           n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[],
+                           use_changing_systems::Bool = false)
     ### Setup
 
     # Re-initialize model indices if forecasting under an alternative policy
@@ -1337,9 +1340,10 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
             irfstates, irfobs, irfpseudo = impulse_responses(m, system, impulse_response_horizons(m),
                                                              shock_name,
                                                              shock_var_name,
-                                                             shock_var_value)
+                                                             shock_var_value,
+                                                             use_changing_systems = use_changing_systems)
         else
-            irfstates, irfobs, irfpseudo = impulse_responses(m, system)
+            irfstates, irfobs, irfpseudo = impulse_responses(m, system, use_changing_systems = use_changing_systems)
         end
         forecast_output[:irfstates] = irfstates
         forecast_output[:irfobs] = irfobs

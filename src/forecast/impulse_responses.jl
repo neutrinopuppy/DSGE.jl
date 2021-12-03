@@ -13,6 +13,7 @@ Compute impulse responses for a single draw.
 - `system::System{S}`: state-space system matrices
 - `horizon::Int`: number of periods ahead to forecast
 - `flip_shocks::Bool`: Whether to compute IRFs in response to a positive shock (by default the shock magnitude is a negative 1 std. shock)
+- `use_changing_systems::Bool`: Whether to use changing transition matrices for future quarters. If false, just uses the system from the impulse_response_regime for all quarters.
 
 where `S<:AbstractFloat`
 
@@ -27,13 +28,17 @@ where `S<:AbstractFloat`
 """
 @inline function impulse_responses(m::AbstractRepModel,
                            system::RegimeSwitchingSystem{S};
-                           flip_shocks::Bool = false) where {S<:AbstractFloat}
+                           flip_shocks::Bool = false, use_changing_systems::Bool = true) where {S<:AbstractFloat}
 
     horizon = impulse_response_horizons(m)
     irf_reg = haskey(get_settings(m), :impulse_response_regime) ?
         get_setting(m, :impulse_response_regime) : get_setting(m, :n_regimes)
 
-    return impulse_responses(system[irf_reg], horizon, flip_shocks = flip_shocks) # returns state, obs, pseudo
+    if use_changing_systems
+        return impulse_responses(m, system, horizon, flip_shocks = flip_shocks, start_reg = irf_reg)
+    else
+        return impulse_responses(system[irf_reg], horizon, flip_shocks = flip_shocks) # returns state, obs, pseudo
+    end
 end
 
 @inline function impulse_responses(m::AbstractRepModel,
@@ -293,6 +298,154 @@ function impulse_responses(m::AbstractDSGEModel, system::System{S},
 
     return states, obs, pseudo
 end
+
+# Impulse Responses for Regime-Switching System
+function impulse_responses(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, horizon::Int;
+                           flip_shocks::Bool = false, start_reg::Int = get_setting(m, :reg_forecast_start)) where {S<:AbstractFloat}
+    # Setup
+    nshocks      = size(system[start_reg, :RRR], 2)
+    nstates      = size(system[start_reg, :TTT], 1)
+    nobs         = size(system[start_reg, :ZZ], 1)
+    npseudo      = size(system[start_reg, :ZZ_pseudo], 1)
+
+    states = zeros(S, nstates, horizon, nshocks)
+    obs    = zeros(S, nobs,    horizon, nshocks)
+    pseudo = zeros(S, npseudo, horizon, nshocks)
+
+    # Set constant system matrices to 0
+    system = zero_system_constants(system)
+
+    s_0 = zeros(S, nstates)
+
+    # Need to adjust model forecast and conditional regimes and dates for forecasting
+    ## starting at the correct regime
+    reg_fcast_start = get_setting(m, :reg_forecast_start)
+    if start_reg != reg_fcast_start
+        n_fcast_regs = get_setting(m, :n_fcast_regimes)
+        reg_post_cond = get_setting(m, :reg_post_conditional_end)
+        date_fcast_start = get_setting(m, :date_forecast_start)
+        date_cond_end = get_setting(m, :date_conditional_end)
+
+        post_cond_regs = DSGE.subtract_quarters(get_setting(m, :date_forecast_start), get_setting(m, :date_conditional_end))
+
+        m <= Setting(:reg_forecast_start, start_reg)
+        m <= Setting(:n_fcast_regimes, get_setting(m, :n_regimes) - start_reg + 1)
+        m <= Setting(:date_forecast_start, get_setting(m, :regime_dates)[start_reg])
+
+        m <= Setting(:date_conditional_end, DSGE.iterate_quarters(get_setting(m, :date_forecast_start), post_cond_regs))
+
+        cond_end = DSGE.iterate_quarters(date_conditional_end(m), 1)
+        cond_reg = if cond_end in values(get_setting(m, :regime_dates))
+            ans = 1
+            for i in keys(get_setting(m, :regime_dates))
+                if get_setting(m, :regime_dates)[i] == cond_end
+                    ans = i
+                    break
+                end
+            end
+            ans
+        else
+            findlast(sort!(collect(values(get_setting(m, :regime_dates)))) .<= date_conditional_end(m))
+        end
+        m <= Setting(:reg_post_conditional_end, cond_reg)
+    end
+
+    for i = 1:nshocks
+        # Isolate single shock
+        shocks = zeros(S, nshocks, horizon)
+        if flip_shocks
+            shocks[i, 1] = sqrt(system[start_reg, :QQ][i, i]) # a positive 1 s.d. shock
+        else
+            shocks[i, 1] = -sqrt(system[start_reg, :QQ][i, i]) # a negative 1 s.d. shock
+        end
+        # Iterate state space forward
+        states[:, :, i], obs[:, :, i], pseudo[:, :, i], _ = forecast(m, system, s_0, shocks)
+    end
+
+    if start_reg != reg_fcast_start
+        m <= Setting(:reg_forecast_start, reg_fcast_start)
+        m <= Setting(:n_fcast_regimes, n_fcast_regs)
+        m <= Setting(:reg_post_conditional_end, reg_post_cond)
+        m <= Setting(:date_forecast_start, date_fcast_start)
+        m <= Setting(:date_conditional_end, date_cond_end)
+    end
+
+    return states, obs, pseudo
+end
+
+# Method for specifying the subset of shocks, and the size of each shock
+function impulse_responses(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S},
+                           horizon::Int, shock_names::Vector{Symbol},
+                           shock_values::Vector{Float64}, start_reg::Int = get_setting(m, :reg_forecast_start)) where S<:AbstractFloat
+
+    # Must provide a name and value for each shock
+    @assert length(shock_names) == length(shock_values)
+
+    # Setup
+    exo          = m.exogenous_shocks
+    nshocks      = size(system[1, :RRR], 2)
+    nstates      = size(system[1, :TTT], 1)
+    nobs         = size(system[1, :ZZ], 1)
+    npseudo      = size(system[1, :ZZ_pseudo], 1)
+
+    states = zeros(S, nstates, horizon, nshocks)
+    obs    = zeros(S, nobs,    horizon, nshocks)
+    pseudo = zeros(S, npseudo, horizon, nshocks)
+
+    # Set constant system matrices to 0
+    system = zero_system_constants(system)
+
+    s_0 = zeros(S, nstates)
+
+    if start_reg != get_setting(m, :reg_forecast_start)
+        reg_fcast_start = get_setting(m, :reg_forecast_start)
+        n_fcast_regs = get_setting(m, :n_fcast_regimes)
+        reg_post_cond = get_setting(m, :reg_post_conditional_end)
+        date_fcast_start = get_setting(m, :date_forecast_start)
+        date_cond_end = get_setting(m, :date_conditional_end)
+
+        post_cond_regs = DSGE.subtract_quarters(get_setting(m, :date_forecast_start), get_setting(m, :date_conditional_end))
+
+        m <= Setting(:reg_forecast_start, start_reg)
+        m <= Setting(:n_fcast_regimes, get_setting(m, :n_regimes) - start_reg + 1)
+        m <= Setting(:date_forecast_start, get_setting(m, :regime_dates)[start_reg])
+
+        m <= Setting(:date_conditional_end, DSGE.iterate_quarters(get_setting(m, :date_forecast_start), post_cond_regs))
+        cond_end = DSGE.iterate_quarters(date_conditional_end(m), 1)
+        cond_reg = if cond_end in values(get_setting(m, :regime_dates))
+            for i in keys(get_setting(m, :regime_dates))
+                ans = 1
+                if get_setting(m, :regime_dates)[i] == cond_end
+                    ans = i
+                end
+            end
+            ans
+        else
+            findlast(sort!(collect(values(get_setting(m, :regime_dates)))) .<= date_conditional_end(m))
+        end
+        m <= Setting(:reg_post_conditional_end, cond_reg)
+    end
+
+    for (i, shock) in enumerate(shock_names)
+        # Isolate single shock
+        shocks = zeros(S, nshocks, horizon)
+        shocks[exo[shock], 1] = shock_values[i]
+
+        # Iterate state space forward
+        states[:, :, exo[shock]], obs[:, :, exo[shock]], pseudo[:, :, exo[shock]], _ = forecast(m, system, s_0, shocks)
+    end
+
+    if start_reg != get_setting(m, :reg_forecast_start)
+        m <= Setting(:reg_forecast_start, reg_fcast_start)
+        m <= Setting(:n_fcast_regimes, n_fcast_regs)
+        m <= Setting(:reg_post_conditional_end, reg_post_cond)
+        m <= Setting(:date_forecast_start, date_fcast_start)
+        m <= Setting(:date_conditional_end, date_cond_end)
+    end
+
+    return states, obs, pseudo
+end
+
 
 """
 ```

@@ -298,8 +298,8 @@ irf
             fillalpha := bands_alpha
             linealpha := 0
             label     := label_mean_bands ? "$pct Bands" : ""
-            fillrange := sign * mb.bands[varshock][!,Symbol(pct, " UB")]
-            quarters_ahead, sign * mb.bands[varshock][!,Symbol(pct, " LB")]
+            fillrange := sign * mb.bands[varshock][quarters_ahead,Symbol(pct, " UB")]
+            quarters_ahead, sign * mb.bands[varshock][quarters_ahead,Symbol(pct, " LB")]
         end
     end
 
@@ -308,7 +308,7 @@ irf
         label     := label_mean_bands ? "Mean"*string(input_type) : ""
         linewidth := 2
         linecolor := mean_color
-        quarters_ahead, sign * mb.means[!, varshock]
+        quarters_ahead, sign * mb.means[quarters_ahead, varshock]
     end
 
    #= if input_type2 != Symbol()
