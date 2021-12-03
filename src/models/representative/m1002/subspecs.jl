@@ -6626,6 +6626,11 @@ function add_meas_pi!(m)
     set_regime_fixed!(m[:ρ_meas_π], 2, false)
     set_regime_fixed!(m[:σ_meas_π], 1, true)
     set_regime_fixed!(m[:σ_meas_π], 2, false)
+
+    set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:σ_meas_π], 2, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 1, m[:ρ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 2, m[:ρ_meas_π].prior)
 end
 
 function add_zero_meas_pi!(m)
@@ -6792,6 +6797,9 @@ function ss91!(m)
 
     # Set prior for standard deviation to be large since we are removing other measurement error
     set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:σ_meas_π], 2, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 1, m[:ρ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 2, m[:ρ_meas_π].prior)
     prior2 = get(m[:σ_meas_π].prior)
     prior2.τ = 0.2
     set_regime_prior!(m[:σ_meas_π], 2, prior2)
