@@ -255,8 +255,8 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         end
 
         # 1(a). Data revision and news
-        data_comp = out1[dettrendvar] - out2[dettrendvar] + (out1[datavar] - out2[datavar])
-        decomp[Symbol(:decompdata, class)] = data_comp
+        data_comp = out1[forecastvar] .- out2[forecastvar] .- (out1[newsvar] .- out2[newsvar])#out1[dettrendvar] .- out2[dettrendvar] .+ (out1[datavar] .- out2[datavar])
+        decomp[Symbol(:decompdata, class)] = data_comp#out1[datavar] .- out2[datavar]#data_comp
 
         news_comp = out1[newsvar] - out2[newsvar]
         decomp[Symbol(:decompnews, class)] = news_comp
