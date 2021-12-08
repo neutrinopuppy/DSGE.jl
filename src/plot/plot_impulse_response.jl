@@ -152,9 +152,13 @@ function plot_impulse_response(m1::AbstractDSGEModel, m2::AbstractDSGEModel,
     plots = OrderedDict{Symbol, Plots.Plot}()
     for (var, title) in zip(vars, titles)
         # Call recipe
-        if isempty(bands_pcts)
+        if isempty(bands_pcts) && input_type1 == :full
             bands_pcts = which_density_bands((which_model == 1) ? mb1 : mb2, uniquify = true)
         end
+        if input_type1 == :mode
+            bands_pcts = []
+        end
+
         plots[var] = irf(shock, var, mb1, MeansBands();
                          title = title, input_type = input_type1, input_type2 = Symbol(),
                          bands_color = bands_color1, bands_alpha = bands_alpha1,
