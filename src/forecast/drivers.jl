@@ -1337,13 +1337,15 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
 
     if !isempty(irfs_to_compute)
         if shock_name!=:none
-            irfstates, irfobs, irfpseudo = impulse_responses(m, system, impulse_response_horizons(m),
+            irfstates, irfobs, irfpseudo = typeof(system) <: RegimeSwitchingSystem ? impulse_responses(m, system, impulse_response_horizons(m),
                                                              shock_name,
                                                              shock_var_name,
                                                              shock_var_value,
-                                                             use_changing_systems = use_changing_systems)
+                                                             use_changing_systems = use_changing_systems) :
+                                                                 impulse_responses(m, system, impulse_response_horizons(m),
+                                                                                   shock_name, shock_var_name, shock_var_value)
         else
-            irfstates, irfobs, irfpseudo = impulse_responses(m, system, use_changing_systems = use_changing_systems)
+            irfstates, irfobs, irfpseudo = typeof(system) <: RegimeSwitchingSystem ? impulse_responses(m, system, use_changing_systems = use_changing_systems) : impulse_responses(m, system)
         end
         forecast_output[:irfstates] = irfstates
         forecast_output[:irfobs] = irfobs
