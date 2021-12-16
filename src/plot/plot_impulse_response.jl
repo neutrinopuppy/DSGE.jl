@@ -212,7 +212,7 @@ function plot_impulse_response(m::Vector,
     for varset in [vars, cumulative_vars]
         if isempty(titles) || cumulative
             detexify_title = typeof(Plots.backend()) == Plots.GRBackend
-            titles = map(var -> describe_series(m[which_model], var, class, detexify = detexify_title) * (cumulative ? ", Cumulative Sum" : ""), varset)
+            titles = map(var -> cumulative ? (var in [:obs_gdp, :PseudoGDP] ? "GDP Level" : "Core PCE Price Level") : describe_series(m[which_model], var, class, detexify = detexify_title), varset)
             for i in 1:length(titles)
                 if titles[i] == ""
                     titles[i] = String(varset[i])
@@ -324,7 +324,7 @@ irf
 
     ir = mb.means[quarters_ahead, varshock]
     if cumulative
-        ir = cumsum(ir)
+        ir = cumsum(ir ./ 4.0)
     end
 
     # Mean

@@ -118,7 +118,7 @@ function init_observable_mappings!(m::Model1002)
 
         observables[:obs_wages] = Observable(:obs_wages, [:COMPNFB__FRED, :GDPDEF__FRED],
                                              wages_fwd_transform, wages_rev_transform,
-                                             "Percent Change in Wages",
+                                             "Real Wage Growth",
                                              "Q-to-Q Percent Change of Real Compensation (using GDP deflator)")
     end
     ############################################################################
@@ -198,7 +198,7 @@ function init_observable_mappings!(m::Model1002)
 
     observables[:obs_consumption] = Observable(:obs_consumption, [:PCE__FRED, population_mnemonic],
                                                consumption_fwd_transform, consumption_rev_transform,
-                                               "Consumption growth per capita",
+                                               "Consumption Growth",
                                                "Consumption growth adjusted for population filtering")
 
 
@@ -220,7 +220,7 @@ function init_observable_mappings!(m::Model1002)
 
     observables[:obs_investment] = Observable(:obs_investment, [:FPI__FRED, population_mnemonic],
                                               investment_fwd_transform, investment_rev_transform,
-                                              "Real Investment per capita",
+                                              "Investment Growth",
                                               "Real investment per capita, adjusted for population filtering")
 
 
@@ -272,7 +272,7 @@ function init_observable_mappings!(m::Model1002)
 
     observables[:obs_longinflation] = Observable(:obs_longinflation, [:ASACX10__DLX],
                                                  longinflation_fwd_transform, longinflation_rev_transform,
-                                                 "Long term inflation expectations",
+                                                 "10-year average inflation expectations",
                                                  "10-year average yr/yr CPI inflation expectations")
 
 
@@ -290,7 +290,7 @@ function init_observable_mappings!(m::Model1002)
 
     observables[:obs_longrate] = Observable(:obs_longrate, [:FYCCZA__DLX],
                                             longrate_fwd_transform, longrate_rev_transform,
-                                            "Long term interest rate expectations",
+                                            "10-year average interest rate expectations",
                                             "10T yield")
 
 
