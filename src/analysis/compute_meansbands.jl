@@ -78,7 +78,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol,
         for output_var in output_vars
             prod = get_product(output_var)
             if VERBOSITY[verbose] >= VERBOSITY[:high]
-                if prod in [:shockdec, :irf, :shockdecseq]
+                if prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
                     println("Computing " * string(output_var) * " for shocks:")
                 else
                     print("Computing " * string(output_var) * "... ")
@@ -168,7 +168,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
             bands[var_name][!,:date] = date_list
         end
 
-    elseif product in [:shockdec, :irf, :shockdecseq]
+    elseif product in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
         means = product == :irf ? DataFrame() : DataFrame(date = date_list)
         bands = Dict{Symbol, DataFrame}()
 
@@ -207,7 +207,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
         write(file, "mb", mb)
     end
 
-    sep = prod in [:shockdec, :irf, :shockdecseq] ? "  " : ""
+    sep = prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs] ? "  " : ""
     println(verbose, :high, sep * "wrote " * basename(filepath))
 
     return mb
@@ -265,7 +265,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
 
     # Compute means and bands
     means = vec(mean(transformed_series, dims = 1))
-    bands = if product in [:shockdec, :dettrend, :trend, :shockdecseq] && !compute_shockdec_bands
+    bands = if product in [:shockdec, :dettrend, :trend, :shockdecseq, :shockdecqtrs] && !compute_shockdec_bands
         Dict{Symbol,DataFrame}()
     else
         find_density_bands(transformed_series, density_bands, minimize = minimize)
@@ -361,7 +361,7 @@ function compute_meansbands(models::Vector{<: AbstractDSGEModel},
         for output_var in output_vars
             prod = get_product(output_var)
             if VERBOSITY[verbose] >= VERBOSITY[:high]
-                if prod in [:shockdec, :irf, :shockdecseq]
+                if prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
                     println("Computing " * string(output_var) * " for shocks:")
                 else
                     print("Computing " * string(output_var) * "... ")
@@ -463,7 +463,7 @@ function compute_meansbands(models::Vector{<: AbstractDSGEModel},
             bands[var_name][!,:date] = date_list
         end
 
-    elseif product in [:shockdec, :irf, :shockdecseq]
+    elseif product in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
         means = product == :irf ? DataFrame() : DataFrame(date = date_list)
         bands = Dict{Symbol, DataFrame}()
 
@@ -509,7 +509,7 @@ function compute_meansbands(models::Vector{<: AbstractDSGEModel},
         write(file, "mb", mb)
     end
 
-    sep = prod in [:shockdec, :irf, :shockdecseq] ? "  " : ""
+    sep = prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs] ? "  " : ""
     println(verbose, :high, sep * "wrote " * basename(filepath))
 
     return mb
@@ -588,7 +588,7 @@ function compute_meansbands(models::Vector,
 
     # Compute means and bands
     means = vec(mean(transformed_series, dims= 1))
-    bands = if product in [:shockdec, :dettrend, :trend, :shockdecseq] && !compute_shockdec_bands
+    bands = if product in [:shockdec, :dettrend, :trend, :shockdecseq, :shockdecqtrs] && !compute_shockdec_bands
         Dict{Symbol,DataFrame}()
     else
         find_density_bands(transformed_series, density_bands, minimize = minimize)
@@ -632,7 +632,7 @@ function mb_reverse_transform(fcast_series::AbstractArray, transform::Function,
     else
         # Use transformation that doesn't add back population growth for
         # products which are given in deviations
-        if product in [:shockdec, :dettrend, :irf, :shockdecseq]
+        if product in [:shockdec, :dettrend, :irf, :shockdecseq, :shockdecqtrs]
             transform = get_nopop_transform(transform)
             y0 = 0.0
         else

@@ -51,6 +51,10 @@ function get_product(output_var::Symbol)
         :forecastlvl
     elseif occursin("forecast", s)
         :forecast
+    elseif occursin("shockdecseq", s)
+        :shockdecseq
+    elseif occursin("shockdecqtrs", s)
+        :shockdecqtrs
     elseif occursin("shockdec", s)
         :shockdec
     elseif occursin("dettrend", s)
@@ -279,7 +283,7 @@ function get_mb_population_series(product::Symbol, population_data::DataFrame,
         start_date = if product in [:hist4q, :forecast4q, :bddforecast4q]
             iterate_quarters(date_list[1], -3)
         elseif product in [:histut, :hist, :forecastut, :forecast, :bddforecastut, :bddforecast,
-                           :shockdec, :dettrend, :trend]
+                           :shockdec, :dettrend, :trend, :shockdecseq, :shockdecqtrs]
             date_list[1]
         else
             error("Invalid product: $product")
@@ -341,7 +345,7 @@ function get_mb_metadata(m::AbstractDSGEModel, input_type::Symbol, cond_type::Sy
                    :date_inds       => sort(date_indices, by = x -> date_indices[x]),
                    :forecast_string => forecast_string)
 
-    if product in [:shockdec, :irf]
+    if product in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
         mb_metadata[:shock_indices] = metadata[:shock_indices]
     end
 
@@ -369,7 +373,7 @@ function get_y0_index(m::AbstractDSGEModel, product::Symbol)
         # needs us to go 4 periods. Later, we can use y0_index + 1
         # to index out the data we need for all the other forecasts.
         return index_forecast_start(m) - 4
-    elseif product in [:shockdec, :dettrend, :trend]
+    elseif product in [:shockdec, :dettrend, :trend, :shockdecseq, :shockdecqtrs]
         return n_presample_periods(m) + index_shockdec_start(m) - 1
     elseif product in [:hist, :histut, :hist4q]
         return index_mainsample_start(m) - 1
@@ -385,7 +389,7 @@ function get_yt_index(m::AbstractDSGEModel, product::Symbol)
         return index_forecast_start(m) - 1
     elseif product in [:forecast4q, :bddforecast4q]
         return index_forecast_start(m) - 1
-    elseif product in [:shockdec, :dettrend, :trend, :hist, :histut, :hist4q, :irf]
+    elseif product in [:shockdec, :dettrend, :trend, :hist, :histut, :hist4q, :irf, :shockdecseq, :shockdecqtrs]
         return -1
         # Note: below, I don't immediately know what we want for yt (end) and I don't think I need to implmented
 #=    elseif product in [:shockdec, :dettrend, :trend]
