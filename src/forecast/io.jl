@@ -295,7 +295,7 @@ function write_forecast_metadata(m::AbstractDSGEModel, file::JLD2.JLDFile, var::
             quarter_range(date_mainsample_start(m), date_mainsample_end(m))
         elseif prod in [:forecast, :bddforecast]
             quarter_range(date_forecast_start(m), date_forecast_end(m))
-        elseif prod in [:shockdec, :dettrend, :trend]
+        elseif prod in [:shockdec, :dettrend, :trend, :shockdecseq, :shockdecqtrs]
             quarter_range(date_shockdec_start(m), date_shockdec_end(m))
         elseif prod == :decomp
             quarter_range(date_mainsample_start(m), date_forecast_end(m))
@@ -349,12 +349,30 @@ function write_forecast_metadata(m::AbstractDSGEModel, file::JLD2.JLDFile, var::
     end
 
     # Write shock names and transforms
-    if class in [:shocks, :stdshocks] || prod in [:shockdec, :irf, :decompshockdec]
+    @show prod
+    if prod in [:shockdecseq, :shockdecqtrs]
+        #=orig_shocks = copy(m.exogenous_shocks)
+        del_keys = string.(keys(m.exogenous_shocks))
+        del_shocks = Symbol.(del_keys[[del_keys[i][end-2:end-1] != "h_" for i in 1:length(m.exogenous_shocks)]])
+        for i in 1:length(del_shocks)
+            delete!(orig_shocks, del_shocks[i])
+        end=#
+
+        @show string.(keys(m.exogenous_shocks))
         write(file, "shock_indices", m.exogenous_shocks)
-        if class in [:shocks, :stdshocks]
-            rev_transforms = Dict{Symbol,Symbol}(x => Symbol("identity") for x in keys(m.exogenous_shocks))
-            write(file, "shock_revtransforms", rev_transforms)
+    elseif class in [:shocks, :stdshocks] || prod in [:shockdec, :irf, :decompshockdec]
+        orig_shocks = copy(m.exogenous_shocks)
+        del_keys = string.(keys(m.exogenous_shocks))
+        del_shocks = Symbol.(del_keys[[del_keys[i][end-2:end-1] == "h_" || del_keys[i][end-2:end] == "ory" for i in 1:length(m.exogenous_shocks)]])
+        for i in 1:length(del_shocks)
+            delete!(orig_shocks, del_shocks[i])
         end
+
+        write(file, "shock_indices", orig_shocks)
+    end
+    if class in [:shocks, :stdshocks]
+        rev_transforms = Dict{Symbol,Symbol}(x => Symbol("identity") for x in keys(m.exogenous_shocks))
+        write(file, "shock_revtransforms", rev_transforms)
     end
 end
 

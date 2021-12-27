@@ -1141,9 +1141,9 @@ function shock_decompositions_quarters(system::System{S},
     end
 
     # Get the matrices back to 3 dimensions by having bars for each set of quarters in shock_qtrs
-    states3 = zeros(size(states,2), size(states,3), length(shock_qtrs)*length(back_shocks))
-    obs3 = zeros(size(obs,2), size(obs,3), length(shock_qtrs)*length(back_shocks))
-    pseudo3 = zeros(size(pseudo,2), size(pseudo,3), length(shock_qtrs)*length(back_shocks))
+    states3 = zeros(size(states,2), size(states,3), size(states,4) + length(shock_qtrs)*length(back_shocks))
+    obs3 = zeros(size(obs,2), size(obs,3), size(states,4) + length(shock_qtrs)*length(back_shocks))
+    pseudo3 = zeros(size(pseudo,2), size(pseudo,3), size(states,4) + length(shock_qtrs)*length(back_shocks))
 
     ## Get indices for vector of shocks
     shock_inds = [m.exogenous_shocks[shock_ind] for shock_ind in back_shocks]
@@ -1151,12 +1151,17 @@ function shock_decompositions_quarters(system::System{S},
 
     ## Actually do the conversion
     for i in 1:size(states,3)
+        st_ind = min(start_index+i-1, size(states,1))
+        states3[:,i,1:size(states,4)] = states[st_ind,:,i,:]
+        obs3[:,i,1:size(states,4)] = obs[st_ind,:,i,:]
+        pseudo3[:,i,1:size(states,4)] = pseudo[st_ind,:,i,:]
+
         for k in 1:length(shock_qtrs)
             st_ind = shock_qtrs[k]
-            for j in 1:length(back_shocks)
-                states3[:,i,(k-1)*shock_len+j] = sum(states[st_ind,:,i,shock_inds[j]])
-                obs3[:,i,(k-1)*shock_len+j] = obs[st_ind,:,i,shock_inds[j]]
-                pseudo3[:,i,(k-1)*shock_len+j] = pseudo[st_ind,:,i,shock_inds[j]]
+            for j in 1:(length(back_shocks) + size(states,4))
+                states3[:,i,(k-1)*shock_len+j+size(states,4)] = sum(states[st_ind,:,i,shock_inds[j]], dims = 1)
+                obs3[:,i,(k-1)*shock_len+j+size(states,4)] = sum(obs[st_ind,:,i,shock_inds[j]], dims = 1)
+                pseudo3[:,i,(k-1)*shock_len+j+size(states,4)] = sum(pseudo[st_ind,:,i,shock_inds[j]], dims = 1)
 
                 # Add this "lagged shock" to the list of exogenous shocks
                 if !haskey(m.exogenous_shocks, Symbol(back_shocks[j], :_, k))
@@ -1193,7 +1198,7 @@ function shock_decompositions_quarters(m::AbstractDSGEModel{S},
         regime_inds[1] = 1:regime_inds[1][end]
     end
 
-    shock_decompositions_sequence(m, system, horizon, histshocks, start_index, end_index,
+    shock_decompositions_quarters(m, system, horizon, histshocks, start_index, end_index,
                                   regime_inds, cond_type, shock_qtrs = shock_qtrs, back_shocks = back_shocks)
 end
 
@@ -1232,9 +1237,9 @@ function shock_decompositions_quarters(m::AbstractDSGEModel, system::RegimeSwitc
     end
 
     # Get the matrices back to 3 dimensions by having bars for each set of quarters in shock_qtrs
-    states3 = zeros(size(states,2), size(states,3), length(shock_qtrs)*length(back_shocks))
-    obs3 = zeros(size(obs,2), size(obs,3), length(shock_qtrs)*length(back_shocks))
-    pseudo3 = zeros(size(pseudo,2), size(pseudo,3), length(shock_qtrs)*length(back_shocks))
+    states3 = zeros(size(states,2), size(states,3), size(states,4) + length(shock_qtrs)*length(back_shocks))
+    obs3 = zeros(size(obs,2), size(obs,3), size(states,4) + length(shock_qtrs)*length(back_shocks))
+    pseudo3 = zeros(size(pseudo,2), size(pseudo,3), size(states,4) + length(shock_qtrs)*length(back_shocks))
 
     ## Get indices for vector of shocks
     shock_inds = [m.exogenous_shocks[shock_ind] for shock_ind in back_shocks]
@@ -1242,12 +1247,17 @@ function shock_decompositions_quarters(m::AbstractDSGEModel, system::RegimeSwitc
 
     ## Actually do the conversion
     for i in 1:size(states,3)
+        st_ind = min(start_index+i-1, size(states,1))
+        states3[:,i,1:size(states,4)] = states[st_ind,:,i,:]
+        obs3[:,i,1:size(states,4)] = obs[st_ind,:,i,:]
+        pseudo3[:,i,1:size(states,4)] = pseudo[st_ind,:,i,:]
+
         for k in 1:length(shock_qtrs)
             st_ind = shock_qtrs[k]
             for j in 1:length(back_shocks)
-                states3[:,i,(k-1)*shock_len+j] = states[st_ind,:,i,shock_inds[j]]
-                obs3[:,i,(k-1)*shock_len+j] = obs[st_ind,:,i,shock_inds[j]]
-                pseudo3[:,i,(k-1)*shock_len+j] = pseudo[st_ind,:,i,shock_inds[j]]
+                states3[:,i,(k-1)*shock_len+j+size(states,4)] = sum(states[st_ind,:,i,shock_inds[j]], dims = 1)
+                obs3[:,i,(k-1)*shock_len+j+size(states,4)] = sum(obs[st_ind,:,i,shock_inds[j]], dims = 1)
+                pseudo3[:,i,(k-1)*shock_len+j+size(states,4)] = sum(pseudo[st_ind,:,i,shock_inds[j]], dims = 1)
 
                 # Add this "lagged shock" to the list of exogenous shocks
                 if !haskey(m.exogenous_shocks, Symbol(back_shocks[j], :_, k))

@@ -306,7 +306,7 @@ Returns a list of shock names that are used for the shock
 decomposition stored in a shock decomposition or irf MeansBands object `mb`.
 """
 function get_shocks(mb::MeansBands)
-    @assert get_product(mb) in [:shockdec, :irf, :shockdecseq] "Function only for shockdec, shockdecseq, or irf MeansBands objects"
+    @assert get_product(mb) in [:shockdec, :irf, :shockdecseq, :shockdecqtrs] "Function only for shockdec, shockdecseq, shockdecqtrs, or irf MeansBands objects"
     varshocks = setdiff(propertynames(mb.means), [:date])
     unique(map(x -> Symbol(split(string(x), DSGE_SHOCKDEC_DELIM)[2]), varshocks))
 end
@@ -333,7 +333,7 @@ Returns a list of variable names that are used for the shock
 decomposition stored in a shock decomposition or irf MeansBands object `mb`.
 """
 function get_variables(mb::MeansBands)
-    @assert get_product(mb) in [:shockdec, :irf, :shockdecseq] "Function only for shockdec or irf MeansBands objects"
+    @assert get_product(mb) in [:shockdec, :irf, :shockdecseq, :shockdecqtrs] "Function only for shockdec or irf MeansBands objects"
     varshocks = setdiff(propertynames(mb.means), [:date])
     unique(map(x -> Symbol(split(string(x), DSGE_SHOCKDEC_DELIM)[1]), varshocks))
 end
@@ -560,7 +560,7 @@ function get_shockdec_bands(mb::MeansBands, var::Symbol;
                             shocks::Vector{Symbol} = Vector{Symbol}(),
                             bands::Vector{Symbol} = Vector{Symbol}())
 
-    @assert get_product(mb) == :shockdec || get_product(mb) == :shockdecseq
+    @assert get_product(mb) in [:shockdec, :shockdecseq, :shockdecqtrs]
 
     # Extract the subset of columns relating to the variable `var` and the shocks listed in `shocks.`
     # If `shocks` not provided, give all the shocks
@@ -817,6 +817,7 @@ function prepare_means_table_trend_nostates(m::AbstractDSGEModel{S}, cond_type::
     else
         fcast_regime_inds = get_fcast_regime_inds(m, forecast_horizons(m; cond_type = cond_type), cond_type,
                                                   start_index = hist_regime_inds[end][end])
+
         fcast_cutoff = findfirst([regind[end] >= end_index for regind in fcast_regime_inds])
         if isnothing(fcast_cutoff)
             error("The index_shockdec_end(m) occurs past the index of the final forecast date.")

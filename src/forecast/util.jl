@@ -183,7 +183,7 @@ function add_requisite_output_vars(output_vars::Vector{Symbol}; bdd_fcast::Bool 
     end
 
     # Add :trend<class> and :dettrend<class> if :shockdec<class> is in output_vars
-    shockdec_outputs = Base.filter(output -> get_product(output) == :shockdec, output_vars)
+    shockdec_outputs = Base.filter(output -> get_product(output) in [:shockdec, :shockdecseq, :shockdecqtrs], output_vars)
     if !isempty(shockdec_outputs)
         classes = [get_class(output) for output in shockdec_outputs]
         dettrend_vars = [Symbol("dettrend$c") for c in classes]
@@ -409,7 +409,7 @@ function get_forecast_output_dims(m::AbstractDSGEModel, input_type::Symbol, outp
         n_mainsample_periods(m)
     elseif prod in [:forecast, :bddforecast]
         forecast_horizons(m)
-    elseif prod in [:shockdec, :dettrend]
+    elseif prod in [:shockdec, :dettrend, :shockdecseq, :shockdecqtrs]
         n_shockdec_periods(m)
     elseif prod == :irf
         impulse_response_horizons(m)
