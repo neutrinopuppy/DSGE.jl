@@ -829,6 +829,11 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
         get(uncertainty_override)
     end
 
+    # Initialize the preprocessed mats
+    if !haskey(m.settings, :preprocessed_transitions)
+        m <= Setting(:preprocessed_transitions, Dict())
+    end
+
     ### 1. Smoothed Histories
 
     # Must run smoother for conditional data in addition to explicit cases
