@@ -50,7 +50,7 @@ end
 function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
                              cond_new::Symbol, cond_old::Symbol,
                              class::Symbol, var::Symbol;
-forecast_string_new = "", forecast_string_old = "",
+                             forecast_string_new = "", forecast_string_old = "",
                              verbose::Symbol = :low, model_decomp::Bool = false) where M<:AbstractDSGEModel
     # Read in dates
     input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, [class], forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old, model_decomp = model_decomp)

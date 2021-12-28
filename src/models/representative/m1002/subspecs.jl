@@ -121,6 +121,8 @@ function init_subspec!(m::Model1002)
         return ss97!(m)
     elseif subspec(m) == "ss98"
         return ss98!(m)
+    elseif subspec(m) == "ss99"
+        return ss99!(m)
     else
         error("This subspec is not defined.")
     end
@@ -1869,7 +1871,7 @@ function ss64!(m::Model1002)
     m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
                                                 3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
                                                 5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30)))
+                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30)))
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6161,7 +6163,7 @@ function ss84!(m::Model1002)
     m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
                                                 3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
                                                 5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30)))
+                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30)))
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6369,7 +6371,7 @@ function ss85!(m::Model1002)
     m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
                                                 3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
                                                 5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30)))
+                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30)))
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6598,9 +6600,9 @@ end
 
 
 function add_meas_pi!(m)
-    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    for i in 8:get_setting(m, :n_regimes)
+    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
+    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
+    for i in 9:get_setting(m, :n_regimes)
         get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 1
         get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
     end
@@ -6624,13 +6626,18 @@ function add_meas_pi!(m)
     set_regime_fixed!(m[:ρ_meas_π], 2, false)
     set_regime_fixed!(m[:σ_meas_π], 1, true)
     set_regime_fixed!(m[:σ_meas_π], 2, false)
+
+    set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:σ_meas_π], 2, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 1, m[:ρ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 2, m[:ρ_meas_π].prior)
 end
 
 function add_zero_meas_pi!(m)
     # Set measurement errors from ss87 to 0
-    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    for i in 8:get_setting(m, :n_regimes)
+    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
+    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
+    for i in 9:get_setting(m, :n_regimes)
         get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 1
         get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
     end
@@ -6676,9 +6683,9 @@ function rm_iid_pce_meas_err!(m)
 
     #get_setting(m, :model2para_regime)[:ρ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     #get_setting(m, :model2para_regime)[:σ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:ρ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:σ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    for i in 8:get_setting(m, :n_regimes)
+    get_setting(m, :model2para_regime)[:ρ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
+    get_setting(m, :model2para_regime)[:σ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
+    for i in 9:get_setting(m, :n_regimes)
         #get_setting(m, :model2para_regime)[:ρ_gdpdef][i] = 1
         #get_setting(m, :model2para_regime)[:σ_gdpdef][i] = 1
         get_setting(m, :model2para_regime)[:ρ_corepce][i] = 1
@@ -6790,6 +6797,9 @@ function ss91!(m)
 
     # Set prior for standard deviation to be large since we are removing other measurement error
     set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:σ_meas_π], 2, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 1, m[:ρ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 2, m[:ρ_meas_π].prior)
     prior2 = get(m[:σ_meas_π].prior)
     prior2.τ = 0.2
     set_regime_prior!(m[:σ_meas_π], 2, prior2)
@@ -6858,4 +6868,20 @@ function ss98!(m)
     # Note that here in eqcond we liberate rho_biidc - the higher it is, the less negative the rho
     ## Don't do multiple regimes because sigma_biidc is 0 outside Covid
     ## so it will just persist the after effects of Covid which is fine.
+end
+
+# 97 but removes subtraction by e_{pi,t-1} in first post-MR period
+function ss99!(m)
+    ss97!(m)
+
+    # Create new parameter for coefficient of e_{pi,t-1}
+    get_setting(m, :model2para_regime)[:meas_π1] = copy(get_setting(m, :model2para_regime)[:ρ_meas_π])
+
+    set_regime_valuebounds!(m[:meas_π1], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:meas_π1], 2, (0.0, 5.0))
+    set_regime_val!(m[:meas_π1], 1, 0.0)
+    set_regime_val!(m[:meas_π1], 2, 1.0)
+    set_regime_fixed!(m[:meas_π1], 1, true)
+    set_regime_fixed!(m[:meas_π1], 2, true)
+
 end

@@ -156,7 +156,8 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             forecast_string_new::String = "",
                             endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
                             enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
-                            set_zlb_regime_vals::Function = identity, shockdec_data_only::Bool = false,
+                            set_zlb_regime_vals_new::Function = identity, set_zlb_regime_vals_old::Function = identity,
+                            shockdec_data_only::Bool = false,
                             model_decomp::Bool = false) where M<:AbstractDSGEModel
 
     # Check numbers of periods
@@ -184,23 +185,26 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     m_old_mod2par = haskey(m_old.settings, :model2para_regime) ? get_setting(m_old, :model2para_regime) : nothing
 
     # Change old parameters to forecast old model with new parameters
-    m_old.parameters = m_new.parameters
+    m_old.parameters = copy(m_new.parameters)
     if haskey(m_new.settings, :model2para_regime)
         m_old <= Setting(:model2para_regime, get_setting(m_new, :model2para_regime))
     end
 
     # New forecast
     out1 = f(m_new, df_new, params_new, cond_new, outputs = [:forecast, :shockdec],
-             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new) # new data, new params
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
+             set_zlb_regime_vals = set_zlb_regime_vals_new) # new data, new params
 
     # New Model, Old Data, New Parameters
     out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
-             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new)
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
+             set_zlb_regime_vals = set_zlb_regime_vals_new)
 
     # Old Model, Old Data, New Parameters
     if model_decomp
         out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
-                 enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old)
+                 enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old,
+                 set_zlb_regime_vals = set_zlb_regime_vals_old)
     else
         out3 = out2
     end
@@ -215,7 +219,8 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
 
     # Old Forecast
     out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast, :shockdec],
-             enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old)
+             enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old,
+             set_zlb_regime_vals = set_zlb_regime_vals_old)
 
     # Initialize output dictionary
     decomp = Dict{Symbol, Array{Float64}}()
@@ -250,8 +255,8 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         end
 
         # 1(a). Data revision and news
-        data_comp = out1[dettrendvar] - out2[dettrendvar] + (out1[datavar] - out2[datavar])
-        decomp[Symbol(:decompdata, class)] = data_comp
+        data_comp = out1[forecastvar] .- out2[forecastvar] .- (out1[newsvar] .- out2[newsvar])#out1[dettrendvar] .- out2[dettrendvar] .+ (out1[datavar] .- out2[datavar])
+        decomp[Symbol(:decompdata, class)] = data_comp#out1[datavar] .- out2[datavar]#data_comp
 
         news_comp = out1[newsvar] - out2[newsvar]
         decomp[Symbol(:decompnews, class)] = news_comp
