@@ -72,7 +72,7 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
     for t = 1:(T_switch-1)
         preprocessed_transitions = haskey(get_settings(m), :preprocessed_transitions) ? get_setting(m, :preprocessed_transitions) : nothing
         # check if we've preprocessed the matrix in question
-        if !isnothing(preprocessed_transitions) && !isnothing(preprocessed_transitions[liftoff_policy][t+1])
+        if !isnothing(preprocessed_transitions) ? (haskey(preprocessed_transitions, liftoff_policy) ? !isnothing(preprocessed_transitions[liftoff_policy][t+1]) : false) : false
             Tcal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:TTT]
             Rcal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:RRR]
             Ccal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:CCC]
@@ -83,6 +83,10 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
             Ccal[end-t] = tmp \ (C_tils[end-t] - Γ2_tils[end-t] * CCC)
 
             if !isnothing(preprocessed_transitions)
+                if !haskey(preprocessed_transitions, liftoff_policy)
+                    k_max = haskey(get_settings(m), :k_max) ? get_setting(m, :k_max) : 17
+                    preprocessed_transitions[liftoff_policy] = Array{Union{Dict, Nothing}}(nothing, k_max+1)
+                end
                 if isnothing(preprocessed_transitions[liftoff_policy][t+1])
                     preprocessed_transitions[liftoff_policy][t+1] = Dict()
                 end
