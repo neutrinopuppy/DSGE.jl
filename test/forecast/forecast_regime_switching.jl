@@ -233,36 +233,36 @@ end
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31), 3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 6, 30))
-    push!(answers[:none], [1:1, 2:60])
-    push!(answers[:full], [1:59])
+    push!(answers[:none], [1:1, 2:40])
+    push!(answers[:full], [1:39])
 
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31), 3 => Date(2020, 6, 30),
                                4 => Date(2021, 12, 31)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 6, 30))
-    push!(answers[:none], [1:6, 7:60])
-    push!(answers[:full], [1:5, 6:59])
+    push!(answers[:none], [1:6, 7:40])
+    push!(answers[:full], [1:5, 6:39])
 
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31), 3 => Date(2020, 12, 31),
                                4 => Date(2021, 12, 31)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 12, 31))
-    push!(answers[:none], [1:2, 3:6, 7:60])
-    push!(answers[:full], [1:3, 4:57])
+    push!(answers[:none], [1:2, 3:6, 7:40])
+    push!(answers[:full], [1:3, 4:37])
 
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31), 3 => Date(2021, 12, 31),
                                4 => Date(2022, 12, 31)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 12, 31))
-    push!(answers[:none], [1:6, 7:10, 11:60])
-    push!(answers[:full], [1:3, 4:7, 8:57])
+    push!(answers[:none], [1:6, 7:10, 11:40])
+    push!(answers[:full], [1:3, 4:7, 8:37])
 
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 6, 30), 3 => Date(2021, 12, 31),
                                4 => Date(2022, 12, 31)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 12, 31))
-    push!(answers[:none], [1:6, 7:10, 11:60])
-    push!(answers[:full], [1:3, 4:7, 8:57])
+    push!(answers[:none], [1:6, 7:10, 11:40])
+    push!(answers[:full], [1:3, 4:7, 8:37])
 
     for cond_type in [:full, :none]
         for (i, rs, fs, ce) in zip(1:length(rss), rss, fss, ces)
