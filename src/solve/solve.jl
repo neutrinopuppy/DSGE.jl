@@ -375,7 +375,8 @@ function solve_non_gensys2_regimes!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}
 
         if save_mats
             if !haskey(preprocessed_transitions, altpol_key)
-                preprocessed_transitions[altpol_key] = Array{Union{Dict, Nothing}}(nothing, get_setting(m, :k_max)+1)
+                k_max = haskey(m.settings, :k_max) ? get_setting(m, :k_max) : 17
+                preprocessed_transitions[altpol_key] = Array{Union{Dict, Nothing}}(nothing, k_max+1)
             end
             if isnothing(preprocessed_transitions[altpol_key][1])
                 preprocessed_transitions[altpol_key][1] = Dict()
