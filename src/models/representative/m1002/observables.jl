@@ -40,7 +40,7 @@ function init_observable_mappings!(m::Model1002)
         100*log.(3 * weeklyhours / 100)
     end
 
-    hrs_rev_transform = logleveltopct_annualized_percapita
+    hrs_rev_transform = identity#logleveltopct_annualized_percapita
 
     if haskey(m.settings, :hours_first_observable)
         if get_setting(m, :hours_first_observable)
