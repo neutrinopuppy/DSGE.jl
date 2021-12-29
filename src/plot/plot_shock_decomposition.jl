@@ -242,8 +242,7 @@ shockdec
                    tick_size = 5,
                    vert_line = quartertodate("0000-Q1"),
                    vert_line2 = quartertodate("0000-Q1"),
-                   trend_nostates = DataFrame(), df_enddate = Date(2100,12,31),
-                   keep_DD::Bool = false)
+                   trend_nostates = DataFrame(), df_enddate = Date(2100,12,31))
 
     # Error checking
     if length(sd.args) != 7 || typeof(sd.args[1]) != Symbol ||
@@ -265,8 +264,7 @@ shockdec
     df = DSGE.prepare_means_table_shockdec(shockdec, trend, dettrend, var,
                                            mb_hist = hist, mb_forecast = forecast,
                                            detexify_shocks = false,
-                                           groups = groups, trend_nostates = trend_nostates, df_enddate = df_enddate,
-                                           keep_DD = keep_DD)
+                                           groups = groups, trend_nostates = trend_nostates, df_enddate = df_enddate)
 
     dates = df[!, :date]
     xnums = (1:length(dates)) .- 0.5

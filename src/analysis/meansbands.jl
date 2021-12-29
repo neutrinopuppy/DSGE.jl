@@ -681,8 +681,7 @@ function prepare_means_table_shockdec(mb_shockdec::MeansBands, mb_trend::MeansBa
                                       mb_hist::MeansBands = MeansBands(),
                                       detexify_shocks::Bool = true,
                                       groups::Vector{ShockGroup} = ShockGroup[],
-                                      trend_nostates::DataFrame = DataFrame(), df_enddate = Date(2100,12,31),
-                                      keep_DD::Bool = false)
+                                      trend_nostates::DataFrame = DataFrame(), df_enddate = Date(2100,12,31))
 
     @assert get_product(mb_shockdec) in [:shockdec, :shockdecseq, :shockdecqtrs] "The first argument must be a MeansBands object for a shockdec"
     @assert get_product(mb_trend)    == :trend    "The second argument must be a MeansBands object for a trend"
@@ -745,8 +744,8 @@ function prepare_means_table_shockdec(mb_shockdec::MeansBands, mb_trend::MeansBa
             end
 
             var_trend_states      = df_shockdec[!, :trend] - var_trend_nostates
-            df[!, :detrendedMean] = keep_DD ? df_shockdec[!,var] : df_shockdec[!,var] - var_trend_nostates
-            df[!, :StatesTrend]   = keep_DD ? copy(df_shockdec[!, :trend]) : var_trend_states
+            df[!, :detrendedMean] = df_shockdec[!,var] - var_trend_nostates
+            df[!, :StatesTrend]   = var_trend_states
         end
     end
 
