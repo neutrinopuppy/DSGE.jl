@@ -349,16 +349,7 @@ function write_forecast_metadata(m::AbstractDSGEModel, file::JLD2.JLDFile, var::
     end
 
     # Write shock names and transforms
-    @show prod
     if prod in [:shockdecseq, :shockdecqtrs]
-        #=orig_shocks = copy(m.exogenous_shocks)
-        del_keys = string.(keys(m.exogenous_shocks))
-        del_shocks = Symbol.(del_keys[[del_keys[i][end-2:end-1] != "h_" for i in 1:length(m.exogenous_shocks)]])
-        for i in 1:length(del_shocks)
-            delete!(orig_shocks, del_shocks[i])
-        end=#
-
-        @show string.(keys(m.exogenous_shocks))
         write(file, "shock_indices", m.exogenous_shocks)
     elseif class in [:shocks, :stdshocks] || prod in [:shockdec, :irf, :decompshockdec]
         orig_shocks = copy(m.exogenous_shocks)
