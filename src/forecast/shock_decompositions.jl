@@ -1151,10 +1151,10 @@ function shock_decompositions_quarters(system::System{S},
 
     ## Actually do the conversion
     for i in 1:size(states,3)
-        st_ind = min(start_index+i-1, size(states,1))
-        states3[:,i,1:size(states,4)] = states[st_ind,:,i,:]
-        obs3[:,i,1:size(states,4)] = obs[st_ind,:,i,:]
-        pseudo3[:,i,1:size(states,4)] = pseudo[st_ind,:,i,:]
+        # st_ind = min(start_index+i-1, size(states,1))
+        states3[:,i,1:size(states,4)] = sum(states[:,:,i,:], dims = 1)
+        obs3[:,i,1:size(states,4)] = sum(obs[:,:,i,:], dims = 1)
+        pseudo3[:,i,1:size(states,4)] = sum(pseudo[:,:,i,:], dims = 1)
 
         for k in 1:length(shock_qtrs)
             st_ind = shock_qtrs[k]
@@ -1247,10 +1247,10 @@ function shock_decompositions_quarters(m::AbstractDSGEModel, system::RegimeSwitc
 
     ## Actually do the conversion
     for i in 1:size(states,3)
-        st_ind = min(start_index+i-1, size(states,1))
-        states3[:,i,1:size(states,4)] = states[st_ind,:,i,:]
-        obs3[:,i,1:size(states,4)] = obs[st_ind,:,i,:]
-        pseudo3[:,i,1:size(states,4)] = pseudo[st_ind,:,i,:]
+        # st_ind = min(start_index+i-1, size(states,1))
+        states3[:,i,1:size(states,4)] = sum(states[:,:,i,:], dims = 1)
+        obs3[:,i,1:size(states,4)] = sum(obs[:,:,i,:], dims = 1)
+        pseudo3[:,i,1:size(states,4)] = sum(pseudo[:,:,i,:], dims = 1)
 
         for k in 1:length(shock_qtrs)
             st_ind = shock_qtrs[k]
