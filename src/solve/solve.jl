@@ -316,6 +316,9 @@ function solve_non_gensys2_regimes!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}
     for reg in regimes
         save_mats = false
         # check preprocessing
+        # DO NOT DO THIS. THIS IGNORES PARAM REGIMES.
+        # TODO: think harder.
+        #=
         if haskey(get_settings(m), :preprocessed_transitions)
             preprocessed_transitions = get_setting(m, :preprocessed_transitions)
             altpol_key = haskey(get_settings(m), :regime_eqcond_info) ? (haskey(get_setting(m, :regime_eqcond_info), reg) ? get_setting(m, :regime_eqcond_info)[reg].alternative_policy.key : :default_policy) : :default_policy
@@ -333,6 +336,7 @@ function solve_non_gensys2_regimes!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}
             end
             save_mats = true
         end
+        =#
 
 
         # Check if, in the case of perfect credibility, whether or not the current regime's gensys solution
@@ -373,6 +377,7 @@ function solve_non_gensys2_regimes!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}
         TTTs[reg], RRRs[reg], CCCs[reg] =
         augment_states(m, TTT_gensys, RRR_gensys, CCC_gensys, reg = reg)
 
+        #=
         if save_mats
             if !haskey(preprocessed_transitions, altpol_key)
                 k_max = haskey(m.settings, :k_max) ? get_setting(m, :k_max) : 17
@@ -385,6 +390,7 @@ function solve_non_gensys2_regimes!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}
             preprocessed_transitions[altpol_key][1][:RRR] = RRRs[reg]
             preprocessed_transitions[altpol_key][1][:CCC] = CCCs[reg]
         end
+        =#
     end
 
     return TTTs, RRRs, CCCs
