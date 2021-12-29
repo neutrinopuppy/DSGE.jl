@@ -830,9 +830,7 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
     end
 
     # Initialize the preprocessed mats
-    if !haskey(m.settings, :preprocessed_transitions)
-        m <= Setting(:preprocessed_transitions, Dict())
-    end
+    m <= Setting(:preprocessed_transitions, Dict())
 
     ### 1. Smoothed Histories
 
