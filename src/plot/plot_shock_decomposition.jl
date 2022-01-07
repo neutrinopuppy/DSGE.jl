@@ -40,12 +40,13 @@ function plot_shock_decomposition(m::AbstractDSGEModel, var::Symbol, class::Symb
                                   title = "", file_ext = "", four_quarter_avg = false,
                                   trend_nostates::DataFrame = DataFrame(), df_enddate::Date = Date(2100,12,31),
                                   groups::Vector{ShockGroup} = shock_groupings(m), ylim_dict = Dict(),
-                                  product::Symbol = :shockdec,
+                                  product::Symbol = :shockdec, ext_black::Bool = false,
                                   kwargs...)
     plots = plot_shock_decomposition(m, [var], class, input_type, cond_type;
                                      titles = isempty(title) ? String[] : [title], file_ext = file_ext,
                                      four_quarter_avg = four_quarter_avg, trend_nostates = trend_nostates,
-                                     df_enddate = df_enddate, groups = groups, ylim_dict = ylim_dict, product = product, kwargs...)
+                                     df_enddate = df_enddate, groups = groups, ylim_dict = ylim_dict, product = product,
+                                     ext_black = ext_black, kwargs...)
     return plots[var]
 end
 
@@ -58,7 +59,7 @@ function plot_shock_decomposition(m::AbstractDSGEModel, vars::Vector{Symbol}, cl
                                   file_ext::String = "", four_quarter_avg = false,
                                   trend_nostates::DataFrame = DataFrame(), verbose::Symbol = :low,
                                   df_enddate::Date = Date(2100,12,31), ylim_dict = Dict(),
-                                  product::Symbol = :shockdec,
+                                  product::Symbol = :shockdec, ext_black::Bool = false,
                                   kwargs...)
     # Read in MeansBands
     output_vars = [Symbol(prod, class) for prod in [product, :trend, :dettrend, :hist, :forecast]]
@@ -66,9 +67,15 @@ function plot_shock_decomposition(m::AbstractDSGEModel, vars::Vector{Symbol}, cl
     if four_quarter_avg
         mbs = map(output_var -> read_mb_4q(m, input_type, cond_type, output_var, forecast_string = forecast_string),
                   output_vars)
+
     else
         mbs = map(output_var -> read_mb(m, input_type, cond_type, output_var, forecast_string = forecast_string),
                   output_vars)
+    end
+
+    if ext_black
+        push!(mbs[4].means, mbs[5].means[1,:])
+        mbs[5].means = mbs[5].means[2:end,:]
     end
 
     # Get titles if not provided
