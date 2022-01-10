@@ -88,7 +88,11 @@ function series_ylabel(m::AbstractDSGEModel, var::Symbol, class::Symbol;
                 return "Percent Annualized"
             end
         elseif transform == identity
-            ""
+            if var == :obs_hours
+                "Log Level in Percent"
+            else
+                ""
+            end
         else
             error("series_ylabel not implemented for transform: $transform")
         end
