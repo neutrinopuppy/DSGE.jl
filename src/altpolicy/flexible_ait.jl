@@ -131,6 +131,15 @@ function flexible_ait_eqcond(m::AbstractDSGEModel, reg::Int = 1)
 
     Γ0, Γ1, C, Ψ, Π = flexible_ait_replace_eq_entries(m, Γ0, Γ1, C, Ψ, Π)
 
+    # Set pgap_{t-1} to desired value
+    if haskey(get_settings(m), :set_pgap1) && reg in get_setting(m, :set_pgap1)[1]
+        ait_Thalf = haskey(get_settings(m), :ait_Thalf) ? get_setting(m, :ait_Thalf) : 10.
+        ρ_pgap    = exp(log(0.5) / ait_Thalf)
+
+        C[m.equilibrium_conditions[:eq_pgap]] = ρ_pgap * get_setting(m, :set_pgap1)[2]
+        Γ1[m.equilibrium_conditions[:eq_pgap], m.endogenous_states[:pgap_t]] = 0.0
+    end
+
     for para in m.parameters
         if !isempty(para.regimes)
             ModelConstructors.toggle_regime!(para, 1)
