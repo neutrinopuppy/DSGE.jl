@@ -443,7 +443,7 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
     =#
 
     # Determine which quarters in the forecast have sub-zlb nominal rates
-    has_neg_rates = view(obs, get_observables(m)[:obs_nominalrate], :) .<= forecast_zlb_value(m)
+    has_neg_rates = view(obs, get_observables(m)[:obs_nominalrate], :) .< forecast_zlb_value(m) - 1e-10
 
     first_endo_zlb     = findfirst(has_neg_rates)
     # Information set - start of awareness of ZLB
