@@ -413,8 +413,8 @@ function impulse_responses(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S
         m <= Setting(:date_conditional_end, DSGE.iterate_quarters(get_setting(m, :date_forecast_start), post_cond_regs))
         cond_end = DSGE.iterate_quarters(date_conditional_end(m), 1)
         cond_reg = if cond_end in values(get_setting(m, :regime_dates))
+            ans = 1
             for i in keys(get_setting(m, :regime_dates))
-                ans = 1
                 if get_setting(m, :regime_dates)[i] == cond_end
                     ans = i
                 end
