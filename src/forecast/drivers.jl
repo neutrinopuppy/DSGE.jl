@@ -512,7 +512,9 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                       forecast_string::String = "",
                       use_filtered_shocks_in_shockdec::Bool = false,
                       shock_name::Symbol = :none, shock_var_name::Symbol = :none,
-                      shock_var_value::Float64 = 0.0, check_empty_columns = true,
+                      shock_var_value::Float64 = 0.0, shock_names::Vector{Symbol} = Vector{Symbol}(undef, 0),
+                      shock_values::Vector{Float64} = Vector{Float64}(undef, 0),
+                      check_empty_columns = true,
                       bdd_fcast::Bool = true, params::AbstractArray{Float64} = Vector{Float64}(undef, 0),
                       zlb_method::Symbol = :shock, set_regime_vals_altpolicy::Function = identity,
                       set_info_sets_altpolicy::Function = auto_temp_altpolicy_info_set,
@@ -565,6 +567,7 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                 shock_name = shock_name,
                                                 shock_var_name = shock_var_name,
                                                 shock_var_value = shock_var_value,
+                                                shock_names = shock_names, shock_values = shock_values,
                                                 regime_switching = regime_switching,
                                                 n_regimes = n_regimes, zlb_method = zlb_method,
                                                 set_regime_vals_altpolicy = set_regime_vals_altpolicy,
@@ -662,6 +665,8 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                                  shock_name = shock_name,
                                                                  shock_var_name = shock_var_name,
                                                                  shock_var_value = shock_var_value,
+                                                                 shock_names = shock_names,
+                                                                 shock_values = shock_values,
                                                                  regime_switching = regime_switching,
                                                                  n_regimes = n_regimes, zlb_method = zlb_method,
                                                                  set_regime_vals_altpolicy = set_regime_vals_altpolicy,
@@ -779,7 +784,9 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                            output_vars::Vector{Symbol}, params::Vector{Float64}, df::DataFrame; verbose::Symbol = :low,
                            use_filtered_shocks_in_shockdec::Bool = false,
                            shock_name::Symbol = :none, shock_var_name::Symbol = :none,
-                           shock_var_value::Float64 = 0.0, zlb_method::Symbol = :shock,
+                           shock_var_value::Float64 = 0.0, shock_names::Vector{Symbol} = Vector{Symbol}(undef, 0),
+                           shock_values::Vector{Float64} = Vector{Float64}(undef, 0),
+                           zlb_method::Symbol = :shock,
                            set_regime_vals_altpolicy::Function = identity,
                            set_info_sets_altpolicy::Function = auto_temp_altpolicy_info_set,
                            update_regime_eqcond_info!::Function =
@@ -1347,6 +1354,14 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                                                              use_changing_systems = use_changing_systems) :
                                                                  impulse_responses(m, system, impulse_response_horizons(m),
                                                                                    shock_name, shock_var_name, shock_var_value)
+        elseif length(shock_names) > 0
+            irf_reg = haskey(get_settings(m), :impulse_response_regime) ? get_setting(m, :impulse_response_regime) : get_setting(m, :reg_forecast_start)
+            irfstates, irfobs, irfpseudo = typeof(system) <: RegimeSwitchingSystem ? impulse_responses(m, system, impulse_response_horizons(m),
+                                                             shock_names,
+                                                             shock_values,
+                                                             irf_reg) : #TODO: set up use_changing_systems
+                                                                 impulse_responses(m, system, impulse_response_horizons(m),
+                                                                                   shock_names, shock_values)
         else
             irfstates, irfobs, irfpseudo = typeof(system) <: RegimeSwitchingSystem ? impulse_responses(m, system, use_changing_systems = use_changing_systems) : impulse_responses(m, system)
         end
