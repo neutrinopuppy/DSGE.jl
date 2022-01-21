@@ -209,7 +209,6 @@ if it is nonempty, or else in `tablespath(m, \"estimate\")`.
                          verbose::Symbol = :low, use_mode::Bool = false)
 
       ### 1. Load parameter draws from Metropolis-Hastings
-@show "lmao wut"
       if length(params) == 0
           params = if !isempty(subset_inds)
               # Use subset of draws
