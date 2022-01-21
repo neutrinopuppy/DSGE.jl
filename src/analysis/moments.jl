@@ -205,11 +205,11 @@ if it is nonempty, or else in `tablespath(m, \"estimate\")`.
                          subset_inds::AbstractRange{Int64} = 1:0, subset_string::String = "",
                          groupings::AbstractDict{String, Vector{Parameter}} = Dict{String, Vector{Parameter}}(),
                          tables = [:prior_posterior_means, :moments, :prior, :posterior],
-                         caption = true, outdir = "", params::Array{Float64} = [],
+                         caption = true, outdir = "", params::Array{Float64} = Array{Float64}(undef, 0),
                          verbose::Symbol = :low, use_mode::Bool = false)
 
       ### 1. Load parameter draws from Metropolis-Hastings
-
+@show "lmao wut"
       if length(params) == 0
           params = if !isempty(subset_inds)
               # Use subset of draws
