@@ -32,6 +32,7 @@ output_vars = add_requisite_output_vars([:histpseudo, :histobs, :histstdshocks,
 
 Random.seed!(47)
 df = CSV.read("$path/../reference/input_data/data/data_dsid=00_vint=REF.csv", DataFrame)
+m <= Setting(:forecast_horizons, 60)
 forecast_one(m, :full, :none, output_vars, df = df, verbose = :none)
 compute_meansbands(m, :full, :none, [:histobs, :forecastobs, :histpseudo, :forecastpseudo,
                                      :hist4qobs, :forecast4qobs, :hist4qpseudo, :forecast4qpseudo, :shockdecobs, :irfobs], df = df, verbose = :none)
