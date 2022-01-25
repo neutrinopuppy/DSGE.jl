@@ -12,7 +12,6 @@ a second-order perturbation.
 function gensys2(m::AbstractDSGEModel, Γ0::Matrix{Float64}, Γ1::Matrix{Float64}, C::Vector{Float64},
                  Ψ::Matrix{Float64}, Π::Matrix{Float64}, TTT::Matrix{Float64}, RRR::Matrix{Float64},
                  CCC::Vector{Float64}, T_switch::Int)
-
     Γ0_til, Γ1_til, Γ2_til, C_til, Ψ_til =
         gensys_to_predictable_form(Γ0, Γ1, C, Ψ, Π; use_sparse = (haskey(get_settings(m), :gensys2_sparse_matrices) &&
                                                                   get_setting(m, :gensys2_sparse_matrices)))
@@ -41,8 +40,8 @@ end
 function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vector{Matrix{Float64}},
                  Cs::Vector{Vector{Float64}}, Ψs::Vector{Matrix{Float64}}, Πs::Vector{Matrix{Float64}},
                  TTT::Matrix{Float64}, RRR::Matrix{Float64},
-                 CCC::Vector{Float64}, T_switch::Int)
-
+                 CCC::Vector{Float64}, T_switch::Int;
+                 liftoff_policy::Symbol = :default_policy)
     ntil = length(Γ0s)
     use_sparse = haskey(get_settings(m), :gensys2_sparse_matrices) &&
         get_setting(m, :gensys2_sparse_matrices)
@@ -69,11 +68,33 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
     Rcal[end] = RRR
     Ccal[end] = CCC
 
+
     for t = 1:(T_switch-1)
-        tmp = Γ2_tils[end-t] * TTT + Γ0_tils[end-t]
-        Tcal[end-t] = tmp \ Γ1_tils[end-t]
-        Rcal[end-t] = tmp \ Ψ_tils[end-t]
-        Ccal[end-t] = tmp \ (C_tils[end-t] - Γ2_tils[end-t] * CCC)
+        preprocessed_transitions = haskey(get_settings(m), :preprocessed_transitions) ? get_setting(m, :preprocessed_transitions) : nothing
+        # check if we've preprocessed the matrix in question
+        if !isnothing(preprocessed_transitions) ? (haskey(preprocessed_transitions, liftoff_policy) ? !isnothing(preprocessed_transitions[liftoff_policy][t+1]) : false) : false
+            Tcal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:TTT]
+            Rcal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:RRR]
+            Ccal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:CCC]
+        else
+            tmp = Γ2_tils[end-t] * TTT + Γ0_tils[end-t]
+            Tcal[end-t] = tmp \ Γ1_tils[end-t]
+            Rcal[end-t] = tmp \ Ψ_tils[end-t]
+            Ccal[end-t] = tmp \ (C_tils[end-t] - Γ2_tils[end-t] * CCC)
+
+            if !isnothing(preprocessed_transitions)
+                if !haskey(preprocessed_transitions, liftoff_policy)
+                    k_max = haskey(get_settings(m), :k_max) ? get_setting(m, :k_max) : 17
+                    preprocessed_transitions[liftoff_policy] = Array{Union{Dict, Nothing}}(nothing, k_max+1)
+                end
+                if isnothing(preprocessed_transitions[liftoff_policy][t+1])
+                    preprocessed_transitions[liftoff_policy][t+1] = Dict()
+                end
+                preprocessed_transitions[liftoff_policy][t+1][:TTT] = Tcal[end-t]
+                preprocessed_transitions[liftoff_policy][t+1][:RRR] = Rcal[end-t]
+                preprocessed_transitions[liftoff_policy][t+1][:CCC] = Ccal[end-t]
+            end
+        end
 
         TTT = Tcal[end-t]
         CCC = Ccal[end-t]

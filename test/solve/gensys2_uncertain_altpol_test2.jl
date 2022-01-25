@@ -166,6 +166,8 @@ for j in 1:length(prob_vecs)
     # Automatic calculation
     m <= Setting(:uncertain_altpolicy, true)
     m <= Setting(:uncertain_temporary_altpolicy, true)
+    m <= Setting(:preprocessed_transitions, Dict())
+    m <= Setting(:k_max, Hbar_vec[j])
     autoTs[j], autoRs[j], autoCs[j] = solve(m; regime_switching = true,
                                             gensys_regimes = [1:(get_setting(m, :n_hist_regimes) + 1)],
                                             gensys2_regimes =
