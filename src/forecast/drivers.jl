@@ -528,7 +528,6 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                       shock_qtrs::Vector{UnitRange{Int}} = [-1:1], use_changing_systems::Bool = false)
 
     ### Common Setup
-
     # Add necessary output_vars and load data
     output_vars, df = prepare_forecast_inputs!(m, input_type, cond_type, output_vars;
                                                df = df, verbose = verbose, bdd_fcast = bdd_fcast,
@@ -795,7 +794,6 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                            n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[],
                            shock_qtrs::Vector{UnitRange{Int}} = [-1:1], use_changing_systems::Bool = false)
     ### Setup
-
     # Re-initialize model indices if forecasting under an alternative policy
     # rule (in case new states or equations were added)
     if alternative_policy(m).key != :historical
@@ -811,6 +809,9 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
 
     # Compute state space
     update!(m, params) # Note that params is a Vector{Float64}, not a ParameterVector. This `update!` infers if the forecast is regime-switching if length(params) > length(m.parameters)
+
+    # Initialize the preprocessed mats
+    m <= Setting(:preprocessed_transitions, Dict())
 
     system = compute_system(m; tvis = tvis)
 
@@ -828,9 +829,6 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
     else
         get(uncertainty_override)
     end
-
-    # Initialize the preprocessed mats
-    m <= Setting(:preprocessed_transitions, Dict())
 
     ### 1. Smoothed Histories
 
