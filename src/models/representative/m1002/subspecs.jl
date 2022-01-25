@@ -123,6 +123,8 @@ function init_subspec!(m::Model1002)
         return ss98!(m)
     elseif subspec(m) == "ss99"
         return ss99!(m)
+    elseif subspec(m) == "ss100"
+        return ss100!(m)
     else
         error("This subspec is not defined.")
     end
@@ -6884,4 +6886,9 @@ function ss99!(m)
     set_regime_fixed!(m[:meas_π1], 1, true)
     set_regime_fixed!(m[:meas_π1], 2, true)
 
+end
+
+# ss97 w/ estimated AIT parameters
+function ss100!(m)
+    ss97!(m)
 end
