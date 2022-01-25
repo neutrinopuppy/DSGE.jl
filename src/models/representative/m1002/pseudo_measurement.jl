@@ -83,6 +83,13 @@ function pseudo_measurement(m::Model1002{T},
     TTT10        = TTT10./ 40. # divide by 40 to average across 10 years
     CCC10        = CCC10 ./ 40.
 
+    # Compute TTT^5, used for Expected5YearNaturalRate
+    TTT5, CCC5 = k_periods_ahead_expected_sums(TTT, CCC, TTTs, CCCs, reg, 20, permanent_t;
+                                                 integ_series = integ_series,
+                                                 memo = use_fwd_exp_sum ? memo : nothing)
+    TTT5        = TTT5 ./ 20. # divide by 20 to average across 5 years
+    CCC5        = CCC5 ./ 20.
+
     if get_setting(m, :add_laborproductivity_measurement)
         # Construct pseudo-obs from integrated states first
         ZZ_pseudo[pseudo[:laborproductivity], endo[:y_t]] = 1.
@@ -248,6 +255,16 @@ function pseudo_measurement(m::Model1002{T},
     # ZZ_pseudo[pseudo[:Expected10YearNaturalRate], :] = TTT10[endo[:r_f_t], :] + TTT10[endo[:Eπ_t], :]
     ZZ_pseudo[pseudo[:Expected10YearNaturalRate], :] = view(TTT10, endo[:r_f_t], :) + view(TTT10, endo[:Eπ_t], :)
     DD_pseudo[pseudo[:Expected10YearNaturalRate]]    = m[:Rstarn] + CCC10[endo[:r_f_t]] + CCC10[endo[:Eπ_t]]
+
+    ZZ_pseudo[pseudo[:Expected5YearNaturalRate], :] = view(TTT5, endo[:r_f_t], :) + view(TTT5, endo[:Eπ_t], :)
+    DD_pseudo[pseudo[:Expected5YearNaturalRate]]    = m[:Rstarn] + CCC5[endo[:r_f_t]] + CCC5[endo[:Eπ_t]]
+
+    # Expected Real Natural Rate - subtract longinflation
+    ZZ_pseudo[pseudo[:Expected10YearRealNaturalRate], :] = view(TTT10, endo[:r_f_t], :) + view(TTT10, endo[:Eπ_t], :) - view(TTT10, endo[:π_t], :)
+    DD_pseudo[pseudo[:Expected10YearRealNaturalRate]]    = m[:Rstarn] + CCC10[endo[:r_f_t]] + CCC10[endo[:Eπ_t]] - (100*(m[:π_star]-1) + CCC10[endo[:π_t]])
+
+    ZZ_pseudo[pseudo[:Expected5YearRealNaturalRate], :] = view(TTT5, endo[:r_f_t], :) + view(TTT5, endo[:Eπ_t], :) - view(TTT5, endo[:π_t], :)
+DD_pseudo[pseudo[:Expected5YearRealNaturalRate]]    = m[:Rstarn] + CCC5[endo[:r_f_t]] + CCC5[endo[:Eπ_t]] - (100*(m[:π_star]-1) + CCC5[endo[:π_t]])
 
     ## Expected Nominal Natural Rate
     ZZ_pseudo[pseudo[:ExpectedNominalNaturalRate], endo[:r_f_t]] = 1.

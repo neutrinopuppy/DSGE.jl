@@ -3,7 +3,8 @@ function init_pseudo_observable_mappings!(m::Model1002)
     pseudo_names = [:y_t, :y_f_t, :NaturalRate, :π_t, :OutputGap, :ExAnteRealRate, :LongRunInflation,
                     :MarginalCost, :Wages, :FlexibleWages, :Hours, :FlexibleHours, :z_t,
                     :Expected10YearRateGap, :NominalFFR, :Expected10YearRate,
-                    :Expected10YearNaturalRate,
+                    :Expected10YearNaturalRate, :Expected5YearNaturalRate,
+                    :Expected10YearRealNaturalRate, :Expected5YearRealNaturalRate,
                     :ExpectedNominalNaturalRate, :NominalRateGap, :LaborProductivityGrowth, :u_t]
                     # :i_f_t, :R_t, :c_f_t, :qk_f_t, :k_f_t, :kbar_f_t, :u_f_t, :rk_f_t, :w_f_t, :L_f_t, :rktil_f_t, :n_f_t, :c_t,
                     # :b_t, :r_f_t]
@@ -204,6 +205,18 @@ function init_pseudo_observable_mappings!(m::Model1002)
     pseudo[:Expected10YearNaturalRate].name     = "Expected 10-Year Natural Rate"
     pseudo[:Expected10YearNaturalRate].longname = "Expected 10-Year Natural Rate of Interest"
     pseudo[:Expected10YearNaturalRate].rev_transform = quartertoannual
+
+    pseudo[:Expected5YearNaturalRate].name     = "Expected 5-Year Natural Rate"
+    pseudo[:Expected5YearNaturalRate].longname = "Expected 5-Year Natural Rate of Interest"
+    pseudo[:Expected5YearNaturalRate].rev_transform = quartertoannual
+
+    pseudo[:Expected10YearRealNaturalRate].name     = "Expected 10-Year Real Natural Rate"
+    pseudo[:Expected10YearRealNaturalRate].longname = "Expected 10-Year Real Natural Rate of Interest"
+    pseudo[:Expected10YearRealNaturalRate].rev_transform = quartertoannual
+
+    pseudo[:Expected5YearRealNaturalRate].name     = "Expected 5-Year Real Natural Rate"
+    pseudo[:Expected5YearRealNaturalRate].longname = "Expected 5-Year Real Natural Rate of Interest"
+    pseudo[:Expected5YearRealNaturalRate].rev_transform = quartertoannual
 
     pseudo[:ExpectedNominalNaturalRate].name     = "Expected Nominal Natural Rate"
     pseudo[:ExpectedNominalNaturalRate].longname = "Natural Rate + Expected Inflation"
@@ -443,7 +456,7 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     # Needed to implement pseudo-measurement equation correctly
-    m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate])
+    m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate, :Expected5YearNaturalRate, :Expected10YearRealNaturalRate, :Expected5YearRealNaturalRate])
 
     # Add to model object
     m.pseudo_observable_mappings = pseudo
