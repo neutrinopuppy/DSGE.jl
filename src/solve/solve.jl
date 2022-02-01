@@ -316,28 +316,25 @@ function solve_non_gensys2_regimes!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}
     for reg in regimes
         save_mats = false
         # check preprocessing
-        # DO NOT DO THIS. THIS IGNORES PARAM REGIMES.
-        # TODO: think harder.
-        #=
         if haskey(get_settings(m), :preprocessed_transitions)
             preprocessed_transitions = get_setting(m, :preprocessed_transitions)
+            param_regimes = find_param_regimes(m, reg)
             altpol_key = haskey(get_settings(m), :regime_eqcond_info) ? (haskey(get_setting(m, :regime_eqcond_info), reg) ? get_setting(m, :regime_eqcond_info)[reg].alternative_policy.key : :default_policy) : :default_policy
-            if haskey(preprocessed_transitions, altpol_key)
+            if haskey(preprocessed_transitions, altpol_key) && haskey(preprocessed_transitions[altpol_key], param_regimes)
                 # if we have a saved regime for zlb length 0 (this is assuming l is always 0 and the preprocessed mats
                 # are indexed by k (k being the number of zlb regimes remaining+1, because julia doesn't use 0-indexing,
                 # to my great chagrin)
                 # so no zlb -> index = 1
-                if !isnothing(preprocessed_transitions[altpol_key][1])
-                    TTTs[reg] = preprocessed_transitions[altpol_key][1][:TTT]
-                    RRRs[reg] = preprocessed_transitions[altpol_key][1][:RRR]
-                    CCCs[reg] = preprocessed_transitions[altpol_key][1][:CCC]
+                if !isnothing(preprocessed_transitions[altpol_key][param_regimes][1])
+                    TTTs[reg] = preprocessed_transitions[altpol_key][param_regimes][1][:TTT]
+                    RRRs[reg] = preprocessed_transitions[altpol_key][param_regimes][1][:RRR]
+                    CCCs[reg] = preprocessed_transitions[altpol_key][param_regimes][1][:CCC]
                     continue
                 end
+            else
+                save_mats = true
             end
-            save_mats = true
         end
-        =#
-
 
         # Check if, in the case of perfect credibility, whether or not the current regime's gensys solution
         # is identical to another regime's that has already been computed
@@ -377,20 +374,21 @@ function solve_non_gensys2_regimes!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}
         TTTs[reg], RRRs[reg], CCCs[reg] =
         augment_states(m, TTT_gensys, RRR_gensys, CCC_gensys, reg = reg)
 
-        #=
         if save_mats
             if !haskey(preprocessed_transitions, altpol_key)
+                preprocessed_transitions[altpol_key] = Dict()
+            end
+            if !haskey(preprocessed_transitions[altpol_key], param_regimes)
                 k_max = haskey(m.settings, :k_max) ? get_setting(m, :k_max) : 17
-                preprocessed_transitions[altpol_key] = Array{Union{Dict, Nothing}}(nothing, k_max+1)
+                preprocessed_transitions[altpol_key][param_regimes] = Array{Union{Dict, Nothing}}(nothing, k_max+1)
             end
-            if isnothing(preprocessed_transitions[altpol_key][1])
-                preprocessed_transitions[altpol_key][1] = Dict()
+            if isnothing(preprocessed_transitions[altpol_key][param_regimes][1])
+                preprocessed_transitions[altpol_key][param_regimes][1] = Dict()
             end
-            preprocessed_transitions[altpol_key][1][:TTT] = TTTs[reg]
-            preprocessed_transitions[altpol_key][1][:RRR] = RRRs[reg]
-            preprocessed_transitions[altpol_key][1][:CCC] = CCCs[reg]
+            preprocessed_transitions[altpol_key][param_regimes][1][:TTT] = TTTs[reg]
+            preprocessed_transitions[altpol_key][param_regimes][1][:RRR] = RRRs[reg]
+            preprocessed_transitions[altpol_key][param_regimes][1][:CCC] = CCCs[reg]
         end
-        =#
     end
 
     return TTTs, RRRs, CCCs
@@ -411,12 +409,13 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
     if haskey(get_settings(m), :preprocessed_transitions) && !uncertain_altpolicy
         preprocessed_transitions = get_setting(m, :preprocessed_transitions)
         altpol_key = alternative_policy(m).key
-        if haskey(preprocessed_transitions, altpol_key)
-            # we're looking for the liftoff regime, so zlb length 0 (index 1. thanks julia.)
-            if !isnothing(preprocessed_transitions[altpol_key][1])
-                TTT_final = preprocessed_transitions[altpol_key][1][:TTT]
-                RRR_final = preprocessed_transitions[altpol_key][1][:RRR]
-                CCC_final = preprocessed_transitions[altpol_key][1][:CCC]
+        param_regimes = find_param_regimes(m, last(gensys2_regimes))
+        if haskey(preprocessed_transitions, altpol_key) && haskey(preprocessed_transitions[altpol_key], param_regimes)
+            # we're looking for the liftoff regime, so zlb length 0 (index 1, since Julia uses 1-indexing)
+            if !isnothing(preprocessed_transitions[altpol_key][param_regimes][1])
+                TTT_final = preprocessed_transitions[altpol_key][param_regimes][1][:TTT]
+                RRR_final = preprocessed_transitions[altpol_key][param_regimes][1][:RRR]
+                CCC_final = preprocessed_transitions[altpol_key][param_regimes][1][:CCC]
             end
         end
     end
@@ -504,6 +503,7 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
                                    Cs[gensys2_regimes], Ψs[gensys2_regimes], Πs[gensys2_regimes],
                                    TTT_final, RRR_final, CCC_final,
                                    length(gensys2_regimes) - 1,
+                                   last(gensys2_regimes),
                                    liftoff_policy = alternative_policy(m).key)
         Tcal[end] = TTT_final
         Rcal[end] = RRR_final
@@ -543,7 +543,9 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
         Tcal, Rcal, Ccal = gensys2(m, Γ0s[gensys2_regimes], Γ1s[gensys2_regimes],
                                    Cs[gensys2_regimes], Ψs[gensys2_regimes], Πs[gensys2_regimes],
                                    TTT_final, RRR_final, CCC_final,
-                                   length(gensys2_regimes) - 1, liftoff_policy = alternative_policy(m).key)
+                                   length(gensys2_regimes) - 1,
+                                   last(gensys2_regimes),
+                                   liftoff_policy = alternative_policy(m).key)
 
         if uncertain_altpolicy
             Tcal[end] = TTT_final_weighted

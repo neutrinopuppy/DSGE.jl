@@ -314,3 +314,31 @@ function find_param_ind(params::Vector{AbstractParameter{Float64}}, para_one::Sy
         end
     end
 end
+
+"""
+```
+find_param_regimes(m::AbstractDSGEModel, reg::Int64)
+```
+Return an array of the parameter regimes associated with the given model regime.
+"""
+function find_param_regimes(m::AbstractDSGEModel, reg::Int64)
+    param_regimes = Array{Int64}(undef, length(m.parameters))
+    for i in 1:length(m.parameters)
+        if haskey(m.settings, :model2para_regime)
+            m2p = get_setting(m, :model2para_regime)
+            pkey = m.parameters[i].key
+            if haskey(m2p, pkey)
+                param_regimes[i] = get_setting(m, :model2para_regime)[m.parameters[i].key][reg]
+            else
+                param_regimes[i] = 1
+            end
+        else
+            if haskey(m.parameters[i].regimes, :value)
+                param_regimes[i] = reg
+            else
+                param_regimes[i] = 1
+            end
+        end
+    end
+    return param_regimes
+end
