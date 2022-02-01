@@ -13,8 +13,8 @@ function gensys2(m::AbstractDSGEModel, Γ0::Matrix{Float64}, Γ1::Matrix{Float64
                  Ψ::Matrix{Float64}, Π::Matrix{Float64}, TTT::Matrix{Float64}, RRR::Matrix{Float64},
                  CCC::Vector{Float64}, T_switch::Int)
     Γ0_til, Γ1_til, Γ2_til, C_til, Ψ_til =
-        gensys_to_predictable_form(Γ0, Γ1, C, Ψ, Π; use_sparse = (haskey(get_settings(m), :gensys2_sparse_matrices) &&
-                                                                  get_setting(m, :gensys2_sparse_matrices)))
+    gensys_to_predictable_form(Γ0, Γ1, C, Ψ, Π; use_sparse = (haskey(get_settings(m), :gensys2_sparse_matrices) &&
+                                                              get_setting(m, :gensys2_sparse_matrices)))
 
     Tcal = Vector{Matrix{Float64}}(undef, T_switch)
     Rcal = Vector{Matrix{Float64}}(undef, T_switch)
@@ -40,11 +40,12 @@ end
 function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vector{Matrix{Float64}},
                  Cs::Vector{Vector{Float64}}, Ψs::Vector{Matrix{Float64}}, Πs::Vector{Matrix{Float64}},
                  TTT::Matrix{Float64}, RRR::Matrix{Float64},
-                 CCC::Vector{Float64}, T_switch::Int;
+                 CCC::Vector{Float64}, T_switch::Int,
+                 liftoff_reg::Int64;
                  liftoff_policy::Symbol = :default_policy)
     ntil = length(Γ0s)
     use_sparse = haskey(get_settings(m), :gensys2_sparse_matrices) &&
-        get_setting(m, :gensys2_sparse_matrices)
+    get_setting(m, :gensys2_sparse_matrices)
     Γ0_tils = use_sparse ? Vector{SparseMatrixCSC{Float64, Int64}}(undef, ntil) : Vector{Matrix{Float64}}(undef, ntil)
     Γ1_tils = Vector{Matrix{Float64}}(undef, ntil)
     Γ2_tils = use_sparse ? Vector{SparseMatrixCSC{Float64, Int64}}(undef, ntil) : Vector{Matrix{Float64}}(undef, ntil)
@@ -53,8 +54,8 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
 
     for i in 1:length(Γ0s)
         Γ0_tils[i], Γ1_tils[i], Γ2_tils[i], C_tils[i], Ψ_tils[i] =
-            gensys_to_predictable_form(Γ0s[i], Γ1s[i], Cs[i], Ψs[i], Πs[i];
-                                       use_sparse = use_sparse)
+        gensys_to_predictable_form(Γ0s[i], Γ1s[i], Cs[i], Ψs[i], Πs[i];
+                                   use_sparse = use_sparse)
     end
 
     Tcal = Vector{Matrix{Float64}}(undef, T_switch)
@@ -71,29 +72,39 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
 
     for t = 1:(T_switch-1)
         preprocessed_transitions = haskey(get_settings(m), :preprocessed_transitions) ? get_setting(m, :preprocessed_transitions) : nothing
+        param_regimes = find_param_regimes(m, liftoff_reg)
+        save_mats = false
         # check if we've preprocessed the matrix in question
-        if !isnothing(preprocessed_transitions) ? (haskey(preprocessed_transitions, liftoff_policy) ? !isnothing(preprocessed_transitions[liftoff_policy][t+1]) : false) : false
-            Tcal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:TTT]
-            Rcal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:RRR]
-            Ccal[end-t] = preprocessed_transitions[liftoff_policy][t+1][:CCC]
-        else
-            tmp = Γ2_tils[end-t] * TTT + Γ0_tils[end-t]
-            Tcal[end-t] = tmp \ Γ1_tils[end-t]
-            Rcal[end-t] = tmp \ Ψ_tils[end-t]
-            Ccal[end-t] = tmp \ (C_tils[end-t] - Γ2_tils[end-t] * CCC)
-
-            if !isnothing(preprocessed_transitions)
-                if !haskey(preprocessed_transitions, liftoff_policy)
-                    k_max = haskey(get_settings(m), :k_max) ? get_setting(m, :k_max) : 17
-                    preprocessed_transitions[liftoff_policy] = Array{Union{Dict, Nothing}}(nothing, k_max+1)
-                end
-                if isnothing(preprocessed_transitions[liftoff_policy][t+1])
-                    preprocessed_transitions[liftoff_policy][t+1] = Dict()
-                end
-                preprocessed_transitions[liftoff_policy][t+1][:TTT] = Tcal[end-t]
-                preprocessed_transitions[liftoff_policy][t+1][:RRR] = Rcal[end-t]
-                preprocessed_transitions[liftoff_policy][t+1][:CCC] = Ccal[end-t]
+        if !isnothing(preprocessed_transitions)
+            if haskey(preprocessed_transitions, liftoff_policy) && haskey(preprocessed_transitions[liftoff_policy], param_regimes) && !isnothing(preprocessed_transitions[liftoff_policy][param_regimes][t+1])
+                Tcal[end-t] = preprocessed_transitions[liftoff_policy][param_regimes][t+1][:TTT]
+                Rcal[end-t] = preprocessed_transitions[liftoff_policy][param_regimes][t+1][:RRR]
+                Ccal[end-t] = preprocessed_transitions[liftoff_policy][param_regimes][t+1][:CCC]
+            else
+                save_mats = true
             end
+        end
+
+        tmp = Γ2_tils[end-t] * TTT + Γ0_tils[end-t]
+        Tcal[end-t] = tmp \ Γ1_tils[end-t]
+        Rcal[end-t] = tmp \ Ψ_tils[end-t]
+        Ccal[end-t] = tmp \ (C_tils[end-t] - Γ2_tils[end-t] * CCC)
+
+
+        if save_mats
+            if !haskey(preprocessed_transitions, liftoff_policy)
+                preprocessed_transitions[liftoff_policy] = Dict()
+            end
+            if !haskey(preprocessed_transitions[liftoff_policy], param_regimes)
+                k_max = haskey(m.settings, :k_max) ? get_setting(m, :k_max) : 17
+                preprocessed_transitions[liftoff_policy][param_regimes] = Array{Union{Dict, Nothing}}(nothing, k_max+1)
+            end
+            if isnothing(preprocessed_transitions[liftoff_policy][param_regimes][t+1])
+                preprocessed_transitions[liftoff_policy][param_regimes][t+1] = Dict()
+            end
+            preprocessed_transitions[liftoff_policy][param_regimes][t+1][:TTT] = Tcal[end-t]
+            preprocessed_transitions[liftoff_policy][param_regimes][t+1][:RRR] = Rcal[end-t]
+            preprocessed_transitions[liftoff_policy][param_regimes][t+1][:CCC] = Ccal[end-t]
         end
 
         TTT = Tcal[end-t]
