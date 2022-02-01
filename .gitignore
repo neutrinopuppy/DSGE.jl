@@ -12,6 +12,7 @@ Manifest.toml
 
 # Scratch files
 *.orig
+*.swp
 
 # Data
 *.mat
