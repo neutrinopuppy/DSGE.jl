@@ -288,8 +288,8 @@ histforecast
                    bands_style = :fan,
                    label_bands = false,
                    transparent_bands = true,
-                   add_new_model = false, new_data::Array{Float64,1} = [],
-                   add_trendline = false, trend_vals::Vector{Float64} = [1.0],
+                   add_new_model = false, new_data = [],
+                   add_trendline = false, trend_vals = [1.0],
                    trend_start_date = start_date, tick_size = 2)
 
     # Error checking
@@ -507,14 +507,14 @@ histforecast_vector
                    colors = Dict{Symbol, Any}(),
                    alphas = Dict{Symbol, Float64}(),
                    styles = Dict{Symbol, Symbol}(),
-                   add_new_model = false, new_data::Array{Float64,1} = [],
+                   add_new_model = false, new_data = [],
                    bands_pcts = union(which_density_bands(hf.args[2][1], uniquify = true),
                                       which_density_bands(hf.args[3][1], uniquify = true)),
                    bands_style = :fan,
                    label_bands = false,
                    transparent_bands = true,
-                   add_trendline = false, trend_vals::Vector{Float64} = [1.0],
-                   trend_start_date = start_date, plot_all_histories::Bool = false,
+                   add_trendline = false, trend_vals = [1.0],
+                   trend_start_date = start_date, plot_all_histories = false,
                    tick_size = 2)
 
     # Error checking
