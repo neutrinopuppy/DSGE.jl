@@ -86,7 +86,6 @@ where `S<:AbstractFloat`.
 function forecast(m::AbstractDSGEModel, system::Union{RegimeSwitchingSystem{S}, System{S}},
                   z0::Vector{S}; cond_type::Symbol = :none, enforce_zlb::Bool = false,
                   shocks::AbstractMatrix{S} = Matrix{S}(undef, 0, 0), draw_shocks::Bool = false) where {S<:AbstractFloat}
-
     # Numbers of things
     nshocks = n_shocks_exogenous(m)
     horizon = forecast_horizons(m; cond_type = cond_type)
@@ -204,7 +203,6 @@ end
 function forecast(system::System{S}, z0::Vector{S},
                   shocks::Matrix{S}; enforce_zlb::Bool = false, ind_r::Int = -1,
                   ind_r_sh::Int = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
-
     # Unpack system
     T, R, C = system[:TTT], system[:RRR], system[:CCC]
     Q, Z, D = system[:QQ], system[:ZZ], system[:DD]
@@ -259,7 +257,6 @@ end
 function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Vector{S},
                   shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = false, ind_r::Int = -1,
                   ind_r_sh::Int = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
-
     # Determine how many regimes occur in the forecast, depending
     # on whether we need to subtract conditional forecast regimes or not
     n_fcast_reg = get_setting(m, :n_fcast_regimes)
@@ -458,6 +455,8 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
         nothing
     end
 
+    # Important Note! This endozlb is never going to shorten the ZLB beyond what it is in the
+    # eqcond regimes.
 
     ## 1. Determine if we need to do anything (are there any further negative nominal rates)
     # If not, return the forecast as is
@@ -488,7 +487,7 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
         end
         set_info_sets_altpolicy(m, get_setting(m, :n_regimes), first_aware)
 
-        endozlb_forecast::Function = (zlb_start, zlb_end; unant_enforce_zlb = false) -> forecast_endozlb_helper(m, zlb_start, zlb_end, z0, states, shocks,
+        endozlb_forecast::Function = (zlb_start, zlb_end; unant_enforce_zlb = false, full_horizon = false) -> forecast_endozlb_helper(m, zlb_start, zlb_end, z0, states, shocks,
             orig_regimes, eqcond_dict, regime_dates, info_set;
             cond_type = cond_type, unant_enforce_zlb = unant_enforce_zlb,
             set_zlb_regime_vals = set_zlb_regime_vals,
@@ -497,7 +496,8 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
             tol = tol, rerun_smoother = rerun_smoother, df = df,
             draw_states = draw_states, histstates = histstates,
             histshocks = histshocks, histpseudo = histpseudo,
-            initial_states = initial_states)
+            initial_states = initial_states,
+            full_horizon = full_horizon)
         ## 2. If we don't liftoff post minimum zlb, then enforce the rest of the contiguous zlb
         ##    intervals using two rule (zlb_rule alternative policy)
         if !has_neg_rates[min_zlb+1]
@@ -606,6 +606,11 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
                 end
             end
         end
+        # Run the forecast over the full horizon.
+        states, obs, pseudo, histstates, histshocks, histpseudo, initial_states =
+            endozlb_forecast(first_endo_zlb, last_endo_zlb+1, unant_enforce_zlb = false,
+                             full_horizon = true)
+
         ## 6. If we still have further noncontiguous periods of negative rates, run a forecast enforcing zlb over those remaining periods
         ##    using unanticipated monetary policy shocks.
         endo_success = all(obs[get_observables(m)[:obs_nominalrate], :] .> get_setting(m, :zlb_rule_value) / 4. + tol)
@@ -670,6 +675,7 @@ function forecast_endozlb_helper(m::AbstractDSGEModel, first_endo_zlb::Int64, li
                                  (a, b, c, d) -> default_update_regime_eqcond_info!(a, b, c, d, alternative_policy(m)),
                                  tol::S = -1e-5, rerun_smoother::Bool = false,
                                  df = nothing, draw_states::Bool = false,
+                                 full_horizon::Bool = true,
                                  histstates::AbstractMatrix{S} = Matrix{S}(undef, 0, 0),
                                  histshocks::AbstractMatrix{S} = Matrix{S}(undef, 0, 0),
                                  histpseudo::AbstractMatrix{S} = Matrix{S}(undef, 0, 0),
@@ -831,7 +837,9 @@ function forecast_endozlb_helper(m::AbstractDSGEModel, first_endo_zlb::Int64, li
     # this step merely changes to which matrices the local variables states, obs, and pseudo point
     # w/in this function's closure. Thus, the matrices states, obs, and pseudo which are first
     # passed into this function will not be over-written.
-    states, obs, pseudo = forecast(m, system, z0; cond_type = cond_type, shocks = shocks,
+    liftoff_horizon = liftoff_reg - get_setting(m, :reg_forecast_start) + 1
+    states, obs, pseudo = forecast(m, system, z0; cond_type = cond_type,
+                                   shocks = full_horizon ? shocks : shocks[:, 1:liftoff_horizon],
                                    enforce_zlb = unant_enforce_zlb)
 
     # Delete extra regimes added to implement the temporary alternative policy, or else updating the parameters
