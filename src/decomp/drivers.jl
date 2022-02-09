@@ -175,11 +175,14 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     m_new_olddf <= Setting(:cond_vintage, get_setting(m_old, :cond_vintage))
     m_new_olddf <= Setting(:date_forecast_start, get_setting(m_old, :date_forecast_start))
     m_new_olddf <= Setting(:date_conditional_end, get_setting(m_old, :date_conditional_end))
-    m_new_olddf <= Setting(:reg_forecast_start, collect(keys(get_setting(m_new_olddf, :regime_dates)))[findfirst(values(get_setting(m_new_olddf, :regime_dates)) .== get_setting(m_old, :date_forecast_start))])
-    m_new_olddf <= Setting(:n_cond_regimes, get_setting(m_old, :n_cond_regimes))
-    m_new_olddf <= Setting(:reg_post_conditional_end, findlast(sort!(collect(values(get_setting(m_new_olddf, :regime_dates)))) .<= date_conditional_end(m_new_olddf))+1)
-    m_new_olddf <= Setting(:n_hist_regimes, get_setting(m_new_olddf, :reg_forecast_start) - 1 + get_setting(m_new_olddf, :n_cond_regimes))
-    m_new_olddf <= Setting(:n_fcast_regimes, get_setting(m_new_olddf, :n_regimes) - get_setting(m_new_olddf, :reg_forecast_start) + 1)
+
+    haskey(m_new_olddf.settings, :reg_forecast_start) && m_new_olddf <= Setting(:reg_forecast_start,
+                                                                                collect(keys(get_setting(m_new_olddf, :regime_dates)))[findfirst(values(get_setting(m_new_olddf, :regime_dates)) .== get_setting(m_old, :date_forecast_start))])
+    haskey(m_new_olddf.settings, :n_cond_regimes) && m_new_olddf <= Setting(:n_cond_regimes, get_setting(m_old, :n_cond_regimes))
+    haskey(m_new_olddf.settings, :reg_post_conditional_end) && m_new_olddf <= Setting(:reg_post_conditional_end,
+                                                                                      findlast(sort!(collect(values(get_setting(m_new_olddf, :regime_dates)))) .<= date_conditional_end(m_new_olddf))+1)
+    haskey(m_new_olddf.settings, :n_hist_regimes) && m_new_olddf <= Setting(:n_hist_regimes, get_setting(m_new_olddf, :reg_forecast_start) - 1 + get_setting(m_new_olddf, :n_cond_regimes))
+    haskey(m_new_olddf.settings, :n_fcast_regimes) && m_new_olddf <= Setting(:n_fcast_regimes, get_setting(m_new_olddf, :n_regimes) - get_setting(m_new_olddf, :reg_forecast_start) + 1)
 
     m_old_params = copy(m_old.parameters)
     m_old_mod2par = haskey(m_old.settings, :model2para_regime) ? get_setting(m_old, :model2para_regime) : nothing
