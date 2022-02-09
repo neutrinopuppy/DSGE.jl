@@ -325,7 +325,7 @@ function init_model_indices!(m::Model1002)
 end
 
 function Model1002(subspec::String = "ss10";
-                   custom_settings::Dict{Symbol, Setting} = Dict{Symbol, Setting}(),
+                   custom_settings::Array{Setting} = Array{Setting}(),
                    testing = false)
 
     # Model-specific specifications
@@ -355,7 +355,7 @@ function Model1002(subspec::String = "ss10";
     # Set settings
     model_settings!(m)
     default_test_settings!(m)
-    for custom_setting in values(custom_settings)
+    for custom_setting in custom_settings
         m <= custom_setting
     end
 

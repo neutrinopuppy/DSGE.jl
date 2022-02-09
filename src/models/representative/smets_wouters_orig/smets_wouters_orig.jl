@@ -179,7 +179,7 @@ end
 
 
 function SmetsWoutersOrig(subspec::String="ss0";
-                          custom_settings::Dict{Symbol, Setting} = Dict{Symbol, Setting}(),
+                          custom_settings::Array{Setting} = Array{Setting}(),
                           testing = false)
 
     # Model-specific specifications
@@ -209,7 +209,7 @@ function SmetsWoutersOrig(subspec::String="ss0";
     # Set settings
     model_settings!(m)
     default_test_settings!(m)
-    for custom_setting in values(custom_settings)
+    for custom_setting in custom_settings
         m <= custom_setting
     end
 
