@@ -1,5 +1,5 @@
 function gensys_uncertain_altpol(m::AbstractDSGEModel, prob_vec::AbstractVector{S},
-                                 altpolicies::Vector{AbstractAltPolicy} = [default_policy()];
+                                 altpolicies::Vector{AltPolicy} = [default_policy()];
                                  regime_switching::Bool = false, regimes::Vector{Int} = Int[1],
                                  TTT::Matrix{S} = Matrix{S}(undef, 0, 0),
                                  Γ0s::Vector{Matrix{S}} = Vector{Matrix{S}}(undef, 0),
