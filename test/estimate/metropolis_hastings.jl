@@ -7,13 +7,12 @@ writing_output = false
 
 if VERSION < v"1.5"
     ver = "111"
-else 
+else
     ver = "150"
 end
 
 # Set up model for testing
-custom_settings = Dict{Symbol, Setting}(
-    :date_forecast_start  => Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
 m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 
 
@@ -44,7 +43,7 @@ test_cov = h5open(workpath(m, "estimate", "parameter_covariance.h5"), "r") do fi
 end
 
 if writing_output
-    h5open("$path/../reference/metropolis_hastings_test_output_version=" * ver * ".h5", 
+    h5open("$path/../reference/metropolis_hastings_test_output_version=" * ver * ".h5",
            "w") do file
         write(file, "hessian_inv", hessian_inv),
         write(file, "mhparams",    test_draws),
@@ -53,7 +52,7 @@ if writing_output
 end
 
 ref_draws, ref_cov =
-    h5open("$path/../reference/metropolis_hastings_test_output_version=" * ver * ".h5", 
+    h5open("$path/../reference/metropolis_hastings_test_output_version=" * ver * ".h5",
            "r") do file
         read(file, "mhparams"),
         read(file, "ref_cov")
@@ -87,7 +86,7 @@ test_cov = h5open(workpath(m, "estimate", "parameter_covariance.h5"), "r") do fi
 end
 
 if writing_output
-    h5open("$path/../reference/metropolis_hastings_test_3_blocks_output_version=" 
+    h5open("$path/../reference/metropolis_hastings_test_3_blocks_output_version="
            * ver * ".h5", "w") do file
         write(file, "mhparams",    test_draws),
         write(file, "ref_cov",     test_cov)

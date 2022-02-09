@@ -1,8 +1,7 @@
 path = dirname(@__FILE__)
 
 # # Test hessian! in context of model
-custom_settings = Dict{Symbol, Setting}(
-    :date_forecast_start  => Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
 m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 
 # Setup paths

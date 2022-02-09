@@ -15,7 +15,7 @@ Random.seed!(1793)
 @testset "Test regime switching" begin
     n_reg_temp = 14
 
-    m = Model1002("ss10", custom_settings = Dict{Symbol, Setting}(:add_altpolicy_pgap => Setting(:add_altpolicy_pgap, true)))
+    m = Model1002("ss10", custom_settings = Array{Setting}(Setting(:add_altpolicy_pgap, true)))
     m <= Setting(:forecast_smoother, :koopman)
     m <= Setting(:date_forecast_start, Date(2020, 6, 30))
     m <= Setting(:date_conditional_end, Date(2020, 6, 30))
@@ -163,8 +163,7 @@ end
 @testset "Temporary alternative policies with non-trivial conditional forecasting" begin
     output_vars = [:forecastobs]
 
-    m = Model1002("ss10", custom_settings = Dict{Symbol, Setting}(:add_altpolicy_pgap =>
-                                                                  Setting(:add_altpolicy_pgap, true)))
+    m = Model1002("ss10", custom_settings = Array{Setting}(Setting(:add_altpolicy_pgap, true)))
     m <= Setting(:forecast_smoother, :koopman)
 
     m <= Setting(:regime_switching, true)
@@ -412,10 +411,10 @@ end
 @testset "Test smoothing with regime switching and gensys2 matches plain Kalman filtering and conditional data" begin
     n_reg_temp = 16
 
-    m = Model1002("ss10", custom_settings = Dict{Symbol, Setting}(:add_pgap => Setting(:add_pgap, true),
-                                                                  :add_ygap => Setting(:add_ygap, true),
-                                                                  :add_anticipated_obs_gdp => Setting(:add_anticipated_obs_gdp, true),
-                                                                  :n_anticipated_obs_gdp => Setting(:n_anticipated_obs_gdp, true)))
+    m = Model1002("ss10", custom_settings = Array{Setting}(Setting(:add_pgap, true),
+                                                           Setting(:add_ygap, true),
+                                                           Setting(:add_anticipated_obs_gdp, true),
+                                                           Setting(:n_anticipated_obs_gdp, true)))
     m <= Setting(:date_forecast_start, Date(2020, 3, 31))
     m <= Setting(:date_conditional_end, Date(2020, 3, 31))
     m <= Setting(:regime_switching, true)

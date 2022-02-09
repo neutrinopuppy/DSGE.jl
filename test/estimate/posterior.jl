@@ -1,7 +1,6 @@
 path = dirname(@__FILE__)
 @testset "Check prior overloading" begin
-    custom_settings = Dict{Symbol, Setting}(
-        :date_forecast_start  => Setting(:date_forecast_start, quartertodate("2015-Q4")))
+    custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
     m = AnSchorfheide(custom_settings = custom_settings, testing = true)
     priordensity = exp(DSGE.prior(m))
     dsgevar = DSGE.DSGEVAR(m, collect(keys(m.exogenous_shocks)))
@@ -11,8 +10,7 @@ path = dirname(@__FILE__)
 end
 
 @testset "Check DSGE likelihood and posterior calculations" begin
-    custom_settings = Dict{Symbol, Setting}(
-        :date_forecast_start  => Setting(:date_forecast_start, quartertodate("2015-Q4")))
+    custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
     m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 
     file = "$path/../reference/posterior.jld2"

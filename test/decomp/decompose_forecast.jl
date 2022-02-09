@@ -60,22 +60,21 @@ df_new = load_data(m_new)
 df_old = df_new[1:end-4, :]
 
 decompose_forecast(m_new, m_old, df_new, df_old, :mode, :none, :none, [:obs, :pseudo];
-                         verbose = :none)
+                   verbose = :none)
 decomposition_means(m_new, m_old, :mode, :none, :none, [:obs, :pseudo]; verbose = :none)
 decompose_forecast(m_new, m_old, df_new, df_old, :full, :none, :none, [:obs, :pseudo], verbose = :none)
 decomposition_means(m_new, m_old, :full, :none, :none, [:obs, :pseudo], verbose = :none)
 
 ## Regime switching
-custom_settings = Dict{Symbol, Setting}(
-    :data_vintage             => Setting(:data_vintage, "160812"),
-    :cond_vintage             => Setting(:cond_vintage, "160812"),
-    :cond_id                  => Setting(:cond_id, 0),
-    :use_population_forecast  => Setting(:use_population_forecast, true),
-    :date_presample_start     => Setting(:date_presample_start, Date(1959, 9, 30)),
-    :date_forecast_start      => Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-    :date_conditional_end     => Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
-    :forecast_horizons        => Setting(:forecast_horizons, 16),
-    :n_mon_anticipated_shocks => Setting(:n_mon_anticipated_shocks, 6))
+custom_settings = Array{Setting}(Setting(:data_vintage, "160812"),
+                                 Setting(:cond_vintage, "160812"),
+                                 Setting(:cond_id, 0),
+                                 Setting(:use_population_forecast, true),
+                                 Setting(:date_presample_start, Date(1959, 9, 30)),
+                                 Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                                 Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
+                                 Setting(:forecast_horizons, 16),
+                                 Setting(:n_mon_anticipated_shocks, 6))
 m    = Model1002("ss10", testing = true, custom_settings = custom_settings)  # baseline model
 m_rs = Model1002("ss51v", testing = true, custom_settings = custom_settings) # pseudo regime switching (identical values for standard deviations)
 m_rs <= Setting(:rate_expectations_source, :ois)
