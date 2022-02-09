@@ -1875,7 +1875,8 @@ function ss64!(m::Model1002)
     m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
                                                 3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
                                                 5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30)))
+                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30),
+                                                9 => Date(2021, 12, 31)))
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6167,7 +6168,8 @@ function ss84!(m::Model1002)
     m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
                                                 3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
                                                 5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30)))
+                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30),
+                                                9 => Date(2021, 12, 31)))
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6375,7 +6377,8 @@ function ss85!(m::Model1002)
     m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
                                                 3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
                                                 5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30)))
+                                                7 => Date(2021, 6, 30), 8 => Date(2021, 9, 30),
+                                                9 => Date(2021, 12, 31)))
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6604,10 +6607,10 @@ end
 
 
 function add_meas_pi!(m)
-    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
-    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
-    for i in 9:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 1
+    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2)
+    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2)
+    for i in 10:get_setting(m, :n_regimes)
+        get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 2
         get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
     end
 
@@ -6639,10 +6642,10 @@ end
 
 function add_zero_meas_pi!(m)
     # Set measurement errors from ss87 to 0
-    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
-    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
-    for i in 9:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 1
+    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2)
+    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2)
+    for i in 10:get_setting(m, :n_regimes)
+        get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 2
         get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
     end
 
@@ -6687,9 +6690,12 @@ function rm_iid_pce_meas_err!(m)
 
     #get_setting(m, :model2para_regime)[:ρ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     #get_setting(m, :model2para_regime)[:σ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:ρ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
-    get_setting(m, :model2para_regime)[:σ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2)
-    for i in 9:get_setting(m, :n_regimes)
+    get_setting(m, :model2para_regime)[:ρ_corepce] = Dict(1 => 1)
+    get_setting(m, :model2para_regime)[:σ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2)
+    for i in 2:9
+        get_setting(m, :model2para_regime)[:ρ_corepce][i] = 1
+    end
+    for i in 10:get_setting(m, :n_regimes)
         #get_setting(m, :model2para_regime)[:ρ_gdpdef][i] = 1
         #get_setting(m, :model2para_regime)[:σ_gdpdef][i] = 1
         get_setting(m, :model2para_regime)[:ρ_corepce][i] = 1
@@ -6893,4 +6899,9 @@ end
 # ss97 w/ estimated AIT parameters
 function ss100!(m)
     ss97!(m)
+end
+
+# ss100 w/ estimated imperfect cred wts
+function ss101!(m)
+    ss100!(m)
 end
