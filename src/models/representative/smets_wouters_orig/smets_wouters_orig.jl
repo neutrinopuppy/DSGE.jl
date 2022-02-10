@@ -179,7 +179,7 @@ end
 
 
 function SmetsWoutersOrig(subspec::String="ss0";
-                          custom_settings::Array{Setting} = Array{Setting}(),
+                          custom_settings::Array{Setting} = Array{Setting}(undef, 0),
                           testing = false)
 
     # Model-specific specifications

@@ -171,7 +171,7 @@ function init_model_indices!(m::Model990)
 end
 
 function Model990(subspec::String="ss3";
-                  custom_settings::Array{Setting} = Array{Setting}(),
+                  custom_settings::Array{Setting} = Array{Setting}(undef, 0),
                   testing = false)
 
     # Model-specific specifications

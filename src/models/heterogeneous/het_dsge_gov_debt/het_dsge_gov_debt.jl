@@ -165,7 +165,7 @@ function init_model_indices!(m::HetDSGEGovDebt, states::Vector{Symbol}, jumps::V
 end
 
 function HetDSGEGovDebt(subspec::String="ss0";
-                        custom_settings::Array{Setting} = Array{Setting}(),
+                        custom_settings::Array{Setting} = Array{Setting}(undef, 0),
                         testing = false, testing_gamma::Bool = false,
                         ref_dir = "")
 

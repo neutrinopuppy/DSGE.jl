@@ -84,7 +84,7 @@ function Base.show(io::IO, m::DSGEVAR)
 end
 
 function DSGEVAR(dsge::AbstractDSGEModel{T}, shocks::Vector{Symbol}, subspec::String = "ss0";
-                 custom_settings::Array{Setting} = Array{Setting}(),
+                 custom_settings::Array{Setting} = Array{Setting}(undef, 0),
                  copy_dsge::Bool = false, testing = false) where {T<:Real}
 
     # Initialize specs
@@ -112,7 +112,7 @@ end
 
 # Empty constructor
 function DSGEVAR(dsge::AbstractDSGEModel{T}, subspec::String = "ss0";
-                 custom_settings::Array{Setting} = Array{Setting}(),
+                 custom_settings::Array{Setting} = Array{Setting}(undef, 0),
                  copy_dsge::Bool = false, testing = false) where {T<:Real}
 
     # Initialize specs

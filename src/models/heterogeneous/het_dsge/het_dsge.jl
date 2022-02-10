@@ -158,7 +158,7 @@ function init_model_indices!(m::HetDSGE, states::Vector{Symbol}, jumps::Vector{S
 end
 
 function HetDSGE(subspec::String="ss0";
-                   custom_settings::Array{Setting} = Array{Setting}(),
+                   custom_settings::Array{Setting} = Array{Setting}(undef, 0),
                    testing = false)
 
     # Model-specific specifications

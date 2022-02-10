@@ -169,7 +169,7 @@ function init_model_indices!(m::Model805)
 end
 
 function Model805(subspec::String="ss0";
-                      custom_settings::Array{Setting} = Array{Setting}(),
+                      custom_settings::Array{Setting} = Array{Setting}(undef, 0),
                       testing = false)
 
     # Model-specific specifications
