@@ -177,7 +177,7 @@ function init_model_indices!(m::RealBond)
 end
 
 function RealBond(subspec::String="ss0";
-                   custom_settings::Array{Setting} = Array{Setting}(undef, 0),
+                   custom_settings::Array{Setting} = Array{Setting{Bool}}(undef, 0),
                    testing = false)
 
     # Model-specific specifications
