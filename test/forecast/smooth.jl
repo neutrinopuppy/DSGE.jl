@@ -71,7 +71,7 @@ m_rs1 <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m_rs1)
                                                 3 => Date(2012, 3, 31)))
 setup_regime_switching_inds!(m_rs1)
 
-m_rs2 = Model1002("ss51v", custom_settings = custom_settings) # pseudo regime switching (identical values for standard deviations)
+m_rs2 = Model1002("ss51", custom_settings = custom_settings) # pseudo regime switching (identical values for standard deviations)
 m_rs2 <= Setting(:rate_expectations_source, :ois)
 m_rs2 <= Setting(:regime_switching, true)
 m_rs2 <= Setting(:n_regimes, 3)
@@ -79,7 +79,7 @@ m_rs2 <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m_rs1)
                                                 3 => Date(2012, 3, 31)))
 setup_regime_switching_inds!(m_rs2)
 
-m_rs3 = Model1002("ss51v", custom_settings = custom_settings) # non-trivial regime switching
+m_rs3 = Model1002("ss51", custom_settings = custom_settings) # non-trivial regime switching
 m_rs3 <= Setting(:rate_expectations_source, :ois)
 m_rs3 <= Setting(:regime_switching, true)
 m_rs3 <= Setting(:n_regimes, 3)

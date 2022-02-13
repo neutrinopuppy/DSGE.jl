@@ -76,7 +76,7 @@ custom_settings = Array{Setting}(Setting(:data_vintage, "160812"),
                                  Setting(:forecast_horizons, 16),
                                  Setting(:n_mon_anticipated_shocks, 6))
 m    = Model1002("ss10", testing = true, custom_settings = custom_settings)  # baseline model
-m_rs = Model1002("ss51v", testing = true, custom_settings = custom_settings) # pseudo regime switching (identical values for standard deviations)
+m_rs = Model1002("ss51", testing = true, custom_settings = custom_settings) # pseudo regime switching (identical values for standard deviations)
 m_rs <= Setting(:rate_expectations_source, :ois)
 m_rs.settings[:regime_switching] = Setting(:regime_switching, true)
 m_rs.settings[:n_regimes] = Setting(:n_regimes, 3)

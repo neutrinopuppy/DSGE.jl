@@ -39,8 +39,8 @@ function init_subspec!(m::Model1002)
         return ss20!(m)
     elseif subspec(m) == "ss30"
         return ss30!(m)
-    elseif subspec(m) == "ss51v"
-        return ss51v!(m)
+    elseif subspec(m) == "ss51"
+        return ss51!(m)
     elseif subspec(m) == "ss59"
         return ss59!(m)
     elseif subspec(m) == "ss60"
@@ -802,12 +802,12 @@ end
 
 """
 ```
-ss51v!(m::Model1002)
+ss51!(m::Model1002)
 ```
 
 Second regime where b, mp, and anticipated shocks are ctive.
 """
-function ss51v!(m::Model1002)
+function ss51!(m::Model1002)
     ModelConstructors.set_regime_val!(m[:σ_g], 2, 0., override_bounds = true)
     ModelConstructors.set_regime_val!(m[:σ_b], 2, 0.0292)
     ModelConstructors.set_regime_val!(m[:σ_μ], 2, 0., override_bounds = true)

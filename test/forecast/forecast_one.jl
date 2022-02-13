@@ -224,7 +224,7 @@ end
         m_rs1 = DSGE.setup_regime_switching_inds!(m_rs1)
 
         # pseudo regime switching (identical values for standard deviations)
-        m_rs2 = Model1002("ss51v", testing = true, custom_settings = custom_settings)
+        m_rs2 = Model1002("ss51", testing = true, custom_settings = custom_settings)
         m_rs2 <= Setting(:rate_expectations_source, :ois)
         m_rs2.settings[:regime_switching] = Setting(:regime_switching, true)
         m_rs2.settings[:n_regimes] = Setting(:n_regimes, 3)
@@ -242,7 +242,7 @@ end
 
         # non-trivial regime switching: eqcond matrices different and QQ matrix is different
         # - Does not test for switching in ZZ or ZZ_pseudo
-        m_rs3 = Model1002("ss51v", testing = true, custom_settings = custom_settings)
+        m_rs3 = Model1002("ss51", testing = true, custom_settings = custom_settings)
         m_rs3 <= Setting(:rate_expectations_source, :ois)
         m_rs3.settings[:regime_switching] = Setting(:regime_switching, true)
         m_rs3.settings[:n_regimes] = Setting(:n_regimes, 3)
