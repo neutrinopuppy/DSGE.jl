@@ -2,7 +2,7 @@ using DSGE
 
 path = dirname(@__FILE__)
 # Set parameters for testing
-custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = [Setting(:date_forecast_start, quartertodate("2015-Q4"))]
 m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 m <= Setting(:use_parallel_workers, true)
 parallel = get_setting(m, :use_parallel_workers)

@@ -96,9 +96,8 @@ if VERSION < v"1.5"
 
     @testset "Impulse responses of a VAR using a DSGE as a prior" begin
         jlddata = load(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs.jld2"))
-        m = Model1002("ss10", custom_settings =
-                      Array{Setting}(Setting(:add_laborshare_measurement, true),
-                                     Setting(:add_NominalWageGrowth, true)))
+        m = Model1002("ss10", custom_settings = [Setting(:add_laborshare_measurement, true),
+                                                 Setting(:add_NominalWageGrowth, true)])
         m <= Setting(:impulse_response_horizons, 10)
         dsgevar = DSGEVAR(m, collect(keys(m.exogenous_shocks)), "ss11")
         DSGE.update!(dsgevar, λ = 1.)
@@ -169,8 +168,8 @@ end
 
 @testset "Impulse responses of VAR by using a DSGE as prior and to identify the rotation matrix" begin
     jlddata = load(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs.jld2"))
-    m = Model1002("ss10", custom_settings = Array{Setting}(Setting(:add_laborshare_measurement, true),
-                                                           Setting(:add_NominalWageGrowth, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_laborshare_measurement, true),
+                                             Setting(:add_NominalWageGrowth, true)])
     m <= Setting(:impulse_response_horizons, 10)
     dsgevar = DSGEVAR(m, collect(keys(m.exogenous_shocks)), "ss11")
     DSGE.update!(dsgevar, λ = 1.)

@@ -6,7 +6,7 @@ writing_output = false
 #-----------------------------------------------------------------
 # csminwel
 #-----------------------------------------------------------------
-custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = [Setting(:date_forecast_start, quartertodate("2015-Q4"))]
 m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 
 # Load data
@@ -52,7 +52,7 @@ end
 #-----------------------------------------------------------------
 # Simulated Annealing
 #-----------------------------------------------------------------
-custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = [Setting(:date_forecast_start, quartertodate("2015-Q4"))]
 m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 
 # Load data
@@ -94,7 +94,7 @@ end
 #-----------------------------------------------------------------
 # Nelder Mead
 #-----------------------------------------------------------------
-custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = [Setting(:date_forecast_start, quartertodate("2015-Q4"))]
 m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 
 # Load data
@@ -139,7 +139,7 @@ end
 #-----------------------------------------------------------------
 # LBFGS
 #-----------------------------------------------------------------
-custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = [Setting(:date_forecast_start, quartertodate("2015-Q4"))]
 m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 
 # Load data

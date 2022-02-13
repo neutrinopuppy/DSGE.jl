@@ -49,14 +49,14 @@ end
 
 
 # Now check for regime switching
-custom_settings = Array{Setting}(Setting(:data_vintage, "160812"),
-                                 Setting(:cond_vintage, "160812"),
-                                 Setting(:cond_id, 0),
-                                 Setting(:use_population_forecast, true),
-                                 Setting(:date_presample_start, Date(1959, 9, 30)),
-                                 Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-                                 Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
-                                 Setting(:n_mon_anticipated_shocks, 6))
+custom_settings = [Setting(:data_vintage, "160812"),
+                   Setting(:cond_vintage, "160812"),
+                   Setting(:cond_id, 0),
+                   Setting(:use_population_forecast, true),
+                   Setting(:date_presample_start, Date(1959, 9, 30)),
+                   Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                   Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
+                   Setting(:n_mon_anticipated_shocks, 6)]
 
 m = Model1002("ss10", custom_settings = custom_settings, testing = true)
 m <= Setting(:rate_expectations_source, :ois)

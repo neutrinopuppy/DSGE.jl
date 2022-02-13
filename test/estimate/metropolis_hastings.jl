@@ -12,7 +12,7 @@ else
 end
 
 # Set up model for testing
-custom_settings = Array{Setting}(Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = [Setting(:date_forecast_start, quartertodate("2015-Q4"))]
 m = AnSchorfheide(custom_settings = custom_settings, testing = true)
 
 

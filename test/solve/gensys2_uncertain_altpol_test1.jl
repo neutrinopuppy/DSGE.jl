@@ -4,11 +4,11 @@ using ModelConstructors, Nullables, Dates, OrderedCollections
 prob_vecs = [[1., 0.], [.5, .5], [0., 1.]]
 Hbar_vec = [14, 10, 6]
 
-m = Model1002("ss59"; custom_settings = Array{Setting}(Setting(:flexible_ait_policy_change, false),
-                                                       Setting(:add_pgap, false),
-                                                       Setting(:add_ygap, false),
-                                                       Setting(:add_altpolicy_pgap, true),
-                                                       Setting(:add_altpolicy_ygap, true))) # Set to false unless you want to re-generate any saved output
+m = Model1002("ss59"; custom_settings = [Setting(:flexible_ait_policy_change, false),
+                                         Setting(:add_pgap, false),
+                                         Setting(:add_ygap, false),
+                                         Setting(:add_altpolicy_pgap, true),
+                                         Setting(:add_altpolicy_ygap, true)]) # Set to false unless you want to re-generate any saved output
 m <= Setting(:flexible_ait_policy_change, false) # Set to false unless you want to re-generate any saved output
 m <= Setting(:date_forecast_start, Date(2020, 6, 30))
 m <= Setting(:date_conditional_end, Date(2020, 6, 30))

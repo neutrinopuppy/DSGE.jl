@@ -101,9 +101,8 @@ end
 end
 
 @testset "VAR approximation of state space" begin
-    m = Model1002("ss10"; custom_settings =
-                  Array{Setting}(Setting(:add_laborshare_measurement, true),
-                                 Setting(:add_NominalWageGrowth, true)))
+    m = Model1002("ss10"; custom_settings = [Setting(:add_laborshare_measurement, true),
+                                             Setting(:add_NominalWageGrowth, true)])
     system = compute_system(m)
     system = compute_system(m, system; observables = [:obs_hours, :obs_gdpdeflator,
                                                       :laborshare_t, :NominalWageGrowth],
@@ -183,9 +182,8 @@ end
 end
 
 @testset "VAR using DSGE as a prior" begin
-    m = Model1002("ss10"; custom_settings =
-                  Array{Setting}(Setting(:add_laborshare_measurement, true),
-                                 Setting(:add_NominalWageGrowth, true)))
+    m = Model1002("ss10"; custom_settings = [Setting(:add_laborshare_measurement, true),
+                                             Setting(:add_NominalWageGrowth, true)])
     dsgevar = DSGEVAR(m)
     jlddata = load(joinpath(dirname(@__FILE__), "../reference/test_dsgevar_lambda_irfs.jld2"))
     DSGE.update!(dsgevar, shocks = collect(keys(m.exogenous_shocks)),
@@ -426,7 +424,7 @@ end
 @testset "Implement alternative policy using regime_eqcond_info" begin
     output_vars = [:forecastobs, :histobs, :histpseudo, :forecastpseudo]
 
-    m = Model1002("ss10", custom_settings = Array{Setting}(Setting(:add_altpolicy_pgap, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_altpolicy_pgap, true)])
     m <= Setting(:date_forecast_start, Date(2020, 6, 30))
 
     m <= Setting(:regime_switching, true)
@@ -451,7 +449,7 @@ end
     #                                       df; regime_switching = true, n_regimes = get_setting(m, :n_regimes))
 
     # Testing ore basic permanent NGDP
-    m = Model1002("ss10"; custom_settings = Array{Setting}(Setting(:add_altpolicy_pgap, true)))
+    m = Model1002("ss10"; custom_settings = [Setting(:add_altpolicy_pgap, true)])
     m <= Setting(:forecast_horizons, 12)
     m <= Setting(:date_forecast_start, Date(2020, 6, 30))
     m <= Setting(:regime_switching, true)
@@ -863,11 +861,10 @@ end
 
     imperfect_cred_new = 1.
     imperfect_cred_old = 1. - imperfect_cred_new
-    custom_set = Array{Setting}(Setting(:n_mon_anticipated_shocks, 6, "Number of anticipated policy shocks"),
-                                Setting(:imperfect_awareness_weights,
-                                                                              [imperfect_cred_new, imperfect_cred_old]),
-                                Setting(:alternative_policies, [DSGE.taylor_rule()]),
-                                Setting(:flexible_ait_policy_change, true))
+    custom_set = [Setting(:n_mon_anticipated_shocks, 6, "Number of anticipated policy shocks"),
+                  Setting(:imperfect_awareness_weight, [imperfect_cred_new, imperfect_cred_old]),
+                  Setting(:alternative_policies, [DSGE.taylor_rule()]),
+                  Setting(:flexible_ait_policy_change, true)]
 
     m = Model1002("ss59", custom_settings = custom_set)
     usual_model_settings!(m, "201117", fcast_date = Date(2020, 9, 30))
@@ -927,11 +924,10 @@ end
     end
     imperfect_cred_new = .5
     imperfect_cred_old = 1. - imperfect_cred_new
-    custom_set = Array{Setting}(Setting(:n_mon_anticipated_shocks, 6, "Number of anticipated policy shocks"),
-                                Setting(:imperfect_awareness_weights,
-                                                                              [imperfect_cred_new, imperfect_cred_old]),
-                                Setting(:alternative_policies, [DSGE.taylor_rule()]),
-                                Setting(:flexible_ait_policy_change, true))
+    custom_set = [Setting(:n_mon_anticipated_shocks, 6, "Number of anticipated policy shocks"),
+                  Setting(:imperfect_awareness_weights, [imperfect_cred_new, imperfect_cred_old]),
+                  Setting(:alternative_policies, [DSGE.taylor_rule()]),
+                  Setting(:flexible_ait_policy_change, true)]
 
     m = Model1002("ss59", custom_settings = custom_set)
     usual_model_settings!(m, "201117", fcast_date = Date(2020, 9, 30))

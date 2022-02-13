@@ -153,14 +153,14 @@ end
 
 ## Now check for regime switching
 # TODO: ADD TEST WHEN USING OVERRIDES W/REGIME-SWITCHING MODEL, also two more TODO below
-custom_settings = Array{Setting}(Setting(:data_vintage, "160812"),
-                                 Setting(:cond_vintage, "160812"),
-                                 Setting(:cond_id, 0),
-                                 Setting(:use_population_forecast, true),
-                                 Setting(:date_presample_start, Date(1959, 9, 30)),
-                                 Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-                                 Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
-                                 Setting(:n_mon_anticipated_shocks, 6))
+custom_settings = [Setting(:data_vintage, "160812"),
+                   Setting(:cond_vintage, "160812"),
+                   Setting(:cond_id, 0),
+                   Setting(:use_population_forecast, true),
+                   Setting(:date_presample_start, Date(1959, 9, 30)),
+                   Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                   Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
+                   Setting(:n_mon_anticipated_shocks, 6)]
 :forecast_horizons => Setting(:forecast_horizons, 12)
 :impulse_response_horizons => Setting(:impulse_response_horizons, 12)
 

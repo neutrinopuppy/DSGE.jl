@@ -9,13 +9,13 @@ path = dirname(@__FILE__)
     if haskey(ENV, "FRED_API_KEY") || isfile(homedirpath)
 
         # Specify vintage and dates
-        global custom_settings = Array{Setting}(Setting(:data_vintage, "160812"),
-                                                Setting(:cond_vintage, "160812"),
-                                                Setting(:cond_id, 0),
-                                                Setting(:use_population_forecast, true),
-                                                Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-                                                Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
-                                                Setting(:n_mon_anticipated_shocks, 6))
+        global custom_settings = [Setting(:data_vintage, "160812"),
+                                  Setting(:cond_vintage, "160812"),
+                                  Setting(:cond_id, 0),
+                                  Setting(:use_population_forecast, true),
+                                  Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                                  Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
+                                  Setting(:n_mon_anticipated_shocks, 6)]
 
         global m = Model990(custom_settings = custom_settings, testing = true)
         m <= Setting(:rate_expectations_source, :ois)

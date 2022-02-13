@@ -314,7 +314,7 @@ end
 
 @testset "Check impulse responses to pegged interest rate" begin
     global m = SmetsWouters(
-        custom_settings = Array{Setting}(Setting(:n_mon_anticipated_shocks, 8)))
+                            custom_settings = [Setting(:n_mon_anticipated_shocks, 8)])
     global system = compute_system(m)
     for hor=1:8
         DSGE.impulse_responses_peg(m, system, horizon, H = hor, peg = :all_periods, real_rate = false)

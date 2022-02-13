@@ -3,10 +3,10 @@ path = dirname(@__FILE__)
 fred = CSV.read("$path/../reference/fred_160812.csv", DataFrame)
 
 # Specify vintage and dates
-custom_settings = Array{Setting}(Setting(:cond_id, 0),
-                                 Setting(:use_population_forecast, true),
-                                 Setting(:n_anticipated_shocks, 6),
-                                 Setting(:population_forecast, false))
+custom_settings = [Setting(:cond_id, 0),
+                   Setting(:use_population_forecast, true),
+                   Setting(:n_anticipated_shocks, 6),
+                   Setting(:population_forecast, false)]
 m = AnSchorfheide(testing = true, custom_settings = custom_settings)
 m <= Setting(:saveroot, "$path/../reference/")
 m <= Setting(:rate_expectations_source, :ois)

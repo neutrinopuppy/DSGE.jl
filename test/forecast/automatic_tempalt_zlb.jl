@@ -5,9 +5,9 @@ regenerate_output = false
 ## Regime switching and full-distribution
 # Initialize model objects
 Random.seed!(1793 * 10)
-m = Model1002("ss60"; custom_settings = Array{Setting}(Setting(:flexible_ait_policy_change, false),
-                                                       Setting(:add_pgap, false),
-                                                       Setting(:add_ygap, false))) # Set to false unless you want to re-generate any saved output
+m = Model1002("ss60"; custom_settings = [Setting(:flexible_ait_policy_change, false),
+                                         Setting(:add_pgap, false),
+                                         Setting(:add_ygap, false)]) # Set to false unless you want to re-generate any saved output
 df_full = CSV.read(joinpath(dirname(@__FILE__), "../reference/uncertain_altpolicy_data.csv"), DataFrame)
 m <= Setting(:forecast_horizons, 20)
 m <= Setting(:cond_full_names, [:obs_gdp, :obs_corepce, :obs_spread, # Have to add anticipated rates to conditional data
@@ -33,12 +33,12 @@ biidc_keys = Dict()
 ziid_keys = Dict()
 φ_keys = Dict()
 for p in m.parameters # Find the keys of the COVID-19 shocks
-    if haskey(p.regimes, :value)
-        for k in keys(p.regimes[:value])
-            if k > 1
-                global j += 1
-                if p.key == :σ_φ
-                    φ_keys[k] = j
+if haskey(p.regimes, :value)
+for k in keys(p.regimes[:value])
+if k > 1
+global j += 1
+if p.key == :σ_φ
+φ_keys[k] = j
                 elseif p.key == :σ_biidc
                     biidc_keys[k] = j
                 elseif p.key == :σ_ziid
@@ -79,33 +79,33 @@ forecast_one(m, :full, :full, output_vars, verbose = :none, params = mparas, df 
 # Either test against saved output or re-generate output
 output_files = get_forecast_output_files(m, :full, :full, output_vars)
 if regenerate_output
-    using JLD2, FileIO
-    if (VERSION >= v"1.5")
-        JLD2.jldopen(joinpath(dirname(@__FILE__), "../reference/automatic_tempalt_zlb_fulldist_v1p5.jld2"),
-                     true, true, true, IOStream) do file
-            for (k, v) in output_files
-                write(file, string(k), load(v, "arr"))
-            end
+using JLD2, FileIO
+if (VERSION >= v"1.5")
+JLD2.jldopen(joinpath(dirname(@__FILE__), "../reference/automatic_tempalt_zlb_fulldist_v1p5.jld2"),
+             true, true, true, IOStream) do file
+for (k, v) in output_files
+    write(file, string(k), load(v, "arr"))
+end
         end
     else
         JLD2.jldopen(joinpath(dirname(@__FILE__), "../reference/automatic_tempalt_zlb_fulldist.jld2"),
                      true, true, true, IOStream) do file
-            for (k, v) in output_files
-                write(file, string(k), load(v, "arr"))
-            end
+        for (k, v) in output_files
+            write(file, string(k), load(v, "arr"))
         end
     end
+end
 else
     refdata = (VERSION >= v"1.5") ?
-        load(joinpath(dirname(@__FILE__), "../reference/automatic_tempalt_zlb_fulldist_v1p5.jld2")) :
-        load(joinpath(dirname(@__FILE__), "../reference/automatic_tempalt_zlb_fulldist.jld2"))
+    load(joinpath(dirname(@__FILE__), "../reference/automatic_tempalt_zlb_fulldist_v1p5.jld2")) :
+    load(joinpath(dirname(@__FILE__), "../reference/automatic_tempalt_zlb_fulldist.jld2"))
     @testset "Automatic enforcement of ZLB as a temporary alternative policy during full-distribution forecast" begin
         for (k, v) in output_files # Test variables which don't have forward-looking measurement equations
 
             # measurement eqns for forward looking variables e.g. :obs_longrate are still being updated.
             if k == :bddforecastobs
                 @test_matrix_approx_eq refdata[string(k)][:, # this test seems to work but perhaps due to changes in the way the automatic ZLB is
-                                                                vcat(1:9, 12:13), :] load(v, "arr")[:, vcat(1:9, 12:13), :] # inferred, it no longer matches reference output. Leaving this test as "broken" for now.
+                                                          vcat(1:9, 12:13), :] load(v, "arr")[:, vcat(1:9, 12:13), :] # inferred, it no longer matches reference output. Leaving this test as "broken" for now.
                 @test all(refdata[string(k)][:, m.observables[:obs_nominalrate], :] .> -1e-14)
             else
                 @test @test_matrix_approx_eq refdata[string(k)][:,
@@ -115,6 +115,6 @@ else
         end
     end
     for v in values(output_files)
-        rm(v)
-    end
+    rm(v)
+end
 end

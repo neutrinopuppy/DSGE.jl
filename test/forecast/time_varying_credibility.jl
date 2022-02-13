@@ -21,25 +21,25 @@ start_zlb_date         = Date(2021, 3, 31)
 end_zlb_date           = Date(2022, 12, 31)
 
 # additional settings to implement Flexible AIT rule
-flexait_custom = Array{Setting}(Setting(:add_initialize_pgap_ygap_pseudoobs, true),
-                                Setting(:add_pgap, true), :add_ygap => Setting(:add_ygap, true),
-                                Setting(:add_altpolicy_pgap, true),
-                                Setting(:add_altpolicy_ygap, true),
-                                Setting(:forecast_horizons,
-                                        subtract_quarters(date_fcast_end, fcast_date)),
-                                Setting(:forecast_smoother, :durbin_koopman),
-                                Setting(:contemporaneous_and_proportional_antshocks, Symbol[:biidc]),
-                                Setting(:antshocks, Dict{Symbol, Int}(:biidc => 1,
-                                                                      :φ => 1, :ziid => 1)),
-                                Setting(:ant_eq_mapping, Dict{Symbol, Symbol}(:biidc => :biidc,
-                                                                              :φ => :φ,
-                                                                              :ziid => :ziid)),
-                                Setting(:ant_eq_E_mapping, Dict{Symbol, Symbol}(:φ => :Eφ)),
-                                Setting(:proportional_antshocks, [:biidc, :φ, :ziid]),
-                                Setting(:n_anticipated_obs_gdp, 1),
-                                Setting(:add_anticipated_obs_gdp, true),
-                                Setting(:meas_err_anticipated_obs_gdp, 1.),
-                                Setting(:flexible_ait_policy_change, false))
+flexait_custom = [Setting(:add_initialize_pgap_ygap_pseudoobs, true),
+                  Setting(:add_pgap, true), :add_ygap => Setting(:add_ygap, true),
+                  Setting(:add_altpolicy_pgap, true),
+                  Setting(:add_altpolicy_ygap, true),
+                  Setting(:forecast_horizons,
+                          subtract_quarters(date_fcast_end, fcast_date)),
+                  Setting(:forecast_smoother, :durbin_koopman),
+                  Setting(:contemporaneous_and_proportional_antshocks, Symbol[:biidc]),
+                  Setting(:antshocks, Dict{Symbol, Int}(:biidc => 1,
+                                                        :φ => 1, :ziid => 1)),
+                  Setting(:ant_eq_mapping, Dict{Symbol, Symbol}(:biidc => :biidc,
+                                                                :φ => :φ,
+                                                                :ziid => :ziid)),
+                  Setting(:ant_eq_E_mapping, Dict{Symbol, Symbol}(:φ => :Eφ)),
+                  Setting(:proportional_antshocks, [:biidc, :φ, :ziid]),
+                  Setting(:n_anticipated_obs_gdp, 1),
+                  Setting(:add_anticipated_obs_gdp, true),
+                  Setting(:meas_err_anticipated_obs_gdp, 1.),
+                  Setting(:flexible_ait_policy_change, false)]
 
 # Initialize model object
 m = Model1002("ss59"; custom_settings = flexait_custom)

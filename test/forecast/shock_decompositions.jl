@@ -89,8 +89,8 @@ end
 
 ## Shock decompositions with time-varying CCC
 # Set up
-m = Model1002("ss10"; custom_settings = Array{Setting}(Setting(:add_altpolicy_pgap, true),
-                                                       Setting(:add_altpolicy_ygap, true)))
+m = Model1002("ss10"; custom_settings = [Setting(:add_altpolicy_pgap, true),
+                                         Setting(:add_altpolicy_ygap, true)])
 m <= Setting(:regime_switching, true)
 m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m),
                                             2 => Date(2020, 6, 30),
