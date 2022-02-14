@@ -149,7 +149,7 @@ df_pseudo = DSGE.prepare_means_table_trend_nostates(m, :full, :pseudo,
 
 @test all(Matrix(df_states[:, 2:end]) .≈ 0.)
 @test all((df_to_matrix(m, df_obs) .- sys[n_regimes(sys), :DD]) .≈ 0.)
-pseudo_obs = vcat(1:13, 19:n_pseudo_observables(m)) .+ 1 # Remove forward-looking pseudo-obs
+pseudo_obs = vcat(1:13, 22:n_pseudo_observables(m)) .+ 1 # Remove forward-looking pseudo-obs
 @test all((Matrix(df_pseudo[:, pseudo_obs])' .- sys[n_regimes(sys), :DD_pseudo][pseudo_obs .- 1]) .≈ 0.)
 
 nothing
