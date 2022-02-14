@@ -63,6 +63,7 @@ function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bo
         end
         df = transform_data(m, levels; cond_type=cond_type, verbose=verbose)
 
+        # Conditional OIS data
         if :obs_nominalrate1 in cond_semi_names(m) || :obs_nominalrate1 in cond_full_names(m)
             ois_data = CSV.read(inpath(m, "raw", "ois_$(data_vintage(m)).csv"), DataFrame, copycols = true)
             dates = DSGE.get_quarter_ends(iterate_quarters(date_mainsample_end(m), 1), date_conditional_end(m))
@@ -71,6 +72,19 @@ function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bo
             ois_data_want = ois_data[date_mainsample_end(m) .< ois_data[!, :date] .<= date_conditional_end(m), [Symbol("ant$i") for i in 1:n_mon_anticipated_shocks(m)]]
 
             df[date_mainsample_end(m) .< df[!, :date] .<= date_conditional_end(m), [Symbol("obs_nominalrate$i") for i in 1:n_mon_anticipated_shocks(m)]] .= Matrix{Float64}(ois_data_want)
+        end
+
+        # Conditional SPD Data
+        if :obs_exp_nominalrate1 in cond_semi_names(m) || :obs_exp_nominalrate1 in cond_full_names(m)
+            spd_data = CSV.read(inpath(m, "raw", "spd_$(data_vintage(m)).csv"), DataFrame, copycols = true)
+            # Transform into usable form
+
+            dates = DSGE.get_quarter_ends(iterate_quarters(date_mainsample_end(m), 1), date_conditional_end(m))
+            n_cond = length(dates)
+
+            spd_data_want = spd_data[date_mainsample_end(m) .< spd_data[!, :date] .<= date_conditional_end(m), [Symbol("exp_ant$i") for i in 1:n_expected_ffr(m)]]
+
+            df[date_mainsample_end(m) .< df[!, :date] .<= date_conditional_end(m), [Symbol("obs_exp_nominalrate$i") for i in 1:n_expected_ffr(m)]] .= Matrix{Float64}(spd_data_want)
         end
 
         # Ensure that only appropriate rows make it into the returned DataFrame.
@@ -182,6 +196,10 @@ function load_data_levels(m::AbstractDSGEModel; verbose::Symbol=:low,
         end
     end
 
+    # Set SPD expected FFR to load
+    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 101 && n_expected_ffr(m) > 0
+        data_series[:SPD] = [Symbol("exp_ant$i") for i in 1:n_expected_ffr(m)]
+    end
 
     # For each additional source, search for the file with the proper name. Open
     # it, read it in, and merge it with fred_series

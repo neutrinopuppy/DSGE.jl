@@ -472,4 +472,26 @@ function init_observable_mappings!(m::Model1002)
                       [Symbol("obs_gdp$i") for i in 1:get_setting(m, :n_anticipated_obs_gdp)] : []))
 
     m.observable_mappings = observables
+
+
+    ############################################################################
+    ## Expected FFR from SPD
+    ############################################################################
+    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 101
+        for i = 1:n_expected_ffr(m)
+            # FROM: SPD median expectations of $i-period-ahead interest rates at a quarterly rate
+            # TO:   Same
+
+            ant_fwd_transform = function (levels)
+                levels[:, Symbol("exp_ant$i")]
+            end
+
+            ant_rev_transform = quartertoannual
+
+            observables[Symbol("obs_exp_nominalrate$i")] = Observable(Symbol("obs_exp_ant$i"), [Symbol("exp_ant$(i)__SPD")],
+                                                                      ant_fwd_transform, ant_rev_transform,
+                                                                      "Anticipated FFR $i",
+                                                                      "$i-period ahead anticipated federal funds rate")
+        end
+    end
 end
