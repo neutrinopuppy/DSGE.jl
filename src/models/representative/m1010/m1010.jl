@@ -179,7 +179,7 @@ function init_model_indices!(m::Model1010)
 end
 
 function Model1010(subspec::String="ss20";
-                   custom_settings::Array{Setting} = Array{Setting}(undef, 0),
+                   custom_settings::Array{S} where S<:Setting = Array{Setting{Bool}}(undef, 0),
                    testing = false)
 
     # Model-specific specifications

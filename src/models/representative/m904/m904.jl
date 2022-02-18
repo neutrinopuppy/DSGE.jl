@@ -167,7 +167,7 @@ end
 
 
 function Model904(subspec::String="ss9";
-                  custom_settings::Array{Setting} = Array{Setting}(undef, 0),
+                  custom_settings::Array{S} where S<:Setting = Array{Setting{Bool}}(undef, 0),
                   testing = false)
 
     # Model-specific specifications

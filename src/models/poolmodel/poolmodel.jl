@@ -99,7 +99,7 @@ function init_model_indices!(m::PoolModel)
 end
 
 function PoolModel(subspec::String="ss2";
-                   custom_settings::Array{Setting} = Array{Setting}(undef, 0),
+                   custom_settings::Array{S} where S<:Setting = Array{Setting{Bool}}(undef, 0),
                    testing = false, verbose::Symbol = :low,
                    weight_type::Symbol = :dynamic) where T<:AbstractFloat
 

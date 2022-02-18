@@ -112,8 +112,8 @@ end
 
 # Empty constructor
 function DSGEVAR(dsge::AbstractDSGEModel{T}, subspec::String = "ss0";
-                 custom_settings::Array{Setting} = Array{Setting}(undef, 0),
-                 copy_dsge::Bool = false, testing = false) where {T<:Real}
+                 custom_settings::Array{S} = Array{Setting{Bool}}(undef, 0),
+                 copy_dsge::Bool = false, testing = false) where {T<:Real, S<:Setting}
 
     # Initialize specs
     spec     = "dsgevar_" * ModelConstructors.spec(dsge)

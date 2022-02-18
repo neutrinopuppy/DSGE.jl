@@ -161,7 +161,7 @@ end
 
 # This function should be edited!
 function AnSchorfheide(subspec::String="ss0"; # do not edit inputs
-                       custom_settings::Array{Setting} = Array{Setting}(undef, 0),
+                       custom_settings::Array{S} where S<:Setting = Array{Setting{Bool}}(undef, 0),
                        testing = false)
 
     # Model-specific specifications (do not edit)
