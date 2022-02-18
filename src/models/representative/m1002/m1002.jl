@@ -186,9 +186,16 @@ function init_model_indices!(m::Model1002)
         push!(equilibrium_conditions, :eq_biidc_sh)
         push!(endogenous_states, :biidc_sh1)
     end
+    # SPD expected FFR measurement error
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            push!(endogenous_states_augmented, Symbol("e_exp_rm$i"))
+            push!(exogenous_shocks, Symbol("exp_rm_sh$i"))
+        end
+    end
 
     # COVID-19 states, shocks, and equations
-    if parse(Int, SubString(subspec(m), 3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m), 3,subspec_ind)) >= 59
         push!(endogenous_states, :ziid_t)
         push!(equilibrium_conditions, :eq_ziid)
         push!(exogenous_shocks, :ziid_sh)
@@ -910,6 +917,18 @@ buted to steady-state inflation.",
                        tex_label="meas_\\pi1")
     end
 
+    # SPD expected FFR measurement error parameters
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            m <= parameter(Symbol("σ_exp_rm$i"), 0.0375 + 0.00625 * i, (1e-7, 5.), (1e-5, 0.), ModelConstructors.Exponential(),
+                           RootInverseGamma(4, .2), fixed=true,
+                           description="σ_exp_rm$i: Standard deviation of the $i-period-ahead FFR measurement error.",
+                           tex_label=@sprintf("\\sigma_{exp_rm%d}",i))
+        end
+        m <= parameter(:ρ_exp_rm, 0., (-0.999, 0.999), (-0.999, 0.999), ModelConstructors.SquareRoot(), Normal(0.0, 0.2), fixed=true,
+                       tex_label="\\rho_{exp_rm}")
+    end
+
     # steady states
     m <= SteadyStateParameter(:z_star, NaN, tex_label="\\z_*")
     m <= SteadyStateParameter(:rstar, NaN, tex_label="\\r_*")
@@ -1197,8 +1216,15 @@ function parameter_groupings(m::Model1002)
     error      = [:me_level, :ρ_gdp, :ρ_gdi, :ρ_lr, :ρ_tfp, :ρ_gdpdef, :ρ_corepce,
                   :ρ_gdpvar, :σ_gdp, :σ_gdi, :σ_lr, :σ_tfp, :σ_gdpdef, :σ_corepce,]
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 87
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
         push!(error, :ρ_meas_π, :σ_meas_π)
+    end
+
+    # SPD expected FFR measurement error
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            push!(error, Symbol("σ_exp_rm$i"))
+        end
     end
 
     all_keys     = Vector[policy, sticky, other_endo, financial, processes, error]
@@ -1207,7 +1233,7 @@ function parameter_groupings(m::Model1002)
                     "Financial Frictions Parameters", "Exogenous Process Parameters",
                     "Measurement Error Parameters"]
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         covid = [:σ_ziid, :σ_biidc, :σ_φ]
         for (sh, ant_num) in get_setting(m, :antshocks)
             for i in 1:ant_num
@@ -1274,8 +1300,13 @@ function shock_groupings(m::Model1002)
         mei = ShockGroup("mu", [:μ_sh], :cyan)
 
         mea_vec = [:lr_sh, :tfp_sh, :gdpdef_sh, :corepce_sh, :gdp_sh, :gdi_sh]
-        if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 87
+        if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
             push!(mea_vec, :meas_π_sh)
+        end
+        if !isempty(expected_ffr(m))
+            for i in expected_ffr(m)
+                push!(exogenous_shocks, Symbol("exp_rm_sh$i"))
+            end
         end
 
         if haskey(get_settings(m), :add_iid_cond_obs_gdp_meas_err) ?
@@ -1289,6 +1320,7 @@ function shock_groupings(m::Model1002)
         else
             mea = ShockGroup("me", mea_vec, RGB(0.0, 0.8, 0.0))
         end
+
         zpe = ShockGroup("zp", [:zp_sh], RGB(0.0, 0.3, 0.0))
         det = ShockGroup("dt", [:dettrend], :gray40)
         oth = ShockGroup("other", [:dettrend, :g_sh, :π_star_sh, :μ_sh], :gray40) # :dettrend

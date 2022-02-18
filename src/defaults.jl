@@ -62,6 +62,9 @@ function default_settings!(m::AbstractDSGEModel)
     settings[:n_mon_anticipated_shocks_padding] = Setting(:n_mon_anticipated_shocks_padding, 20,
         "Padding for anticipated policy shocks")
 
+    settings[:expected_ffr] = Setting(:expected_ffr, [],
+                                        "Horizons of expected SPD FFR forecasts to use")
+
     # Monetary policy shock name and observable
     settings[:monetary_policy_shock] = Setting(:monetary_policy_shock, :rm_sh,
                                                "Name of the monetary policy shock in field `exogenous_shocks` " *

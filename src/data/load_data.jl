@@ -76,15 +76,17 @@ function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bo
 
         # Conditional SPD Data
         if :obs_exp_nominalrate1 in cond_semi_names(m) || :obs_exp_nominalrate1 in cond_full_names(m)
-            spd_data = CSV.read(inpath(m, "raw", "spd_$(data_vintage(m)).csv"), DataFrame, copycols = true)
+            spd_data = CSV.read(inpath(m, "raw", "spd_raw_$(data_vintage(m)).csv"), DataFrame, copycols = true)
             # Transform into usable form
+            spd_data = transform_spd_data(spd_data)
+            CSV.write(inpath(m, "raw", "spd_$(data_vintage(m)).csv"), spd_data)
 
             dates = DSGE.get_quarter_ends(iterate_quarters(date_mainsample_end(m), 1), date_conditional_end(m))
             n_cond = length(dates)
 
-            spd_data_want = spd_data[date_mainsample_end(m) .< spd_data[!, :date] .<= date_conditional_end(m), [Symbol("exp_ant$i") for i in 1:n_expected_ffr(m)]]
+            spd_data_want = spd_data[date_mainsample_end(m) .< spd_data[!, :date] .<= date_conditional_end(m), [Symbol("exp_ant$i") for i in expected_ffr(m)]]
 
-            df[date_mainsample_end(m) .< df[!, :date] .<= date_conditional_end(m), [Symbol("obs_exp_nominalrate$i") for i in 1:n_expected_ffr(m)]] .= Matrix{Float64}(spd_data_want)
+            df[date_mainsample_end(m) .< df[!, :date] .<= date_conditional_end(m), [Symbol("obs_exp_nominalrate$i") for i in expected_ffr(m)]] .= Matrix{Float64}(spd_data_want)
         end
 
         # Ensure that only appropriate rows make it into the returned DataFrame.
@@ -197,8 +199,13 @@ function load_data_levels(m::AbstractDSGEModel; verbose::Symbol=:low,
     end
 
     # Set SPD expected FFR to load
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 101 && n_expected_ffr(m) > 0
-        data_series[:SPD] = [Symbol("exp_ant$i") for i in 1:n_expected_ffr(m)]
+    if !isempty(expected_ffr(m))
+        if !(:obs_exp_nominalrate1 in cond_semi_names(m) || :obs_exp_nominalrate1 in cond_full_names(m))
+            spd_data = CSV.read(inpath(m, "raw", "spd_raw_$(data_vintage(m)).csv"), DataFrame, copycols = true)
+            spd_data = transform_spd_data(spd_data)
+            CSV.write(inpath(m, "raw", "spd_$(data_vintage(m)).csv"), spd_data)
+        end
+        data_series[:SPD] = [Symbol("exp_ant$i") for i in expected_ffr(m)]
     end
 
     # For each additional source, search for the file with the proper name. Open

@@ -203,6 +203,11 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
     TTT_aug[endo_new[:e_corepce_t], endo_new[:e_corepce_t]] = m[:ρ_corepce]
     TTT_aug[endo_new[:e_gdp_t], endo_new[:e_gdp_t]]         = m[:ρ_gdp]
     TTT_aug[endo_new[:e_gdi_t], endo_new[:e_gdi_t]]         = m[:ρ_gdi]
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            TTT_aug[endo_new[Symbol("e_exp_rm$i")], endo_new[Symbol("e_exp_rm$i")]] = m[:ρ_exp_rm]
+        end
+    end
 
     if subspec(m) in ["ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss80", "ss82", "ss83"]
         # COVID counterparts to measurement errors
@@ -300,6 +305,12 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
     if haskey(get_settings(m), :add_iid_cond_obs_corepce_meas_err) ?
         get_setting(m, :add_iid_cond_obs_corepce_meas_err) : false
         RRR_aug[endo_new[:e_condcorepce_t], exo[:condcorepce_sh]] = 1.0
+    end
+
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            RRR_aug[endo_new[Symbol("e_exp_rm$i")], exo[Symbol("exp_rm_sh$i")]] = 1.0
+        end
     end
 
     ### CCC Modifications

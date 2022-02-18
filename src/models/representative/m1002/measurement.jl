@@ -357,6 +357,21 @@ function measurement(m::Model1002{T},
         end
     end
 
+    # Expected FFR from SPD
+    for i = expected_ffr(m)
+        TTT_accum, CCC_accum = k_periods_ahead_expectations(TTT, CCC, TTTs, CCCs, reg, i, permanent_t;
+                                                            integ_series = integ_series,
+                                                            memo = (isnothing(memo) || !use_fwd_exp) ? nothing :
+                                                            ForwardExpectationsMemo(memo.time_varying_memo[min(reg + i, permanent_t, 17)],
+                                                                                    memo.permanent_memo))
+
+        ZZ[obs[Symbol("obs_exp_nominalrate$i")], :] = view(TTT_accum, endo[:R_t], :)
+        ZZ[obs[Symbol("obs_exp_nominalrate$i")], endo_new[Symbol("e_exp_rm$i")]]  = 1.0
+        DD[obs[Symbol("obs_exp_nominalrate$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
+
+        QQ[exo[Symbol("exp_rm_sh$i")], exo[Symbol("exp_rm_sh$i")]] = m[Symbol("σ_exp_rm$i")]^2
+    end
+
     # Anticipated GDP growth
     if haskey(get_settings(m), :add_anticipated_obs_gdp)
         if get_setting(m, :add_anticipated_obs_gdp)
