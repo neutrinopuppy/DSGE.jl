@@ -22,7 +22,7 @@ end_zlb_date           = Date(2022, 12, 31)
 
 # additional settings to implement Flexible AIT rule
 flexait_custom = [Setting(:add_initialize_pgap_ygap_pseudoobs, true),
-                  Setting(:add_pgap, true), :add_ygap => Setting(:add_ygap, true),
+                  Setting(:add_pgap, true), Setting(:add_ygap, true),
                   Setting(:add_altpolicy_pgap, true),
                   Setting(:add_altpolicy_ygap, true),
                   Setting(:forecast_horizons,

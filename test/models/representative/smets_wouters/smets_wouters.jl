@@ -109,7 +109,7 @@ close(h5)
 end
 
 ### Custom settings
-custom_settings = Array{Setting}(Setting(:reoptimize, false))
+custom_settings = [Setting(:reoptimize, false)]
 model = SmetsWouters(custom_settings = custom_settings)
 @testset "Check SW custom setting" begin
     @test get_setting(model, :reoptimize) == false

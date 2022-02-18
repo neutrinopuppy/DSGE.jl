@@ -74,7 +74,7 @@ end
 @testset "Enforce ZLB as a temporary alternative policy" begin
 
     # Set up model for forecast and permanent NGDP
-    m = Model1002("ss10"; custom_settings = Array{Setting}(Setting(:add_altpolicy_pgap, true)))
+    m = Model1002("ss10"; custom_settings = [Setting(:add_altpolicy_pgap, true)])
     m <= Setting(:date_forecast_start,  Date(2020, 6, 30))
     m <= Setting(:date_conditional_end, Date(2020, 6, 30))
     m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m),
