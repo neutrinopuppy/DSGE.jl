@@ -140,6 +140,12 @@ function init_pseudo_observable_mappings!(m::Model1002)
         end
     end
 
+    if haskey(get_settings(m), :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
+        push!(pseudo_names, :Expected5YearNaturalRate)
+        push!(pseudo_names, :Expected10YearRealNaturalRate)
+        push!(pseudo_names, :Expected5YearRealNaturalRate)
+    end
+
     # Create PseudoObservable objects
     pseudo = OrderedDict{Symbol,PseudoObservable}()
     for k in pseudo_names
@@ -202,21 +208,23 @@ function init_pseudo_observable_mappings!(m::Model1002)
     pseudo[:Expected10YearRate].longname = "Expected 10-Year Interest Rate"
     pseudo[:Expected10YearRate].rev_transform = quartertoannual
 
-    pseudo[:Expected10YearNaturalRate].name     = "Expected 10-Year Natural Rate"
-    pseudo[:Expected10YearNaturalRate].longname = "Expected 10-Year Natural Rate of Interest"
-    pseudo[:Expected10YearNaturalRate].rev_transform = quartertoannual
+pseudo[:Expected10YearNaturalRate].name     = "Expected 10-Year Natural Rate"
+pseudo[:Expected10YearNaturalRate].longname = "Expected 10-Year Natural Rate of Interest"
+pseudo[:Expected10YearNaturalRate].rev_transform = quartertoannual
 
-    pseudo[:Expected5YearNaturalRate].name     = "Expected 5-Year Natural Rate"
-    pseudo[:Expected5YearNaturalRate].longname = "Expected 5-Year Natural Rate of Interest"
-    pseudo[:Expected5YearNaturalRate].rev_transform = quartertoannual
+    if haskey(m.settings, :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
+        pseudo[:Expected5YearNaturalRate].name     = "Expected 5-Year Natural Rate"
+        pseudo[:Expected5YearNaturalRate].longname = "Expected 5-Year Natural Rate of Interest"
+        pseudo[:Expected5YearNaturalRate].rev_transform = quartertoannual
 
-    pseudo[:Expected10YearRealNaturalRate].name     = "Expected 10-Year Real Natural Rate"
-    pseudo[:Expected10YearRealNaturalRate].longname = "Expected 10-Year Real Natural Rate of Interest"
-    pseudo[:Expected10YearRealNaturalRate].rev_transform = quartertoannual
+        pseudo[:Expected10YearRealNaturalRate].name     = "Expected 10-Year Real Natural Rate"
+        pseudo[:Expected10YearRealNaturalRate].longname = "Expected 10-Year Real Natural Rate of Interest"
+        pseudo[:Expected10YearRealNaturalRate].rev_transform = quartertoannual
 
-    pseudo[:Expected5YearRealNaturalRate].name     = "Expected 5-Year Real Natural Rate"
-    pseudo[:Expected5YearRealNaturalRate].longname = "Expected 5-Year Real Natural Rate of Interest"
-    pseudo[:Expected5YearRealNaturalRate].rev_transform = quartertoannual
+        pseudo[:Expected5YearRealNaturalRate].name     = "Expected 5-Year Real Natural Rate"
+        pseudo[:Expected5YearRealNaturalRate].longname = "Expected 5-Year Real Natural Rate of Interest"
+        pseudo[:Expected5YearRealNaturalRate].rev_transform = quartertoannual
+    end
 
     pseudo[:ExpectedNominalNaturalRate].name     = "Expected Nominal Natural Rate"
     pseudo[:ExpectedNominalNaturalRate].longname = "Natural Rate + Expected Inflation"
@@ -456,7 +464,11 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     # Needed to implement pseudo-measurement equation correctly
-    m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate, :Expected5YearNaturalRate, :Expected10YearRealNaturalRate, :Expected5YearRealNaturalRate])
+    if haskey(get_settings(m), :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
+        m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate, :Expected5YearNaturalRate, :Expected10YearRealNaturalRate, :Expected5YearRealNaturalRate])
+    else
+        m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate])
+    end
 
     # Add to model object
     m.pseudo_observable_mappings = pseudo
