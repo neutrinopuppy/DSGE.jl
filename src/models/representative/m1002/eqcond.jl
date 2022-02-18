@@ -20,6 +20,9 @@ function eqcond(m::Model1002)
 end
 
 function eqcond(m::Model1002, reg::Int)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+
     endo = m.endogenous_states
     exo  = m.exogenous_shocks
     ex   = m.expected_shocks
@@ -57,7 +60,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_euler], endo[:EL_t]] = (m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
     Γ1[eq[:eq_euler], endo[:c_t]]  = (m[:h]*exp(-m[:z_star]))/(1 + m[:h]*exp(-m[:z_star]))
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_euler], endo[:φ_t]]  = -(m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
         Γ0[eq[:eq_euler], endo[:Eφ_t]] = (m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
     end
@@ -73,7 +76,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_euler_f], endo[:EL_f_t]] = (m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
     Γ1[eq[:eq_euler_f], endo[:c_f_t]]  = (m[:h]*exp(-m[:z_star]))/(1 + m[:h]*exp(-m[:z_star]))
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_euler_f], endo[:φ_t]]  = -(m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
         Γ0[eq[:eq_euler_f], endo[:Eφ_t]] = (m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
     end
@@ -266,7 +269,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_msub], endo[:z_t]]   = m[:h]*exp(-m[:z_star]) /(1 - m[:h]*exp(-m[:z_star]))
     Γ0[eq[:eq_msub], endo[:w_t]]   = -1.
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_msub], endo[:φ_t]] = m[:ν_l]
     end
 
@@ -277,7 +280,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ1[eq[:eq_msub_f], endo[:c_f_t]] = m[:h]*exp(-m[:z_star])/(1 - m[:h]*exp(-m[:z_star]))
     Γ0[eq[:eq_msub_f], endo[:z_t]]   = m[:h]*exp(-m[:z_star])/(1 - m[:h]*exp(-m[:z_star]))
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_msub_f], endo[:φ_t]] = m[:ν_l]
     end
 
@@ -356,7 +359,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_Ez], endo[:zp_t]]   = -m[:ρ_z_p]
 
     # Eφ_t
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_Eφ], endo[:Eφ_t]] = 1.
         Γ0[eq[:eq_Eφ], endo[:φ_t]]  = -m[:ρ_φ]
     end
@@ -373,7 +376,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ1[eq[:eq_ztil], endo[:ztil_t]] = m[:ρ_ztil]
     Ψ[eq[:eq_ztil], exo[:ztil_sh]]     = 1.
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         # Ez_t
         Γ0[eq[:eq_Ez], endo[:ziid_t]] = -(m[:ρ_ziid]-1)/(1-m[:α])
 
@@ -403,7 +406,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ1[eq[:eq_b], endo[:b_t]] = m[:ρ_b]
     Ψ[eq[:eq_b], exo[:b_sh]]  = 1.
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         # iid shock to Euler equation
         Γ0[eq[:eq_biidc], endo[:biidc_t]] = 1.
         Γ1[eq[:eq_biidc], endo[:biidc_t]] = m[:ρ_biidc] # c b/c will only affect consumption
@@ -473,7 +476,7 @@ function eqcond(m::Model1002, reg::Int)
     Ψ[eq[:eq_rm], exo[:rm_sh]]  = noant
 
     # Labor preference shock
-    if parse(Int,SubString(subspec(m),3,length(subspec(m)))) >= 59
+    if parse(Int,SubString(subspec(m),3,subspec_ind)) >= 59
         # Eφ_t
         Γ0[eq[:eq_Eφ], endo[:φ_t]] = -m[:ρ_φ]
 

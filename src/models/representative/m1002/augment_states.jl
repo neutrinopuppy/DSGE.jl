@@ -43,6 +43,9 @@ The diagram below shows how `TTT` is extended to `TTT_aug`.
 """
 function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vector{T};
                         regime_switching::Bool = false, reg::Int = 1) where {T<:AbstractFloat}
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+
     endo     = m.endogenous_states
     endo_new = m.endogenous_states_augmented
     exo      = m.exogenous_shocks
@@ -217,7 +220,7 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
         TTT_aug[endo_new[:e_gdi_t], endo_new[:e_gdi_covid_t]] = m[:ρ_gdi_covid]
     end
 
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 87
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
         TTT_aug[endo_new[:e_meas_π_t], endo_new[:e_meas_π_t]] = m[:ρ_meas_π]
         TTT_aug[endo_new[:e_meas_π_t1], endo_new[:e_meas_π_t]] = 1.0
     end
@@ -277,7 +280,7 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
     RRR_aug[endo_new[:e_gdi_t], exo[:gdi_sh]] = 1.0
 
     # Measurement Error in Levels on PCE and GDP Deflator
-    if parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 87
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
         RRR_aug[endo_new[:e_meas_π_t], exo[:meas_π_sh]] = 1.0
     end
 

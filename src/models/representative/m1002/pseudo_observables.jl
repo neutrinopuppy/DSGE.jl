@@ -1,11 +1,11 @@
 function init_pseudo_observable_mappings!(m::Model1002)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
 
     pseudo_names = [:y_t, :y_f_t, :NaturalRate, :π_t, :OutputGap, :ExAnteRealRate, :LongRunInflation,
                     :MarginalCost, :Wages, :FlexibleWages, :Hours, :FlexibleHours, :z_t,
                     :Expected10YearRateGap, :NominalFFR, :Expected10YearRate,
-                    :Expected10YearNaturalRate, :Expected5YearNaturalRate,
-                    :Expected10YearRealNaturalRate, :Expected5YearRealNaturalRate,
-                    :ExpectedNominalNaturalRate, :NominalRateGap, :LaborProductivityGrowth, :u_t]
+                    :Expected10YearNaturalRate, :ExpectedNominalNaturalRate, :NominalRateGap, :LaborProductivityGrowth, :u_t]
                     # :i_f_t, :R_t, :c_f_t, :qk_f_t, :k_f_t, :kbar_f_t, :u_f_t, :rk_f_t, :w_f_t, :L_f_t, :rktil_f_t, :n_f_t, :c_t,
                     # :b_t, :r_f_t]
 
@@ -23,19 +23,19 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     if haskey(get_settings(m), :add_covid_pseudoobs)
-        if get_setting(m, :add_covid_pseudoobs) && parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+        if get_setting(m, :add_covid_pseudoobs) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             push!(pseudo_names, :ziid, :varphiiid, :biidc)
         end
     end
 
     if haskey(get_settings(m), :add_pseudo_gdp)
-        if get_setting(m, :add_pseudo_gdp) && parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+        if get_setting(m, :add_pseudo_gdp) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             push!(pseudo_names, :PseudoGDP)
         end
     end
 
     if haskey(get_settings(m), :add_pseudo_corepce)
-        if get_setting(m, :add_pseudo_corepce) && parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+        if get_setting(m, :add_pseudo_corepce) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             push!(pseudo_names, :PseudoCorePCE)
         end
     end
@@ -408,7 +408,7 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     if haskey(get_settings(m), :add_covid_pseudoobs)
-        if get_setting(m, :add_covid_pseudoobs) && parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+        if get_setting(m, :add_covid_pseudoobs) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             pseudo[:ziid].name     = "ziid"
             pseudo[:ziid].longname = "ziid"
             pseudo[:biidc].name     = "biidc"
@@ -419,7 +419,7 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     if haskey(get_settings(m), :add_pseudo_gdp)
-        if get_setting(m, :add_pseudo_gdp) && parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+        if get_setting(m, :add_pseudo_gdp) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             pseudo[:PseudoGDP].name     = "GDP Growth Pseudo-observable"
             pseudo[:PseudoGDP].longname = "GDP Growth Pseudo-observable"
             pseudo[:PseudoGDP].rev_transform = loggrowthtopct_annualized_percapita
@@ -427,7 +427,7 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     if haskey(get_settings(m), :add_pseudo_corepce)
-        if get_setting(m, :add_pseudo_corepce) && parse(Int, SubString(subspec(m),3,length(subspec(m)))) >= 59
+        if get_setting(m, :add_pseudo_corepce) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             pseudo[:PseudoCorePCE].name     = "Core PCE Pseudo-observable"
             pseudo[:PseudoCorePCE].longname = "Core PCE Pseudo-observable"
             pseudo[:PseudoCorePCE].rev_transform = loggrowthtopct_annualized
