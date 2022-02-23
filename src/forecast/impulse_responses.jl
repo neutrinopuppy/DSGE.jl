@@ -397,8 +397,8 @@ function impulse_responses(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S
 
     s_0 = zeros(S, nstates)
 
-    if start_reg != get_setting(m, :reg_forecast_start)
-        reg_fcast_start = get_setting(m, :reg_forecast_start)
+    reg_fcast_start = get_setting(m, :reg_forecast_start)
+    if start_reg != reg_fcast_start
         n_fcast_regs = get_setting(m, :n_fcast_regimes)
         reg_post_cond = get_setting(m, :reg_post_conditional_end)
         date_fcast_start = get_setting(m, :date_forecast_start)
@@ -435,7 +435,7 @@ function impulse_responses(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S
         states[:, :, exo[shock]], obs[:, :, exo[shock]], pseudo[:, :, exo[shock]], _ = forecast(m, system, s_0, shocks)
     end
 
-    if start_reg != get_setting(m, :reg_forecast_start)
+    if start_reg != reg_fcast_start
         m <= Setting(:reg_forecast_start, reg_fcast_start)
         m <= Setting(:n_fcast_regimes, n_fcast_regs)
         m <= Setting(:reg_post_conditional_end, reg_post_cond)
