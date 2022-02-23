@@ -411,6 +411,29 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
     orig_perf_cred_identical_transitions = haskey(get_settings(m), :perfect_credibility_identical_transitions) ? deepcopy(get_setting(m, :perfect_credibility_identical_transitions)) : nothing
     orig_model2para_regime = haskey(get_settings(m), :model2para_regime) ? deepcopy(get_setting(m, :model2para_regime)) : nothing
 
+    ## "Original" settings for alternative_policies when changed
+    if haskey(m.settings, :alternative_policies) &&
+        haskey(m.settings, :uncertain_altpolicy) && get_setting(m, :uncertain_altpolicy) &&
+        haskey(m.settings, :endog_altpolicies) && get_setting(m, :endog_altpolicies)[1]
+
+        altpol_len = length(get_setting(m, :endog_altpolicies)[2])
+        orig_altpol_temp_altpol_length = zeros(Int, altpol_len)
+        orig_altpol_regime_eqcond_info = Vector{Dict{Int64, EqcondEntry}}(undef, altpol_len)
+        orig_altpol_identical_eqcond_regimes = Vector{Union{Dict{Int64, Int64}, Nothing}}(undef, altpol_len)
+        orig_altpol_perfect_cred_identical_transitions = Vector{Union{Dict{Int64, Int64}, Nothing}}(undef, altpol_len)
+
+        for altpol_num in 1:length(get_setting(m, :endog_altpolicies)[2])
+            altpol_ind = get_setting(m, :endog_altpolicies)[2][altpol_num]
+            orig_altpol_temp_altpol_length[altpol_num] =
+                copy(get_setting(m, :alternative_policies)[altpol_ind].temporary_altpolicy_length)
+            orig_altpol_regime_eqcond_info[altpol_num] =
+                copy(get_setting(m, :alternative_policies)[altpol_ind].regime_eqcond_info)
+            orig_altpol_identical_eqcond_regimes[altpol_num] =
+                get_setting(m, :alternative_policies)[altpol_ind].identical_eqcond_regimes
+            orig_altpol_perfect_cred_identical_transitions[altpol_num] =
+                get_setting(m, :alternative_policies)[altpol_ind].perfect_credibility_identical_transitions
+        end
+    end
 
     # Grab some information about the forecast
     n_hist_regimes = haskey(get_settings(m), :n_hist_regimes) ? get_setting(m, :n_hist_regimes) : 1
@@ -657,6 +680,20 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
         else
             m <= Setting(:model2para_regime, orig_model2para_regime)
         end
+
+        if haskey(m.settings, :alternative_policies) &&
+            haskey(m.settings, :uncertain_altpolicy) && get_setting(m, :uncertain_altpolicy) &&
+            haskey(m.settings, :endog_altpolicies) && get_setting(m, :endog_altpolicies)[1]
+
+            for altpol_num in 1:length(get_setting(m, :endog_altpolicies)[2])
+                altpol_ind = get_setting(m, :endog_altpolicies)[2][altpol_num]
+                get_setting(m, :alternative_policies)[altpol_ind].temporary_altpolicy_length = orig_altpol_temp_altpol_length[altpol_num]
+                get_setting(m, :alternative_policies)[altpol_ind].regime_eqcond_info = orig_altpol_regime_eqcond_info[altpol_num]
+                get_setting(m, :alternative_policies)[altpol_ind].identical_eqcond_regimes = orig_altpol_identical_eqcond_regimes[altpol_num]
+                get_setting(m, :alternative_policies)[altpol_ind].perfect_credibility_identical_transitions = orig_altpol_perfect_cred_identical_transitions[altpol_num]
+            end
+        end
+
         if rerun_smoother
             return states, obs, pseudo, histstates, histshocks, histpseudo, initial_states
         else
@@ -822,6 +859,37 @@ function forecast_endozlb_helper(m::AbstractDSGEModel, first_endo_zlb::Int64, li
         end
         for reg in liftoff_reg+2:get_setting(m, :n_regimes)
             get_setting(m, :identical_eqcond_regimes)[reg] = liftoff_reg+1
+        end
+    end
+
+    # Endogenous ZLB for expected incorrect policies
+    ## Which policies to do this for is specified by :endog_altpolicies
+    if haskey(m.settings, :alternative_policies) &&
+        haskey(m.settings, :uncertain_altpolicy) && get_setting(m, :uncertain_altpolicy) &&
+        haskey(m.settings, :endog_altpolicies) && get_setting(m, :endog_altpolicies)[1]
+
+        for altpol_num in get_setting(m, :endog_altpolicies)[2]
+            ## Assuming MultiPeriodAltPolicy (else can't do ZLB)
+            get_setting(m, :alternative_policies)[altpol_num].temporary_altpolicy_length = copy(get_setting(m, :temporary_altpolicy_length))
+            exp_altpol = deepcopy(get_setting(m, :alternative_policies)[altpol_num].regime_eqcond_info[get_setting(m, :alternative_policies)[altpol_num].n_regimes].alternative_policy)
+            get_setting(m, :alternative_policies)[altpol_num].regime_eqcond_info = copy(get_setting(m, :regime_eqcond_info))
+
+            for i in keys(get_setting(m, :alternative_policies)[altpol_num].regime_eqcond_info)
+                if !(get_setting(m, :alternative_policies)[altpol_num].regime_eqcond_info[i].alternative_policy.key in [:zlb_rule, :zero_rate])
+                    get_setting(m, :alternative_policies)[altpol_num].regime_eqcond_info[i].alternative_policy = exp_altpol
+                end
+            end
+
+            if haskey(m.settings, :identical_eqcond_regimes)
+                get_setting(m, :alternative_policies)[altpol_num].identical_eqcond_regimes = copy(get_setting(m, :identical_eqcond_regimes))
+            else
+                get_setting(m, :alternative_policies)[altpol_num].identical_eqcond_regimes = nothing
+            end
+            if haskey(m.settings, :perfect_credibility_identical_transitions)
+                get_setting(m, :alternative_policies)[altpol_num].perfect_credibility_identical_transitions = copy(get_setting(m, :perfect_credibility_identical_transitions))
+            else
+                get_setting(m, :alternative_policies)[altpol_num].perfect_credibility_identical_transitions = nothing
+            end
         end
     end
 
