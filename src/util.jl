@@ -342,3 +342,20 @@ function find_param_regimes(m::AbstractDSGEModel, reg::Int64)
     end
     return param_regimes
 end
+
+"""
+```
+df_to_mat(df::DataFrame; type_convert::Union{DataType,Union} = Float64)
+```
+Return a matrix of dataframe df with type given by type_convert
+"""
+function df_to_mat(df::DataFrame; type_convert::Union{DataType, Union} = Float64)
+    df_as_mat = Matrix{type_convert}(undef, size(df))
+    for i in 1:size(df_as_mat,1)
+        for j in 1:size(df_as_mat,2)
+            df_as_mat[i,j] = df[i,j]
+        end
+    end
+
+    return df_as_mat
+end

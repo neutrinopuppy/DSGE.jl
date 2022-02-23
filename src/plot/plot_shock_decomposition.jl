@@ -307,7 +307,7 @@ shockdec
 
         inds = findall(start_date .<= dates .<= end_date)
         x = xnums[inds]
-        y = convert(Matrix{Float64}, df[inds, cat_names])
+        y = Matrix{Float64}(df[inds, cat_names])
         StatsPlots.GroupedBar((x, y))
     end
 

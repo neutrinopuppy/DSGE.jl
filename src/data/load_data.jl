@@ -268,7 +268,7 @@ function load_data_levels(m::AbstractDSGEModel; verbose::Symbol=:low,
             end
         else
             # If series not found, use all missings
-            addl_data = DataFrame(fill(missing, (size(df,1), length(mnemonics))))
+            addl_data = DataFrame(fill(missing, (size(df,1), length(mnemonics))), :auto)
             if isdefined(DataFrames, :rename!)
                 rename!(addl_data, mnemonics)
             else
@@ -511,7 +511,7 @@ function df_to_matrix(m::Union{AbstractDSGEModel,AbstractVARModel}, df::DataFram
     sort!(cols, by = x -> get_observables(m)[x])
     df1 = df1[!,cols]
 
-    return permutedims(Float64.(collect(Missings.replace(convert(Matrix{Union{Missing, Float64}}, df1), NaN))))
+    return permutedims(Float64.(collect(Missings.replace(Matrix{Union{Missing, Float64}}(df1), NaN))))
 end
 
 """

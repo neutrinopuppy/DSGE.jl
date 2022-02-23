@@ -164,7 +164,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
 
         for (var_name, (var_means, var_bands)) in zip(variable_names, mb_vec)
             means[!,var_name] = var_means
-            bands[var_name] = var_bands
+            bands[var_name] = typeof(var_bands) == Dict{Symbol, DataFrame} ? DataFrame() : var_bands
             bands[var_name][!,:date] = date_list
         end
 
@@ -185,7 +185,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
             # Re-assemble pmap outputs
             for (var_name, (var_means, var_bands)) in zip(variable_names, mb_vec)
                 means[!, Symbol(var_name, DSGE_SHOCKDEC_DELIM, shock_name)] = var_means
-                bands[Symbol(var_name, DSGE_SHOCKDEC_DELIM, shock_name)] = var_bands
+                bands[Symbol(var_name, DSGE_SHOCKDEC_DELIM, shock_name)] = typeof(var_bands) == Dict{Symbol, DataFrame} ? DataFrame() : var_bands
                 if product != :irf
                     bands[Symbol(var_name, DSGE_SHOCKDEC_DELIM, shock_name)][!, :date] = date_list
                 end
