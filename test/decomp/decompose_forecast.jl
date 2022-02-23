@@ -34,7 +34,9 @@ for (cond_new, cond_old) in cond_types
                                  [:obs, :pseudo]; check = true)
 
     for k in keys(decomps)
-        @test decomps[k] ≈ exp_decomps[(cond_new, cond_old)][k]
+        if k in keys(exp_decomps[(cond_new, cond_old)])
+            @test decomps[k] ≈ exp_decomps[(cond_new, cond_old)][k]
+        end
     end
 end
 

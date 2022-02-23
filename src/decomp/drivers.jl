@@ -157,7 +157,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                             endogenous_zlb_new::Bool = false, endogenous_zlb_old::Bool = false,
                             enforce_zlb_new::Bool = false, enforce_zlb_old::Bool = false,
                             set_zlb_regime_vals_new::Function = identity, set_zlb_regime_vals_old::Function = identity,
-                            shockdec_data_only::Bool = false,
+                            shockdec_data_only::Bool = true,
                             model_decomp::Bool = false) where M<:AbstractDSGEModel
 
     # Check numbers of periods
