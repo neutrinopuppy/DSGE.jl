@@ -6901,7 +6901,7 @@ function ss100!(m)
     ss97!(m)
 end
 
-# ss100 w/ estimated imperfect cred wts
+# ss100 w/ estimated expected ZLB length in 2020Q4 ## not yet: estimated imperfect cred wts
 function ss101!(m)
     ss100!(m)
 end
