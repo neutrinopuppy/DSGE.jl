@@ -280,20 +280,35 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         end
 
         # Get difference in trends
-        trend_new = get_trend_dates(get_setting(m_new, :regime_dates), out1[trendvar],
-                                    date_mainsample_start(m_new), size(out1[datavar],2),
-                                    n_regs = get_setting(m_new, :n_regimes))
-        trend_old = get_trend_dates(get_setting(m_new_olddf, :regime_dates), out2[trendvar],
-                                    date_mainsample_start(m_new_olddf), size(out2[datavar],2),
-                                    n_regs = get_setting(m_new_olddf, :n_regimes))
-        trend_comp = trend_new - trend_old
+        if haskey(m_new.settings, :regime_dates) && haskey(m_new.settings, :n_regimes)
+            trend_new = get_trend_dates(get_setting(m_new, :regime_dates), out1[trendvar],
+                                        date_mainsample_start(m_new), size(out1[datavar],2),
+                                        n_regs = get_setting(m_new, :n_regimes))
+            trend_old = get_trend_dates(get_setting(m_new_olddf, :regime_dates), out2[trendvar],
+                                        date_mainsample_start(m_new_olddf), size(out2[datavar],2),
+                                        n_regs = get_setting(m_new_olddf, :n_regimes))
+            trend_comp = trend_new - trend_old
+        else
+            trend_new = get_trend_dates(Dict(1 => date_mainsample_start(m_new)), out1[trendvar],
+                                        date_mainsample_start(m_new), size(out1[datavar],2),
+                                        n_regs = 1)
+            trend_old = get_trend_dates(Dict(1 => date_mainsample_start(m_new_olddf)), out2[trendvar],
+                                        date_mainsample_start(m_new_olddf), size(out2[datavar],2),
+                                        n_regs = 1)
+            trend_comp = trend_new - trend_old
+        end
 
         if shockdec_data_only
             decomp[Symbol(:decomptrend, class)] = trend_comp
-        else
+        elseif haskey(m_old.settings, :regime_dates) && haskey(m_old.settings, :n_regimes)
             trend4 = get_trend_dates(get_setting(m_old, :regime_dates), out4[trendvar],
                                      date_mainsample_start(m_old), size(out4[datavar],2),
                                      n_regs = get_setting(m_old, :n_regimes))
+            decomp[Symbol(:decomptrend, class)] = trend_new - trend4
+        else
+            trend4 = get_trend_dates(Dict(1 => date_mainsample_start(m_old)), out4[trendvar],
+                                     date_mainsample_start(m_old), size(out4[datavar],2),
+                                     n_regs = 1)
             decomp[Symbol(:decomptrend, class)] = trend_new - trend4
         end
 
