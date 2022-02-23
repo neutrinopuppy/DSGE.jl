@@ -475,7 +475,7 @@ function solve_gensys2!(m::AbstractDSGEModel, Γ0s::Vector{Matrix{S}}, Γ1s::Vec
                 m <= Setting(:uncertain_altpolicy, true)
             end
         else
-            @assert isa.(altpols, AltPolicy) "All policies in `get_setting(m, :alternative_policies)` should have type AltPolicy."
+            @assert all(isa.(altpols, AltPolicy)) "All policies in `get_setting(m, :alternative_policies)` should have type AltPolicy."
 
             Talt = Vector{Matrix{Float64}}(undef, length(altpols)) # can call a faster version
             Calt = Vector{Vector{Float64}}(undef, length(altpols))

@@ -94,12 +94,12 @@ function plot_shock_decomposition(m::AbstractDSGEModel, vars::Vector{Symbol}, cl
         # Change ylims based on variable
         if ylim_dict != Dict() && var in keys(ylim_dict)
             plots[var] = shockdec(var, mbs..., groups;
-                              ylabel = series_ylabel(m, var, class) * ylabs, ylim = ylim_dict[var],
-                              title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
+                                  ylabel = series_ylabel(m, var, class) * ylabs, ylim = ylim_dict[var],
+                                  title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
         else
             plots[var] = shockdec(var, mbs..., groups;
-                              ylabel = series_ylabel(m, var, class) * ylabs,
-                              title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
+                                  ylabel = series_ylabel(m, var, class) * ylabs,
+                                  title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
         end
 
         # Save plot
@@ -174,12 +174,13 @@ function plot_shock_decomposition(m::AbstractDSGEModel, m_old::AbstractDSGEModel
         # Change ylims based on variable
         if ylim_dict != Dict() && var in keys(ylim_dict)
             plots[var] = shockdec(var, mbs..., groups;
-                              ylabel = series_ylabel(m, var, class) * ylabs, ylim = ylim_dict[var],
-                              title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
+                                  ylabel = series_ylabel(m, var, class) * ylabs,
+                                  ylim = ylim_dict[var],
+                                  title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
         else
             plots[var] = shockdec(var, mbs..., groups;
-                              ylabel = series_ylabel(m, var, class) * ylabs,
-                              title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
+                                  ylabel = series_ylabel(m, var, class) * ylabs,
+                                  title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
         end
 
         # Save plot
