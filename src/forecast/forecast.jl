@@ -814,7 +814,7 @@ function forecast_endozlb_helper(m::AbstractDSGEModel, first_endo_zlb::Int64, li
             if haskey(model2para_dict, para.key)
                 for i in first_endo_zlb:liftoff_reg
                     if !haskey(model2para_dict[para.key], i)
-                        model2para_dic[para.key][i] = model2para_dict[para.key][i-1]
+                        model2para_dict[para.key][i] = model2para_dict[para.key][i-1]
                     end
                 end
             end
