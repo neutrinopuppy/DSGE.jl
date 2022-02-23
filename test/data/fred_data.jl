@@ -15,8 +15,8 @@ m <= Setting(:rate_expectations_source, :ois)
 @testset "Check FRED data is properly loaded" begin
     # Can we actually test? Require that FRED API key exists
     if haskey(ENV, "FRED_API_KEY") || isfile(joinpath(homedir(), ".freddatarc"))
-        @test @test_matrix_approx_eq Matrix(fred[:,2:end]) Matrix(load_fred_data(m,
-                                                                                 end_date = date_mainsample_end(m), verbose = :none)[:,2:end])
+        @test @test_matrix_approx_eq Matrix(fred[:,2:end]) Matrix(sort(load_fred_data(m,
+                                 end_date = date_mainsample_end(m), verbose = :none), :date)[:,2:end])
     else
         @warn "Skipping fred_data test because FRED_API_KEY not present"
     end
