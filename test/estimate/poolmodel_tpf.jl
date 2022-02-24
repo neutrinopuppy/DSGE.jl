@@ -101,7 +101,7 @@ out_parallel_one_worker = tempered_particle_filter(data, Φpm, Ψpm, F_ϵpm, F_u
     @test out_no_parallel[1] ≈ test_file_outputs_pm["out_no_parallel"][1]
     # See tempered_particle_filter.jl's test with parallel workers
     if VERSION >= v"1.5"
-        @test out_parallel_one_worker[1] ≈ -507.35270760697324
+        @test abs(out_parallel_one_worker[1] - (-507.35270760697324)) < 0.05
     elseif VERSION >= v"1.0"
         @test out_parallel_one_worker[1] ≈ test_file_outputs_pm["out_parallel_one_worker"][1] # should be -507.44364755284465
     end
