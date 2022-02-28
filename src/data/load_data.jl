@@ -268,7 +268,11 @@ function load_data_levels(m::AbstractDSGEModel; verbose::Symbol=:low,
             end
         else
             # If series not found, use all missings
-            addl_data = DataFrame(fill(missing, (size(df,1), length(mnemonics))), :auto)
+            addl_data = try
+                DataFrame(fill(missing, (size(df,1), length(mnemonics))), :auto)
+            catch
+                DataFrame(fill(missing, (size(df,1), length(mnemonics)))) ## Backward compat w/ old DataFrames.jl
+            end
             if isdefined(DataFrames, :rename!)
                 rename!(addl_data, mnemonics)
             else
