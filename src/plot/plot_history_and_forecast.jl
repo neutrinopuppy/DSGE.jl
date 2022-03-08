@@ -67,7 +67,6 @@ function plot_history_and_forecast(m::AbstractDSGEModel, vars::Vector{Symbol}, c
                                    input_type::Symbol, cond_type::Symbol;
                                    forecast_string::String = "",
                                    use_bdd::Symbol = :unbdd,
-                                   zero_shocks::Bool = false,
                                    untrans::Bool = false,
                                    fourquarter::Bool = false,
                                    plotroot::String = figurespath(m, "forecast"),
@@ -95,7 +94,7 @@ function plot_history_and_forecast(m::AbstractDSGEModel, vars::Vector{Symbol}, c
     # Read in MeansBands
     hist  = read_mb(m, input_type, cond_type, Symbol(hist_prod, class), forecast_string = forecast_string)
     fcast = read_mb(m, input_type, cond_type, Symbol(fcast_prod, class), forecast_string = forecast_string,
-                    use_bdd = use_bdd, zero_shocks = zero_shocks)
+                    use_bdd = use_bdd)
 
     # Get titles if not provided
     if isempty(titles)
@@ -214,7 +213,7 @@ histforecast
     # Concatenate MeansBands
     var, hist, forecast = hf.args
     combined = cat(hist, forecast)
-    dates = combined.means[:date]
+    dates = combined.means[!, :date]
 
     # Assign date ticks
     date_ticks = Base.filter(x -> start_date <= x <= end_date,    dates)
@@ -225,7 +224,7 @@ histforecast
 
     # Bands
     sort!(bands_pcts, rev = true) # s.t. non-transparent bands will be plotted correctly
-    inds = findall(start_date .<= combined.bands[var][:date] .<= end_date)
+    inds = findall(start_date .<= combined.bands[var][!, :date] .<= end_date)
 
 
 
@@ -334,7 +333,7 @@ histforecast
         if save_as_csv
 	        df_mean_forecast.dates = combined.means[inds, :date]
 	        df_mean_forecast.mean_forecast = combined.means[inds, var]
-	        df_means = join(df_mean_hist, df_mean_forecast, on = :dates, kind = :outer)
+	        df_means = outerjoin(df_mean_hist, df_mean_forecast, on = :dates)
 
 
     	    if size(df_means) != (0, 0)
