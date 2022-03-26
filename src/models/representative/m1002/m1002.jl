@@ -1228,10 +1228,13 @@ function parameter_groupings(m::Model1002)
     processes  = [:ρ_g, :ρ_b, :ρ_μ, :ρ_ztil, :ρ_σ_w, :ρ_π_star, :ρ_z_p, :ρ_λ_f, :ρ_λ_w, :η_λ_f, :η_λ_w,
                   :σ_g, :σ_b, :σ_μ, :σ_ztil, :σ_σ_ω, :σ_π_star, :σ_z_p, :σ_λ_f, :σ_λ_w, :η_gz]
     error      = [:me_level, :ρ_gdp, :ρ_gdi, :ρ_lr, :ρ_tfp, :ρ_gdpdef, :ρ_corepce,
-                  :ρ_gdpvar, :σ_gdp, :σ_gdi, :σ_lr, :σ_tfp, :σ_gdpdef, :σ_corepce,]
+                  :ρ_gdpvar, :σ_gdp, :σ_gdi, :σ_lr, :σ_tfp, :σ_gdpdef, :σ_corepce]
 
     if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
         push!(error, :ρ_meas_π, :σ_meas_π)
+    end
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 100
+        push!(policy, :φ_π, :φ_y, :ρ_smooth)
     end
 
     # SPD expected FFR measurement error
@@ -1239,6 +1242,7 @@ function parameter_groupings(m::Model1002)
         for i in expected_ffr(m)
             push!(error, Symbol("σ_exp_rm$i"))
         end
+        push!(error, Symbol("ρ_exp_rm"))
     end
 
     all_keys     = Vector[policy, sticky, other_endo, financial, processes, error]
