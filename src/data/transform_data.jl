@@ -216,7 +216,7 @@ But if data given for quarter rather than meeting, use that value for whole quar
 function transform_spd_data(df::DataFrame; column::Symbol = :MODAL_MEDIAN,
                             use_last_survey::Bool = true, use_last_meeting::Bool = true,
                             remove_zlb::Bool = true)
-    # Copy to ensure we don't change spd_df
+    # Copy to ensure we don't change df
     spd_df = copy(df)
 
     # Get Quarter forecast is made in

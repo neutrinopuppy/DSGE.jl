@@ -297,8 +297,9 @@ end
 
 """
 ```
-n
+find_param_ind(params::Vector{AbstractParameter{Float64}}, para_one::Symbol; regime::Int = 1)
 ```
+Return the index of (para_one, regime) in params.
 """
 function find_param_ind(params::Vector{AbstractParameter{Float64}}, para_one::Symbol; regime::Int = 1)
     if regime == 1
