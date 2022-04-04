@@ -935,6 +935,18 @@ buted to steady-state inflation.",
                        tex_label="\\rho_{exp_rm}")
     end
 
+    # Kappa to restrict values to fixed proportion of value in earlier regime
+    if haskey(m.settings, :add_κ_covid) && get_setting(m, :add_κ_covid)
+        m <= parameter(:κ_covid, 1.0, (0.0, 2.0), (0.0, 2.0), Untransformed(), Uniform(0,1), fixed=false,
+                       description="Fraction of regime 2 value used in regime 3 for σ_{covid}",
+                       tex_label = "\\kappa_{covid}")
+    end
+    if haskey(m.settings, :add_κ_pce) && get_setting(m, :add_κ_pce)
+        m <= parameter(:κ_pce, 1.0, (0.0, 2.0), (0.0, 2.0), Untransformed(), Uniform(0,1), fixed=true,
+                       description="Fraction of regime 2 value used in regime 3 for σ_{meas,π}",
+                       tex_label = "\\kappa_{pce}")
+    end
+
     # steady states
     m <= SteadyStateParameter(:z_star, NaN, tex_label="\\z_*")
     m <= SteadyStateParameter(:rstar, NaN, tex_label="\\r_*")
@@ -1260,6 +1272,12 @@ function parameter_groupings(m::Model1002)
         end
         for key in get_setting(m, :proportional_antshocks)
             push!(covid, Symbol(:σ_, key, :_prop))
+        end
+        if haskey(m.settings, :add_κ_covid) && get_setting(m, :add_κ_covid)
+            push!(covid, :κ_covid)
+        end
+        if haskey(m.settings, :add_κ_pce) && get_setting(m, :add_κ_pce)
+            push!(covid, :κ_pce)
         end
         push!(all_keys, covid)
         push!(descriptions, "COVID-19 Parameters")
