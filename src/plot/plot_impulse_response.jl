@@ -199,8 +199,9 @@ function plot_impulse_response(m::Vector,
                                titles::Vector{String} = String[],
                                addl_text::String = "",
                                verbose::Symbol = :low,
-                               cumulative_vars::Vector{Symbol},
+                               cumulative_vars::Vector = [],
                                kwargs...)
+
     # Read in MeansBands
     mbs = Vector{MeansBands}(undef,length(m))
     for i in 1:length(mbs)
