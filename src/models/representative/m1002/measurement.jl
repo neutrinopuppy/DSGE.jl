@@ -256,17 +256,25 @@ function measurement(m::Model1002{T},
     QQ[exo[:gdp_sh], exo[:gdp_sh]]         = m[:σ_gdp]^2
     QQ[exo[:gdi_sh], exo[:gdi_sh]]         = m[:σ_gdi]^2
 
-    if parse(Int,SubString(subspec(m),3,subspec_ind)) >= 59
+    if parse(Int,SubString(subspec(m),3,subspec_ind)) >= 59 &&
+        haskey(m.settings, :add_κ_covid) && get_setting(m, :add_κ_covid)
         QQ[exo[:ziid_sh], exo[:ziid_sh]]   = (m[:κ_covid] * m[:σ_ziid])^2
         QQ[exo[:biidc_sh], exo[:biidc_sh]] = (m[:κ_covid] * m[:σ_biidc])^2
         QQ[exo[:φ_sh], exo[:φ_sh]]         = (m[:κ_covid] * m[:σ_φ])^2
+    elseif parse(Int,SubString(subspec(m),3,subspec_ind)) >= 59
+        QQ[exo[:ziid_sh], exo[:ziid_sh]]   = m[:σ_ziid]^2
+        QQ[exo[:biidc_sh], exo[:biidc_sh]] = m[:σ_biidc]^2
+        QQ[exo[:φ_sh], exo[:φ_sh]]         = m[:σ_φ]^2
     end
     if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
         QQ[exo[:λ_f_iid_sh], exo[:λ_f_iid_sh]] = m[:σ_λ_f_iid]^2
     end
 
-    if parse(Int,SubString(subspec(m),3,subspec_ind)) >= 87
+    if parse(Int,SubString(subspec(m),3,subspec_ind)) >= 87 &&
+        haskey(m.settings, :add_κ_pce) && get_setting(m, :add_κ_pce)
         QQ[exo[:meas_π_sh], exo[:meas_π_sh]]   = (m[:κ_pce] * m[:σ_meas_π])^2
+    elseif parse(Int,SubString(subspec(m),3,subspec_ind)) >= 87
+        QQ[exo[:meas_π_sh], exo[:meas_π_sh]]   = m[:σ_meas_π]^2
     end
 
     if subspec(m) in ["ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss80", "ss82", "ss83"]
