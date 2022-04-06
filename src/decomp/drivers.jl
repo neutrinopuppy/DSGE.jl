@@ -227,7 +227,6 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
 
     # Initialize output dictionary
     decomp = Dict{Symbol, Array{Float64}}()
-
     # Decomposition
     for class in classes
         # All elements of out are of size Ny x Nh, where the second dimension
@@ -278,22 +277,18 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         else
             decomp[Symbol(:decompdettrend, class)] = out1[dettrendvar] - out4[dettrendvar]
         end
-
         # Get difference in trends
         if haskey(m_new.settings, :regime_dates) && haskey(m_new.settings, :n_regimes)
-            trend_new = get_trend_dates(get_setting(m_new, :regime_dates), out1[trendvar],
-                                        date_mainsample_start(m_new), size(out1[datavar],2),
-                                        n_regs = get_setting(m_new, :n_regimes))
-            trend_old = get_trend_dates(get_setting(m_new_olddf, :regime_dates), out2[trendvar],
-                                        date_mainsample_start(m_new_olddf), size(out2[datavar],2),
-                                        n_regs = get_setting(m_new_olddf, :n_regimes))
+            # TODO adjust to handle forecasting the same regime (or more than 1 regime apart)
+            trend_new = out1[trendvar][:, 1:end-1]
+            trend_old = out4[trendvar]
             trend_comp = trend_new - trend_old
         else
             trend_new = get_trend_dates(Dict(1 => date_mainsample_start(m_new)), out1[trendvar],
                                         date_mainsample_start(m_new), size(out1[datavar],2),
                                         n_regs = 1)
-            trend_old = get_trend_dates(Dict(1 => date_mainsample_start(m_new_olddf)), out2[trendvar],
-                                        date_mainsample_start(m_new_olddf), size(out2[datavar],2),
+            trend_old = get_trend_dates(Dict(1 => date_mainsample_start(m_new_olddf)), out4[trendvar],
+                                        date_mainsample_start(m_new_olddf), size(out4[datavar],2),
                                         n_regs = 1)
             trend_comp = trend_new - trend_old
         end
@@ -325,7 +320,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
 
         # 1 + 2 + 3. Total difference
         total_diff = para_comp[1:min_ind,:] + data_comp[1:min_ind,:] +
-            news_comp[1:min_ind,:] + model_comp[1:min_ind,:] + trend_comp[1:min_ind,:]
+            news_comp[1:min_ind,:] + model_comp[1:min_ind,:] #+ trend_comp[1:min_ind,:]
         decomp[Symbol(:decomptotal, class)] = total_diff
 
         check && @assert total_diff ≈ out1[forecastvar][1:min_ind,:] - out4[forecastvar][1:min_ind,:]
