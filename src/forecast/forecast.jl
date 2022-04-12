@@ -295,6 +295,7 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     end
 
     # Setup
+    @show n_fcast_reg, reg_fcast_cond_start, get_setting(m, :n_regimes)
     nshocks = size(Rs[1], 2)
     nstates = size(Ts[1], 2)
     nobs    = size(Zs[1], 1)
@@ -341,6 +342,8 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     end
 
     # These are the fcast regime indices
+    @show get_setting(m,:n_fcast_regimes)
+    @show get_setting(m, :n_regimes)
     regime_inds = get_fcast_regime_inds(m, horizon, cond_type)
 
     # Iterate state space forward
@@ -387,7 +390,7 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
                   set_info_sets_altpolicy::Function = auto_temp_altpolicy_info_set,
                   update_regime_eqcond_info!::Function =
                   (a, b, c, d) -> default_update_regime_eqcond_info!(a, b, c, d, alternative_policy(m)),
-                  tol::S = -1e-5, rerun_smoother::Bool = false,
+                  tol::S = 1e-5, rerun_smoother::Bool = false,
                   df = nothing, draw_states::Bool = false,
                   nan_failures::Bool = false,
                   histstates::AbstractMatrix{S} = Matrix{S}(undef, 0, 0),
@@ -508,6 +511,7 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
         if isnothing(first_aware)
             first_aware = get_setting(m, :reg_forecast_start)
         end
+        @show first_aware, get_setting(m, :n_regimes)
         set_info_sets_altpolicy(m, get_setting(m, :n_regimes), first_aware)
 
         endozlb_forecast::Function = (zlb_start, zlb_end; unant_enforce_zlb = false, full_horizon = false) -> forecast_endozlb_helper(m, zlb_start, zlb_end, z0, states, shocks,
@@ -524,7 +528,7 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
         ## 2. If we don't liftoff post minimum zlb, then enforce the rest of the contiguous zlb
         ##    intervals using two rule (zlb_rule alternative policy)
         if !has_neg_rates[min_zlb+1]
-            endo_success = all(obs[get_observables(m)[:obs_nominalrate], :] .> get_setting(m, :zlb_rule_value) / 4. + tol)
+            endo_success = all(obs[get_observables(m)[:obs_nominalrate], :] .> get_setting(m, :zlb_rule_value) / 4. - tol)
             if !endo_success
                 system = compute_system(m; tvis = true)
                 states, obs, pseudo = forecast(m, system, z0; cond_type = cond_type, shocks = shocks,
@@ -552,6 +556,7 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
             end
             m <= Setting(:temporary_altpolicy_length, temp_altpol_length)
             # Run extended zlb forecast
+            @show first_endo_zlb, last_endo_zlb
             states, obs, pseudo, histstates, histshocks, histpseudo, initial_states =
             endozlb_forecast(first_endo_zlb, last_endo_zlb+1, unant_enforce_zlb = false)
             ## 3. Check if this forecast lifts off after the end of the two-rule zlb.
@@ -755,9 +760,13 @@ function forecast_endozlb_helper(m::AbstractDSGEModel, first_endo_zlb::Int64, li
     # in the case where we're shortening the zlb, this is necessary to stop the
     # setup_regime_switching_inds! call from truncating on a zlb reg and throwing
     # a gensys error
+    @show liftoff_reg
+    @show [get_setting(m, :regime_eqcond_info)[i].alternative_policy.key for i in sort(collect(keys(get_setting(m, :regime_eqcond_info))))]
     if haskey(get_settings(m), :regime_eqcond_info) ? haskey(get_setting(m, :regime_eqcond_info), liftoff_reg) : false
+        @show "Does this run?"
         get_setting(m, :regime_eqcond_info)[liftoff_reg].alternative_policy = alternative_policy(m)
     end
+    # @show get_setting(m, :regime_eqcond_info)[liftoff_reg].alternative_policy
 
     if haskey(get_settings(m), :cred_vary_until) ? (isempty(altpol_reg_range) ? true : get_setting(m, :cred_vary_until) >= maximum(altpol_reg_range)) : false
         m <= Setting(:regime_switching, true)
@@ -776,6 +785,8 @@ function forecast_endozlb_helper(m::AbstractDSGEModel, first_endo_zlb::Int64, li
         m <= Setting(:regime_switching, true)
         setup_regime_switching_inds!(m; cond_type = cond_type)
     end
+@show "After deleting regime_eqcond_info regs"
+@show [get_setting(m, :regime_eqcond_info)[i].alternative_policy.key for i in sort(collect(keys(get_setting(m, :regime_eqcond_info))))]
 
     # Set up replace_eqcond entries
     m <= Setting(:replace_eqcond, true)
@@ -793,10 +804,14 @@ function forecast_endozlb_helper(m::AbstractDSGEModel, first_endo_zlb::Int64, li
     # function. In the default DSGE policy, the regimes after the ZLB ends
     # are updated only if there is time-varying credibility
     # (specified by the Setting :cred_vary_until).
-    update_regime_eqcond_info!(m, original_eqcond_dict, first_endo_zlb, liftoff_reg)
+@show first_endo_zlb, liftoff_reg, alternative_policy(m)
+    update_regime_eqcond_info!(m, get_setting(m, :regime_eqcond_info), first_endo_zlb, liftoff_reg)
     min_zlb = haskey(m.settings, :min_temporary_altpolicy_length) ? get_setting(m, :min_temporary_altpolicy_length) : 0
     min_zlb += haskey(m.settings, :historical_temporary_altpolicy_length) ? get_setting(m, :historical_temporary_altpolicy_length) : 0
     m <= Setting(:temporary_altpolicy_length, min_zlb + liftoff_reg-first_endo_zlb)
+
+@show "After update_regime_eqcond_info!"
+@show [get_setting(m, :regime_eqcond_info)[i].alternative_policy.key for i in sort(collect(keys(get_setting(m, :regime_eqcond_info))))]
 
     # Set up parameters if there are switching parameter values.
     #
@@ -894,6 +909,8 @@ function forecast_endozlb_helper(m::AbstractDSGEModel, first_endo_zlb::Int64, li
     end
 
     # Recompute to account for new regimes
+@show "Before compute_system"
+@show [get_setting(m, :regime_eqcond_info)[i].alternative_policy.key for i in sort(collect(keys(get_setting(m, :regime_eqcond_info))))]
     system = compute_system(m; tvis = true)
     if rerun_smoother # if state space system changes, then the smoothed states will also change generally
         histstates, histshocks, histpseudo, initial_states =
@@ -1008,6 +1025,15 @@ function default_update_regime_eqcond_info!(m::AbstractDSGEModel, eqcond_dict::A
         weights = zeros(haskey(m.settings, :alternative_policies) ? length(get_setting(m, :alternative_policies)) + 1 : 1)
         weights[1] = 1.
         eqcond_dict[liftoff_regime] = EqcondEntry(liftoff_policy, weights)
+    end
+    if haskey(eqcond_dict, liftoff_regime + 1)
+        eqcond_dict[liftoff_regime + 1].alternative_policy = liftoff_policy
+    end
+    for regind in liftoff_regime+2:maximum(collect(keys(eqcond_dict)))
+        if haskey(eqcond_dict, regind)
+            # delete!(eqcond_dict, regind)
+            eqcond_dict[regind].alternative_policy = liftoff_policy
+        end
     end
 
     # NOTE: the following block assumes there is only one temporary altpol

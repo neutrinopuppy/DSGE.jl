@@ -90,7 +90,8 @@ function estimate(m::Union{AbstractDSGEModel,AbstractVARModel}, df::DataFrame;
                   save_intermediate::Bool = false,
                   run_csminwel::Bool = true,
                   toggle::Bool = true,
-                  log_prob_old_data::Float64 = 0.0)
+                  log_prob_old_data::Float64 = 0.0,
+                  add_zlb_duration::Tuple{Bool, Int} = (false, 1))
     data = df_to_matrix(m, df)
     estimate(m, data; verbose = verbose, proposal_covariance = proposal_covariance,
              mle = mle, sampling = sampling,
@@ -99,7 +100,8 @@ function estimate(m::Union{AbstractDSGEModel,AbstractVARModel}, df::DataFrame;
              continue_intermediate = continue_intermediate,
              intermediate_stage_increment = intermediate_stage_increment,
              save_intermediate = save_intermediate,
-             run_csminwel = run_csminwel, toggle = toggle, log_prob_old_data = log_prob_old_data)
+             run_csminwel = run_csminwel, toggle = toggle, log_prob_old_data = log_prob_old_data,
+             add_zlb_duration = add_zlb_duration)
 end
 
 function estimate(m::Union{AbstractDSGEModel,AbstractVARModel};
@@ -117,7 +119,8 @@ function estimate(m::Union{AbstractDSGEModel,AbstractVARModel};
                   intermediate_stage_increment::Int = 10,
 		          save_intermediate::Bool = false,
                   run_csminwel::Bool = true,
-                  toggle::Bool = true, log_prob_old_data::Float64 = 0.0)
+                  toggle::Bool = true, log_prob_old_data::Float64 = 0.0,
+                  add_zlb_duration::Tuple{Bool, Int} = (false, 1))
     # Load data
     df = load_data(m; verbose = verbose)
     estimate(m, df; verbose = verbose, proposal_covariance = proposal_covariance,
@@ -127,7 +130,8 @@ function estimate(m::Union{AbstractDSGEModel,AbstractVARModel};
              continue_intermediate = continue_intermediate,
              intermediate_stage_increment = intermediate_stage_increment,
 	         save_intermediate = save_intermediate,
-             run_csminwel = run_csminwel, toggle = toggle, log_prob_old_data = log_prob_old_data)
+             run_csminwel = run_csminwel, toggle = toggle, log_prob_old_data = log_prob_old_data,
+             add_zlb_duration = add_zlb_duration)
 end
 
 function estimate(m::Union{AbstractDSGEModel,AbstractVARModel}, data::AbstractArray;
@@ -145,7 +149,8 @@ function estimate(m::Union{AbstractDSGEModel,AbstractVARModel}, data::AbstractAr
                   intermediate_stage_increment::Int = 10,
 		          save_intermediate::Bool = false,
                   run_csminwel::Bool = true,
-                  toggle::Bool = true, log_prob_old_data::Float64 = 0.0)
+                  toggle::Bool = true, log_prob_old_data::Float64 = 0.0,
+                  add_zlb_duration::Tuple{Bool, Int} = (false, 1))
 
     if !(get_setting(m, :sampling_method) in [:SMC, :MH])
         error("method must be :SMC or :MH")
@@ -314,7 +319,8 @@ function estimate(m::Union{AbstractDSGEModel,AbstractVARModel}, data::AbstractAr
              save_intermediate = save_intermediate,
              intermediate_stage_increment = intermediate_stage_increment,
              run_csminwel = run_csminwel,
-             regime_switching = regime_switching, log_prob_old_data = log_prob_old_data)
+             regime_switching = regime_switching, log_prob_old_data = log_prob_old_data,
+             add_zlb_duration = add_zlb_duration)
     end
 
     ########################################################################################

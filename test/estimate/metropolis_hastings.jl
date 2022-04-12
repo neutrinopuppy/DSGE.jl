@@ -29,7 +29,7 @@ hessian_inv =
 
 # Set up and run metropolis-hastings
 DSGE.update!(m, mode)
-prop_cov = DegenerateMvNormal(mode, hessian_inv)
+prop_cov = DegenerateMvNormal(mode, hessian_inv; stdev = false)
 
 metropolis_hastings(prop_cov, m, data, .01, .09; verbose=:none)
 compute_parameter_covariance(m)

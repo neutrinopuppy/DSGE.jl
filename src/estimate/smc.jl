@@ -113,7 +113,8 @@ function smc2(m::Union{AbstractDSGEModel,AbstractVARModel}, data::Matrix{Float64
               continue_intermediate::Bool = false, intermediate_stage_start::Int = 0,
               save_intermediate::Bool = false, intermediate_stage_increment::Int = 10,
               run_csminwel::Bool = true,
-              regime_switching::Bool = false, log_prob_old_data::Float64 = 0.0)
+              regime_switching::Bool = false, log_prob_old_data::Float64 = 0.0,
+              add_zlb_duration::Tuple{Bool, Int} = (false, 1))
 
     parallel    = get_setting(m, :use_parallel_workers)
     n_parts     = get_setting(m, :n_particles)
@@ -152,6 +153,7 @@ function smc2(m::Union{AbstractDSGEModel,AbstractVARModel}, data::Matrix{Float64
             update!(m, parameters)
             m <= Setting(:preprocessed_transitions, Dict())
             likelihood(m, data; sampler = false, catch_errors = true,
+                       add_zlb_duration = add_zlb_duration,
                        use_chand_recursion = use_chand_recursion, verbose = verbose)
         end
     else isa(m, AbstractVARModel)
@@ -238,7 +240,8 @@ function smc2(m::Union{AbstractDSGEModel,AbstractVARModel}, data::Matrix{Float64
 	        tempered_update_prior_weight = tempered_update_prior_weight,
 
             regime_switching = regime_switching,
-            debug_assertion = debug_assertion, log_prob_old_data = log_prob_old_data)
+            debug_assertion = debug_assertion, log_prob_old_data = log_prob_old_data,
+            add_zlb_duration = add_zlb_duration)
 
     if run_csminwel
         m <= Setting(:sampling_method, :SMC)

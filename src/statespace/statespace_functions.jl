@@ -428,6 +428,7 @@ function compute_uncertain_altpolicy_system_helper(m::AbstractDSGEModel{T}; tvis
 
     # First calculate the perfectly credible transition matrices for the policy actually being implemented
     is_altpol = [isa(x, AltPolicy) for x in get_setting(m, :alternative_policies)]
+
     if all(is_altpol)
         system_perfect_cred_totpolicies = perfect_cred_altpolicy_systems(m; verbose = verbose)
     else
@@ -447,6 +448,7 @@ function compute_uncertain_altpolicy_system_helper(m::AbstractDSGEModel{T}; tvis
 
     # Form measurement and pseudo-measurement equations for imperfect awareness state space system
     gensys_regimes, gensys2_regimes = compute_gensys_gensys2_regimes(m)
+
     TTTs, RRRs, CCCs = solve_uncertain_altpolicy(m, system_perfect_cred_totpolicies, is_altpol;
                                                  gensys_regimes = gensys_regimes, gensys2_regimes = gensys2_regimes,
                                                  regimes = collect(1:n_regimes), verbose = verbose)

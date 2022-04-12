@@ -819,7 +819,6 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
 
     # Initialize the preprocessed mats
     m <= Setting(:preprocessed_transitions, Dict())
-
     system = compute_system(m; tvis = tvis)
     if haskey(m.settings, :old_shock_decs) && get_setting(m, :old_shock_decs)
         # Must be using TV cred system

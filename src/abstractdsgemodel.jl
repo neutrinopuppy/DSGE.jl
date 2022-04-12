@@ -281,7 +281,8 @@ n_shockdec_periods(m::AbstractDSGEModel)    = index_shockdec_end(m) - index_shoc
 alternative_policy(m::AbstractDSGEModel) = haskey(get_settings(m), :regime_eqcond_info) && # no check for n_regimes b/c if it is not there, then
     haskey(get_setting(m, :regime_eqcond_info), get_setting(m, :n_regimes)) ?              # it is better to throw an error since regime_eqcond_info
     get_setting(m, :regime_eqcond_info)[get_setting(m, :n_regimes)].alternative_policy :   # will not work in general anyway.
-    (haskey(get_settings(m), :alternative_policy) ? get_setting(m, :alternative_policy) : AltPolicy(:historical, eqcond, solve))
+    (haskey(get_settings(m), :regime_eqcond_info) ? get_setting(m, :regime_eqcond_info)[sort(collect(keys(get_setting(m, :regime_eqcond_info))))[end]].alternative_policy :
+    (haskey(get_settings(m), :alternative_policy) ? get_setting(m, :alternative_policy) : AltPolicy(:historical, eqcond, solve)))
 
 # Some additional date settings related to forecasts
 function date_forecast_end(m::AbstractDSGEModel)

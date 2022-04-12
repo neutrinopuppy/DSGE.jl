@@ -1031,7 +1031,7 @@ function sample_λ(m::PoolModel{S}, data::Matrix{S}, θ::Vector{S},
                   tuning::Dict{Symbol,Any}) where S<:AbstractFloat
     update!(m, θ)
     loglik, λ_particles, λ_weights = DSGE.filter(m, data; tuning = tuning)
-    return λ_particles[size(data,2)][1,DSGE.sample(DSGE.Weights(λ_weights[:,end]))]
+    return λ_particles[size(data,2)][DSGE.sample(DSGE.Weights(λ_weights[:,end]))]
 end
 
 function sample_λ(m::PoolModel{S}, pred_dens::Matrix{S}, T::Int64 = -1;

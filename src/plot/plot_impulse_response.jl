@@ -210,7 +210,7 @@ function plot_impulse_response(m::Vector,
 
     plots = OrderedDict{Symbol, Plots.Plot}()
     cumulative = false
-    for varset in [vars, cumulative_vars]
+    for varset in [vars]#[vars, cumulative_vars]
         if isempty(titles) || cumulative
             detexify_title = typeof(Plots.backend()) == Plots.GRBackend
             titles = map(var -> cumulative ? (var in [:obs_gdp, :PseudoGDP] ? "GDP Level" : "Core PCE Price Level") : describe_series(m[which_model], var, class, detexify = detexify_title), varset)

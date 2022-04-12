@@ -16,8 +16,9 @@ pm[:μ].value = 0.
 pm[:σ].value = 1.
 Random.seed!(1793)
 Φfilt, Ψfilt, F_ϵfilt, F_ufilt, F_λfilt = compute_system(pm)
-s_init = reshape(rand(F_λfilt, tuning[:n_particles]), 1, 1000)
-s_init = [s_init; 1 .- s_init]
+s_init = quantile.(Normal(), rand(F_λfilt, tuning[:n_particles]))
+# s_init = reshape(rand(F_λfilt, tuning[:n_particles]), 1, 1000)
+# s_init = [s_init; 1 .- s_init]
 tpf_out, ~, ~ = tempered_particle_filter(data, Φfilt, Ψfilt, F_ϵfilt, F_ufilt,
                                    s_init; tuning..., verbose = :none,
                                    fixed_sched = [1.], parallel = false, poolmodel = true)
@@ -33,12 +34,14 @@ filt_lik_tpf_out = sum(DSGE.filter_likelihood(pm, data; tuning = get_setting(pm,
 end
 
 Random.seed!(1793)
-s_init = reshape(rand(F_λfilt, tuning[:n_particles]), 1, 1000)
-s_init = [s_init; 1 .- s_init] # this tpf output should be saved later
+s_init = quantile.(Normal(), rand(F_λfilt, tuning[:n_particles]))
+# s_init = reshape(rand(F_λfilt, tuning[:n_particles]), 1, 1000)
+# s_init = [s_init; 1 .- s_init] # this tpf output should be saved later
 filt_tpf_out, ~, ~ = DSGE.filter(pm, data, s_init; tuning = get_setting(pm, :tuning))
 Random.seed!(1793)
-s_init = reshape(rand(F_λfilt, tuning[:n_particles]), 1, 1000)
-s_init = [s_init; 1 .- s_init] # this tpf output should be saved later
+s_init = quantile.(Normal(), rand(F_λfilt, tuning[:n_particles]))
+# s_init = reshape(rand(F_λfilt, tuning[:n_particles]), 1, 1000)
+# s_init = [s_init; 1 .- s_init] # this tpf output should be saved later
 filt_lik_tpf_out = sum(DSGE.filter_likelihood(pm, data, s_init; tuning = get_setting(pm, :tuning)))
 
 @testset "Check call to tempered particle filter when providing initial states" begin
