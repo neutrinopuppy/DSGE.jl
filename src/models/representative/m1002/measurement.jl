@@ -349,6 +349,7 @@ function measurement(m::Model1002{T},
 
     # Anticipated monetary policy shocks
     # ZZ_obs_nomrate = ZZ[obs[:obs_nominalrate], :]'
+    finished_expffr = []
     for i = 1:n_mon_anticipated_shocks(m)
         TTT_accum, CCC_accum = k_periods_ahead_expectations(TTT, CCC, TTTs, CCCs, reg, i, permanent_t;
                                                             integ_series = integ_series,
@@ -365,10 +366,21 @@ function measurement(m::Model1002{T},
         else
             QQ[exo[Symbol("rm_shl$i")], exo[Symbol("rm_shl$i")]] = m[Symbol("σ_r_m$i")]^2
         end
+
+        # Expected FFR from SPD - here to minimize expectations computations
+        if i in expected_ffr(m)
+            append!(finished_expffr, i)
+
+            ZZ[obs[Symbol("obs_exp_nominalrate$i")], :] = view(TTT_accum, endo[:R_t], :)
+            ZZ[obs[Symbol("obs_exp_nominalrate$i")], endo_new[Symbol("e_exp_rm$i")]]  = 1.0
+            DD[obs[Symbol("obs_exp_nominalrate$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
+
+            QQ[exo[Symbol("exp_rm_sh$i")], exo[Symbol("exp_rm_sh$i")]] = m[Symbol("σ_exp_rm$i")]^2
+        end
     end
 
     # Expected FFR from SPD
-    for i = expected_ffr(m)
+    for i = setdiff(expected_ffr(m), finished_expffr)
         TTT_accum, CCC_accum = k_periods_ahead_expectations(TTT, CCC, TTTs, CCCs, reg, i, permanent_t;
                                                             integ_series = integ_series,
                                                             memo = (isnothing(memo) || !use_fwd_exp) ? nothing :
