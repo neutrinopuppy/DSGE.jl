@@ -277,6 +277,10 @@ function measurement(m::Model1002{T},
         QQ[exo[:meas_π_sh], exo[:meas_π_sh]]   = m[:σ_meas_π]^2
     end
 
+    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+        QQ[exo[:ait_rm_sh], exo[:ait_rm_sh]] = m[:σ_ait_rm]^2
+    end
+
     if subspec(m) in ["ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss80", "ss82", "ss83"]
         QQ[exo[:g_covid_sh], exo[:g_covid_sh]]   = m[:σ_g_covid]^2
         QQ[exo[:μ_covid_sh], exo[:μ_covid_sh]]   = m[:σ_μ_covid]^2

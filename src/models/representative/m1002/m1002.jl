@@ -299,6 +299,11 @@ function init_model_indices!(m::Model1002)
         push!(endogenous_states, setdiff([:rw_t, :Rref_t], endogenous_states)...)
         push!(equilibrium_conditions, setdiff([:eq_rw, :eq_Rref], equilibrium_conditions)...)
     end
+    if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+        push!(endogenous_states, setdiff([:ait_rm_t], endogenous_states)...)
+        push!(equilibrium_conditions, setdiff([:eq_ait_rm], equilibrium_conditions)...)
+        push!(exogenous_shocks, setdiff([:ait_rm_sh], exogenous_shocks)...)
+    end
 
     if haskey(get_settings(m), :add_iid_cond_obs_gdp_meas_err) ?
         get_setting(m, :add_iid_cond_obs_gdp_meas_err) : false
@@ -601,6 +606,12 @@ buted to steady-state inflation.",
                        tex_label="\\rho_{meas}_\\pi")
     end
 
+    if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+        m <= parameter(:ρ_ait_rm, 0.2135, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
+                       description="ρ_ait_rm: AR(1) coefficient in the AIT monetary policy shock process.",
+                       tex_label="\\rho_{ait,r^m}")
+    end
+
     # exogenous processes - standard deviation
     m <= parameter(:σ_g, 2.5230, (1e-8, 5.), (1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
                    description="σ_g: The standard deviation of the government spending process.",
@@ -670,6 +681,12 @@ buted to steady-state inflation.",
     if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
         m <= parameter(:σ_meas_π, 0.0999, (0.0, 5.),(0.0, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
                        tex_label="\\sigma_{meas}_\\pi}")
+    end
+
+    if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+        m <= parameter(:σ_ait_rm, 0.2380, (1e-8, 5.), (1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
+                       description="σ_ait_rm: The standard deviation of the AIT monetary policy shock.",
+                       tex_label="\\sigma_{ait,r^m}")
     end
 
     if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
@@ -1333,8 +1350,13 @@ function shock_groupings(m::Model1002)
         pmu = ShockGroup("mkp", [:λ_f_sh, :λ_w_sh], RGB(0.60, 0.80, 0.20)) # yellowgreen
         wmu = ShockGroup("w-mkp", [:λ_w_sh], RGB(0.0, 0.5, 0.5)) # teal
         phi = ShockGroup("phi", [:φ_sh], RGB(0.5, 0.5, 0.))
-        pol = ShockGroup("pol", vcat([:rm_sh], [Symbol("rm_shl$i") for i = 1:n_mon_anticipated_shocks(m)]),
-                         RGB(1.0, 0.84, 0.0)) # gold
+
+        rm_vec = vcat([:rm_sh], [Symbol("rm_shl$i") for i = 1:n_mon_anticipated_shocks(m)])
+        if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+            append!(rm_vec, :ait_rm_sh)
+        end
+
+        pol = ShockGroup("pol", rm_vec, RGB(1.0, 0.84, 0.0)) # gold
         pis = ShockGroup("pi-LR", [:π_star_sh], RGB(1.0, 0.75, 0.793)) # pink
         mei = ShockGroup("mu", [:μ_sh], :cyan)
 
