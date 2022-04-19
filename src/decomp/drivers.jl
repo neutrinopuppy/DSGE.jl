@@ -169,6 +169,51 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
                                catch_smoother_lapack = catch_smoother_lapack,
                                kwargs..., check = check)
 
+    # Change old parameters to forecast old model with new parameters
+    m_old.parameters = copy(m_new.parameters)
+    if haskey(m_new.settings, :model2para_regime)
+        m_old <= Setting(:model2para_regime, get_setting(m_new, :model2para_regime))
+    end
+
+    # New forecast
+    out1 = f(m_new, df_new, params_new, cond_new, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
+             set_zlb_regime_vals = set_zlb_regime_vals_new) # new data, new params
+    # New Model with Old Model AIT, New Data, New Data
+    m_new <= Setting(:flexible_ait_φ_π, get_setting(m_old,:flexible_ait_φ_π))
+    m_new <= Setting(:flexible_ait_φ_y, get_setting(m_old,:flexible_ait_φ_y))
+    m_new <= Setting(:ait_Thalf, get_setting(m_old,:ait_Thalf))
+    m_new <= Setting(:gdp_Thalf, get_setting(m_old,:gdp_Thalf))
+    m_new <= Setting(:pgap_value, get_setting(m_old,:pgap_value))
+    m_new <= Setting(:ygap_value, get_setting(m_old,:ygap_value))
+    m_new <= Setting(:flexible_ait_ρ_smooth, get_setting(m_old,:flexible_ait_ρ_smooth))
+    out2 = f(m_new, df_new, params_new, cond_new, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
+             set_zlb_regime_vals = set_zlb_regime_vals_new)
+    # Eqcond Changes
+    m_new <= Setting(:regime_eqcond_info, deepcopy(get_setting(m_old, :regime_eqcond_info)))
+    m_new <= Setting(:alternative_policies, deepcopy(get_setting(m_old, :alternative_policies)))
+    m_new <= Setting(:temporary_altpolicy_length, get_setting(m_old, :temporary_altpolicy_length))
+    m_new <= Setting(:tvis_information_set, deepcopy(get_setting(m_old, :tvis_information_set)))
+    setup_regime_switching_inds!(m_new, cond_type = cond_new)
+    out3 = f(m_new, df_new, params_new, cond_new, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
+             set_zlb_regime_vals = set_zlb_regime_vals_new)
+    # DATA
+    # Remove just latest quarter of data
+    df_new_lesscond = df_new[df_new[!,:date] .<= get_setting(m_old, :date_conditional_end), :]
+    m_new <= Setting(:date_conditional_end, get_setting(m_old, :date_conditional_end))
+    out4 = f(m_new, df_new_lesscond, params_new, cond_new, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
+             set_zlb_regime_vals = set_zlb_regime_vals_new)
+    # Single out forecast quarter data revisions
+    df_new_lesscond[.&(df_new_lesscond[!, :date] .<= get_setting(m_old, :date_conditional_end),
+                       df_new_lesscond[!, :date] .>= get_setting(m_old, :date_forecast_start)), :] = df_old[.&(df_old[!, :date] .<= get_setting(m_old, :date_conditional_end),
+                df_old[!, :date] .>= get_setting(m_old, :date_forecast_start)), :]
+    out5 = f(m_new, df_new_lesscond, params_new, cond_new, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
+             set_zlb_regime_vals = set_zlb_regime_vals_new)
+    # All other data revisions
     # Change m_new to allow forecasting with old data
     m_new_olddf = deepcopy(m_new)
     m_new_olddf <= Setting(:data_vintage, get_setting(m_old, :data_vintage))
@@ -184,33 +229,20 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     haskey(m_new_olddf.settings, :n_hist_regimes) && m_new_olddf <= Setting(:n_hist_regimes, get_setting(m_new_olddf, :reg_forecast_start) - 1 + get_setting(m_new_olddf, :n_cond_regimes))
     haskey(m_new_olddf.settings, :n_fcast_regimes) && m_new_olddf <= Setting(:n_fcast_regimes, get_setting(m_new_olddf, :n_regimes) - get_setting(m_new_olddf, :reg_forecast_start) + 1)
 
+
+
     m_old_params = copy(m_old.parameters)
     m_old_mod2par = haskey(m_old.settings, :model2para_regime) ? get_setting(m_old, :model2para_regime) : nothing
-
-    # Change old parameters to forecast old model with new parameters
-    m_old.parameters = copy(m_new.parameters)
-    if haskey(m_new.settings, :model2para_regime)
-        m_old <= Setting(:model2para_regime, get_setting(m_new, :model2para_regime))
-    end
-
-    # New forecast
-    out1 = f(m_new, df_new, params_new, cond_new, outputs = [:forecast, :shockdec],
-             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
-             set_zlb_regime_vals = set_zlb_regime_vals_new) # new data, new params
-
-    # New Model, Old Data, New Parameters
-    out2 = f(m_new_olddf, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
+    out6 = f(m_new_olddf, df_old, params_new, cond_new, outputs = [:forecast, :shockdec],
              enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
              set_zlb_regime_vals = set_zlb_regime_vals_new)
 
-    # Old Model, Old Data, New Parameters
-    if model_decomp
-        out3 = f(m_old, df_old, params_new, cond_old, outputs = [:forecast, :shockdec],
-                 enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old,
-                 set_zlb_regime_vals = set_zlb_regime_vals_old)
-    else
-        out3 = out2
-    end
+    # Other Model Settings
+    m_old <= Setting(:model2para_regime, get_setting(m_new, :model2para_regime))
+
+    out7 = f(m_old, df_old, params_new, cond_new, outputs = [:forecast, :shockdec],
+             enforce_zlb = enforce_zlb_new, endogenous_zlb = endogenous_zlb_new,
+             set_zlb_regime_vals = set_zlb_regime_vals_new)
 
     # Return to old parameters
     m_old.parameters = m_old_params
@@ -221,7 +253,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
     end
 
     # Old Forecast
-    out4 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast, :shockdec],
+    out8 = f(m_old, df_old, params_old, cond_old, outputs = [:forecast, :shockdec],
              enforce_zlb = enforce_zlb_old, endogenous_zlb = endogenous_zlb_old,
              set_zlb_regime_vals = set_zlb_regime_vals_old)
 
@@ -256,22 +288,43 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
             old_shocks = out4[shockdecvar]
         end
 
-        # 1(a). Data revision and news
-        data_comp = out1[forecastvar] .- out2[forecastvar] .- (out1[newsvar] .- out2[newsvar])#out1[dettrendvar] .- out2[dettrendvar] .+ (out1[datavar] .- out2[datavar])
-        decomp[Symbol(:decompdata, class)] = data_comp#out1[datavar] .- out2[datavar]#data_comp
 
-        news_comp = out1[newsvar] - out2[newsvar]
-        decomp[Symbol(:decompnews, class)] = news_comp
+        # 1. AIT Changes
+        policy_comp = out1[forecastvar] - out2[forecastvar]
+        decomp[Symbol(:decomppolicyait, class)] = policy_comp
 
-        # 1(b). Shock decomposition and deterministic trend
-        shockdec_comp = out1[shockdecvar] - out2[shockdecvar] # Ny x Nh x Ne
+        # 2. Eqcond Changes
+        eqcond_comp = out2[forecastvar] - out3[forecastvar]
+        decomp[Symbol(:decomppolicyeqcond, class)] = eqcond_comp
+
+        # 3. Latest quarter
+        release_comp = out3[forecastvar] - out4[forecastvar]
+        decomp[Symbol(:decomprelease, class)] = release_comp
+
+        # 4. Conditional data revision
+        cond_comp = out4[forecastvar] - out5[forecastvar]
+        decomp[Symbol(:decompcond, class)] = cond_comp
+
+        # 5. Historical data revision
+        revise_comp = out5[forecastvar] - out6[forecastvar]
+        decomp[Symbol(:decomprevise, class)] = revise_comp
+
+        # 6. Other settings changes
+        model_comp = out6[forecastvar] - out7[forecastvar]
+        decomp[Symbol(:decompmodel, class)] = model_comp
+
+        # 7. Parameter changes
+        param_comp = out7[forecastvar] - out8[forecastvar]
+        decomp[Symbol(:decompparam, class)] = param_comp
+
+        shockdec_comp = out1[shockdecvar] - out8[shockdecvar] # Ny x Nh x Ne
         if shockdec_data_only
             decomp[Symbol(:decompshockdec, class)] = shockdec_comp
         else
             decomp[Symbol(:decompshockdec, class)] = out1[shockdecvar] - old_shocks ## Want full difference
         end
 
-        dettrend_comp = out1[dettrendvar] - out2[dettrendvar]
+        dettrend_comp = out1[dettrendvar] - out8[dettrendvar]
         if shockdec_data_only
             decomp[Symbol(:decompdettrend, class)] = dettrend_comp
         else
@@ -281,7 +334,7 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
         if haskey(m_new.settings, :regime_dates) && haskey(m_new.settings, :n_regimes)
             # TODO adjust to handle forecasting the same regime (or more than 1 regime apart)
             trend_new = out1[trendvar][:, 1:end-1]
-            trend_old = out4[trendvar]
+            trend_old = out8[trendvar]
             trend_comp = trend_new - trend_old
         else
             trend_new = get_trend_dates(Dict(1 => date_mainsample_start(m_new)), out1[trendvar],
@@ -307,23 +360,9 @@ function decompose_forecast(m_new::M, m_old::M, df_new::DataFrame, df_old::DataF
             decomp[Symbol(:decomptrend, class)] = trend_new - trend4
         end
 
-        # Check that 1(a) and 1(b) are equal
-        check && @assert dettrend_comp + dropdims(sum(shockdec_comp, dims = 3), dims = 3) ≈ data_comp + news_comp
-
-        # 2. Parameter re-estimation
-        para_comp = out3[forecastvar] - out4[forecastvar]
-        decomp[Symbol(:decomppara, class)] = para_comp
-
-        # 3. Change in model
-        model_comp = out2[forecastvar][1:min_ind,:] - out3[forecastvar][1:min_ind,:]
-        decomp[Symbol(:decompmodel, class)] = model_comp
-
-        # 1 + 2 + 3. Total difference
-        total_diff = para_comp[1:min_ind,:] + data_comp[1:min_ind,:] +
-            news_comp[1:min_ind,:] + model_comp[1:min_ind,:] #+ trend_comp[1:min_ind,:]
-        decomp[Symbol(:decomptotal, class)] = total_diff
-
-        check && @assert total_diff ≈ out1[forecastvar][1:min_ind,:] - out4[forecastvar][1:min_ind,:]
+        total_decomp = out1[forecastvar] - out8[forecastvar]
+        decomp[Symbol(:decomptotal, class)] = total_decomp
+        #check && @assert total_diff ≈ out1[forecastvar][1:min_ind,:] - out4[forecastvar][1:min_ind,:]
     end
 
     return decomp
@@ -387,136 +426,136 @@ Returns `out::Dict{Symbol, Array{Float64}}`, which has keys determined as follow
   - `:dettrend<class>`
   - `:data<class>`: like a shockdec, but only applying smoothed shocks up to `shockdec_splitdate`
   - `:news<class>`: like a shockdec, but only applying smoothed shocks after `shockdec_splitdate`
-"""
-function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vector{Float64}, cond_type::Symbol,
-                                T::Int, k::Int, H::Int; apply_altpolicy::Bool = false,
-                                outputs::Vector{Symbol} = [:forecast, :shockdec], check::Bool = false,
-                                catch_smoother_lapack::Bool = false, enforce_zlb::Bool = false,
-                                endogenous_zlb::Bool = false, set_zlb_regime_vals::Function = identity)
+  """
+  function decomposition_forecast(m::AbstractDSGEModel, df::DataFrame, params::Vector{Float64}, cond_type::Symbol,
+                                  T::Int, k::Int, H::Int; apply_altpolicy::Bool = false,
+                                  outputs::Vector{Symbol} = [:forecast, :shockdec], check::Bool = false,
+                                  catch_smoother_lapack::Bool = false, enforce_zlb::Bool = false,
+                                  endogenous_zlb::Bool = false, set_zlb_regime_vals::Function = identity)
 
-    regime_switching = haskey(m.settings, :regime_switching) ? get_setting(m, :regime_switching) : false
+      regime_switching = haskey(m.settings, :regime_switching) ? get_setting(m, :regime_switching) : false
 
-    # Compute state space
-    DSGE.update!(m, params)
-    system = compute_system(m; tvis = haskey(get_settings(m), :tvis_information_set))
+      # Compute state space
+      DSGE.update!(m, params)
+      system = compute_system(m; tvis = haskey(get_settings(m), :tvis_information_set))
 
-    # Initialize output dictionary
-    out = Dict{Symbol, Array{Float64}}()
+      # Initialize output dictionary
+      out = Dict{Symbol, Array{Float64}}()
 
-    # Smooth and forecast
-    histstates, histshocks, histpseudo, s_0 = smooth(m, df, system, cond_type = cond_type, draw_states = false,
-                                                     catch_smoother_lapack = catch_smoother_lapack)
+      # Smooth and forecast
+      histstates, histshocks, histpseudo, s_0 = smooth(m, df, system, cond_type = cond_type, draw_states = false,
+                                                       catch_smoother_lapack = catch_smoother_lapack)
 
-    if :forecast in outputs || check
-        s_T = histstates[:, end]
+      if :forecast in outputs || check
+          s_T = histstates[:, end]
 
-        if endogenous_zlb
-            forecaststates, forecastobs, forecastpseudo, forecastshocks =
-                forecast(m, system, s_T, cond_type = cond_type, enforce_zlb = false, draw_shocks = false)
+          if endogenous_zlb
+              forecaststates, forecastobs, forecastpseudo, forecastshocks =
+              forecast(m, system, s_T, cond_type = cond_type, enforce_zlb = false, draw_shocks = false)
 
-            _, forecastobs, forecastpseudo, histstates, histshocks, histpseudo, s_0 =
-                forecast(m, s_T, forecaststates, forecastobs, forecastpseudo, forecastshocks;
-                         cond_type = cond_type, rerun_smoother = true, draw_states = false, df = df,
-                         histstates = histstates, histshocks = histshocks, histpseudo = histpseudo,
-                         initial_states = s_0, set_zlb_regime_vals = set_zlb_regime_vals)
+              _, forecastobs, forecastpseudo, histstates, histshocks, histpseudo, s_0 =
+              forecast(m, s_T, forecaststates, forecastobs, forecastpseudo, forecastshocks;
+                       cond_type = cond_type, rerun_smoother = true, draw_states = false, df = df,
+                       histstates = histstates, histshocks = histshocks, histpseudo = histpseudo,
+                       initial_states = s_0, set_zlb_regime_vals = set_zlb_regime_vals)
 
-            system = compute_system(m, tvis = haskey(get_settings(m), :tvis_information_set))
-        else
-            _, forecastobs, forecastpseudo, _ =
-                forecast(m, system, s_T, cond_type = cond_type, enforce_zlb = enforce_zlb, draw_shocks = false)
-        end
-    end
+              system = compute_system(m, tvis = haskey(get_settings(m), :tvis_information_set))
+          else
+              _, forecastobs, forecastpseudo, _ =
+              forecast(m, system, s_T, cond_type = cond_type, enforce_zlb = enforce_zlb, draw_shocks = false)
+          end
+      end
 
-    if regime_switching
-        # Get regime indices. Just want histobs, so no need to handle ZLB regime switch
-        start_date = max(date_mainsample_start(m), df[1, :date])
-        end_date   = cond_type == :none ? prev_quarter(date_forecast_start(m)) : date_conditional_end(m)
-        regime_inds = regime_indices(m, start_date, end_date)
-        if regime_inds[1][1] < 1
-            regime_inds[1] = 1:regime_inds[1][end]
-        end
-        cutoff = findfirst([inds[end] > T + H for inds in regime_inds])
-        if !isnothing(cutoff)
-            regime_inds = regime_inds[1:cutoff]
-            regime_inds[end] = regime_inds[end][1]:(T + H)
-        end
+      if regime_switching
+          # Get regime indices. Just want histobs, so no need to handle ZLB regime switch
+          start_date = max(date_mainsample_start(m), df[1, :date])
+          end_date   = cond_type == :none ? prev_quarter(date_forecast_start(m)) : date_conditional_end(m)
+          regime_inds = regime_indices(m, start_date, end_date)
+          if regime_inds[1][1] < 1
+              regime_inds[1] = 1:regime_inds[1][end]
+          end
+          cutoff = findfirst([inds[end] > T + H for inds in regime_inds])
+          if !isnothing(cutoff)
+              regime_inds = regime_inds[1:cutoff]
+              regime_inds[end] = regime_inds[end][1]:(T + H)
+          end
 
-        # Calculate history
-        histobs = zeros(n_observables(m), size(histstates,2))
-        for (reg_num, reg_ind) in enumerate(regime_inds)
-            histobs[:, reg_ind] = system[reg_num, :ZZ] * histstates[:, reg_ind] .+ system[reg_num, :DD]
-        end
-    else
-        histobs = system[:ZZ] * histstates .+ system[:DD]
-    end
+          # Calculate history
+          histobs = zeros(n_observables(m), size(histstates,2))
+          for (reg_num, reg_ind) in enumerate(regime_inds)
+              histobs[:, reg_ind] = system[reg_num, :ZZ] * histstates[:, reg_ind] .+ system[reg_num, :DD]
+          end
+      else
+          histobs = system[:ZZ] * histstates .+ system[:DD]
+      end
 
-    if :forecast in outputs || check
-        out[:histforecastobs]    = hcat(histobs,    forecastobs)[:, 1:T+H]
-        out[:histforecastpseudo] = hcat(histpseudo, forecastpseudo)[:, 1:T+H]
-    end
+      if :forecast in outputs || check
+          out[:histforecastobs]    = hcat(histobs,    forecastobs)[:, 1:T+H]
+          out[:histforecastpseudo] = hcat(histpseudo, forecastpseudo)[:, 1:T+H]
+      end
 
-    # Compute trend, dettrend, and shockdecs
-    if :shockdec in outputs
-        nstates = n_states_augmented(m)
-        nshocks = n_shocks_exogenous(m)
+      # Compute trend, dettrend, and shockdecs
+      if :shockdec in outputs
+          nstates = n_states_augmented(m)
+          nshocks = n_shocks_exogenous(m)
 
-        data_shocks           = zeros(nshocks, T+H)
-        data_shocks[:, 1:T-k] = histshocks[:, 1:T-k]
-        Tstar                 = size(histshocks, 2) # either T or T+1
-        news_shocks           = zeros(nshocks, T+H)
-        system0               = zero_system_constants(system)
+          data_shocks           = zeros(nshocks, T+H)
+          data_shocks[:, 1:T-k] = histshocks[:, 1:T-k]
+          Tstar                 = size(histshocks, 2) # either T or T+1
+          news_shocks           = zeros(nshocks, T+H)
+          system0               = zero_system_constants(system)
 
-        if regime_switching
+          if regime_switching
 
-            # Calculate trends
-            if haskey(get_settings(m), :time_varying_trends) ? get_setting(m, :time_varying_trends) : false
-                _, out[:trendobs], out[:trendpseudo] = trends(m, system, start_date, end_date, cond_type)
-            else
-                _, out[:trendobs], out[:trendpseudo] = trends(system)
-            end
+              # Calculate trends
+              if haskey(get_settings(m), :time_varying_trends) ? get_setting(m, :time_varying_trends) : false
+                  _, out[:trendobs], out[:trendpseudo] = trends(m, system, start_date, end_date, cond_type)
+              else
+                  _, out[:trendobs], out[:trendpseudo] = trends(system)
+              end
 
-            # Calculate deterministic trends
-            _, out[:dettrendobs], out[:dettrendpseudo] = deterministic_trends(m, system, s_0, T+H, 1, T+H,
-                                                                              regime_inds, cond_type)
+              # Calculate deterministic trends
+              _, out[:dettrendobs], out[:dettrendpseudo] = deterministic_trends(m, system, s_0, T+H, 1, T+H,
+                                                                                regime_inds, cond_type)
 
-            # Applying all shocks
-            _, out[:shockdecobs], out[:shockdecpseudo] =
-                shock_decompositions(m, system, forecast_horizons(m; cond_type = cond_type),
-                                     histshocks, 1, T + H, regime_inds, cond_type)
+              # Applying all shocks
+              _, out[:shockdecobs], out[:shockdecpseudo] =
+              shock_decompositions(m, system, forecast_horizons(m; cond_type = cond_type),
+                                   histshocks, 1, T + H, regime_inds, cond_type)
 
-            # Applying ϵ_{1:T-k} and ϵ_{T-k+1:end}
-            m2 = deepcopy(m)
-            m2 <= Setting(:reg_forecast_start, 1)
-            m2 <= Setting(:date_forecast_start, get_setting(m2, :date_mainsample_start))
-            m2 <= Setting(:n_hist_regimes, 0)
-            m2 <= Setting(:n_fcast_regimes, get_setting(m2, :n_regimes))
-            m2 <= Setting(:reg_post_conditional_end, 1)
+              # Applying ϵ_{1:T-k} and ϵ_{T-k+1:end}
+              m2 = deepcopy(m)
+              m2 <= Setting(:reg_forecast_start, 1)
+              m2 <= Setting(:date_forecast_start, get_setting(m2, :date_mainsample_start))
+              m2 <= Setting(:n_hist_regimes, 0)
+              m2 <= Setting(:n_fcast_regimes, get_setting(m2, :n_regimes))
+              m2 <= Setting(:reg_post_conditional_end, 1)
 
-            _, out[:dataobs], out[:datapseudo], _ = forecast(m2, system0, zeros(nstates), data_shocks;
-                                                             cond_type = :none)
+              _, out[:dataobs], out[:datapseudo], _ = forecast(m2, system0, zeros(nstates), data_shocks;
+                                                               cond_type = :none)
 
-            news_shocks[:, T-k+1:Tstar] = histshocks[:, T-k+1:Tstar]
-            _, out[:newsobs], out[:newspseudo], _ = forecast(m2, system0, zeros(nstates), news_shocks;
-                                                             cond_type = :none)
-        else
-            # Calculate trends
-            _, out[:trendobs], out[:trendpseudo] = trends(system)
+              news_shocks[:, T-k+1:Tstar] = histshocks[:, T-k+1:Tstar]
+              _, out[:newsobs], out[:newspseudo], _ = forecast(m2, system0, zeros(nstates), news_shocks;
+                                                               cond_type = :none)
+          else
+              # Calculate trends
+              _, out[:trendobs], out[:trendpseudo] = trends(system)
 
-            # Calculate deterministic trends
-            _, out[:dettrendobs], out[:dettrendpseudo] = deterministic_trends(system, s_0, T+H, 1, T+H)
+              # Calculate deterministic trends
+              _, out[:dettrendobs], out[:dettrendpseudo] = deterministic_trends(system, s_0, T+H, 1, T+H)
 
-            # Applying all shocks
-            _, out[:shockdecobs], out[:shockdecpseudo] =
-                shock_decompositions(system, forecast_horizons(m), histshocks, 1, T+H)
+              # Applying all shocks
+              _, out[:shockdecobs], out[:shockdecpseudo] =
+              shock_decompositions(system, forecast_horizons(m), histshocks, 1, T+H)
 
-            # Applying ϵ_{1:T-k} and ϵ_{T-k+1:end}
-            _, out[:dataobs], out[:datapseudo], _ = forecast(system0, zeros(nstates), data_shocks)
+              # Applying ϵ_{1:T-k} and ϵ_{T-k+1:end}
+              _, out[:dataobs], out[:datapseudo], _ = forecast(system0, zeros(nstates), data_shocks)
 
-            news_shocks[:, T-k+1:Tstar] = histshocks[:, T-k+1:Tstar]
-            _, out[:newsobs], out[:newspseudo], _ = forecast(system0, zeros(nstates), news_shocks)
-        end
-    end
+              news_shocks[:, T-k+1:Tstar] = histshocks[:, T-k+1:Tstar]
+              _, out[:newsobs], out[:newspseudo], _ = forecast(system0, zeros(nstates), news_shocks)
+          end
+      end
 
-    # Return
-    return out
-end
+      # Return
+      return out
+  end

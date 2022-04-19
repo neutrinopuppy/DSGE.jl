@@ -60,18 +60,16 @@ function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
     end
 
     decomp = DataFrame(date = dates)
-    comps = [:data, :news, :shockdec, :dettrend, :para, :total]
+    comps = [:policyait, :policyeqcond, :shockdec, :dettrend, :trend, :release, :cond, :revise, :param, :total]
     comps = model_decomp ? vcat(comps, :model) : comps
     for comp in comps
         product = Symbol(:decomp, comp)
-
         input_file = input_files[Symbol(product, class)]
         #jldopen(input_file, "r") do file
         # Parse transform
         class_long = get_class_longname(class)
         transforms = load(input_file, string(class_long) * "_revtransforms")
         transform = parse_transform(transforms[var])
-
         # If shockdec, loop over shocks
         loopkeys = if comp == :shockdec
             shock_indices = load(input_file, "shock_indices")
@@ -83,7 +81,6 @@ function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
         if comp == :shockdec
             shock_indices = load(input_file, "shock_indices")
         end
-
         indices = load(input_file, "$(class_long)_indices")
         var_ind = indices[var]
         for key in loopkeys
@@ -97,10 +94,8 @@ function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
             else
                 read_forecast_series(input_file, product, var_ind)
             end
-
             # Reverse transform
             transformed_decomp = scenario_mb_reverse_transform(decomp_series, transform, :forecast)
-
             # Compute mean and add to DataFrame
             decomp[!,key] = vec(mean(transformed_decomp, dims = 1))
         end
