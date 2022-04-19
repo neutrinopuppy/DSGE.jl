@@ -62,13 +62,17 @@ function flexible_ait_replace_eq_entries(m::AbstractDSGEModel,
     Γ0[eq[:eq_mp], endo[:pgap_t]]   = -φ_π * (1. - ρ_pgap) * (1. - ρ_smooth) # (1 - m[:ρ]) # This is the AIT part
     Γ0[eq[:eq_mp], endo[:ygap_t]]   = -φ_y * (1. - ρ_ygap) * (1. - ρ_smooth) # (1. - m[:ρ]) # This is the GDP part
 
-    # Add MP shocks
-    Γ0[eq[:eq_mp], endo[:ait_rm_t]]     = -1.
+    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+        # Add MP shocks
+        Γ0[eq[:eq_mp], endo[:ait_rm_t]]     = -1.
 
-    # MP shock process
-    Γ0[eq[:eq_ait_rm], endo[:ait_rm_t]] = 1.0
-    Γ1[eq[:eq_ait_rm], endo[:ait_rm_t]] = m[:ρ_ait_rm]
-    Ψ[eq[:eq_ait_rm], exo[:ait_rm_sh]]  = 1.0
+        # MP shock process
+        Γ0[eq[:eq_ait_rm], endo[:ait_rm_t]] = 1.0
+        Γ1[eq[:eq_ait_rm], endo[:ait_rm_t]] = m[:ρ_ait_rm]
+        Ψ[eq[:eq_ait_rm], exo[:ait_rm_sh]]  = 1.0
+    else
+        Γ0[eq[:eq_mp], endo[:rm_t]]     = -1.
+    end
 
     return Γ0, Γ1, C, Ψ, Π
 end
