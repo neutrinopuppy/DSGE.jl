@@ -69,7 +69,6 @@ function gensys2(m::AbstractDSGEModel, Γ0s::Vector{Matrix{Float64}}, Γ1s::Vect
     Rcal[end] = RRR
     Ccal[end] = CCC
 
-    @show T_switch
     for t = 1:(T_switch-1)
         preprocessed_transitions = haskey(get_settings(m), :preprocessed_transitions) ? get_setting(m, :preprocessed_transitions) : nothing
         param_regimes = find_param_regimes(m, liftoff_reg)

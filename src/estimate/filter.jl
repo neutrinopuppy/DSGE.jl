@@ -254,7 +254,6 @@ function filter_likelihood(m::AbstractDSGEModel, data::AbstractArray,
 
         # Compute implied ZLB duration
         zlb_ind = findfirst(x -> add_zlb_duration[2] in x, regime_inds)#regime_indices(m, start_date))
-        @show zlb_ind
         ##TODO: Handle case when add_zlb_duration[2] != regime_inds[zlb_ind][end]
 
         ### Save settings that need to change to forecast from add_zlb_duration[2]
