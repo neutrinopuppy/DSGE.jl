@@ -75,7 +75,7 @@ function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bo
         end
 
         # Conditional SPD Data
-        if :obs_exp_nominalrate1 in cond_semi_names(m) || :obs_exp_nominalrate1 in cond_full_names(m)
+        if any(occursin.("obs_exp_nominalrate", string.(vcat(cond_semi_names(m), cond_full_names(m)))))
             spd_data = CSV.read(inpath(m, "raw", "spd_raw_$(data_vintage(m)).csv"), DataFrame, copycols = true)
             # Transform into usable form
             spd_data = transform_spd_data(spd_data)
