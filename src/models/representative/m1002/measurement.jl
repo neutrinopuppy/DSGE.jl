@@ -368,7 +368,11 @@ function measurement(m::Model1002{T},
         if subspec(m) == "ss11"
             QQ[exo[Symbol("rm_shl$i")], exo[Symbol("rm_shl$i")]] = m[:σ_r_m]^2 / n_mon_anticipated_shocks(m)
         else
-            QQ[exo[Symbol("rm_shl$i")], exo[Symbol("rm_shl$i")]] = m[Symbol("σ_r_m$i")]^2
+            QQ[exo[Symbol("rm_shl$i")], exo[Symbol("rm_shl$i")]]     = m[Symbol("σ_r_m$i")]^2
+
+            if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+                QQ[exo[Symbol("ait_rm_shl$i")], exo[Symbol("rm_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
+            end
         end
 
         # Expected FFR from SPD - here to minimize expectations computations
@@ -380,6 +384,9 @@ function measurement(m::Model1002{T},
             DD[obs[Symbol("obs_exp_nominalrate$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
 
             QQ[exo[Symbol("exp_rm_sh$i")], exo[Symbol("exp_rm_sh$i")]] = m[Symbol("σ_exp_rm$i")]^2
+            if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+                QQ[exo[Symbol("exp_ait_rm_sh$i")], exo[Symbol("exp_ait_rm_sh$i")]] = m[Symbol("σ_exp_ait_rm$i")]^2
+            end
         end
     end
 
@@ -396,6 +403,10 @@ function measurement(m::Model1002{T},
         DD[obs[Symbol("obs_exp_nominalrate$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
 
         QQ[exo[Symbol("exp_rm_sh$i")], exo[Symbol("exp_rm_sh$i")]] = m[Symbol("σ_exp_rm$i")]^2
+
+        if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+            QQ[exo[Symbol("exp_ait_rm_sh$i")], exo[Symbol("exp_ait_rm_sh$i")]] = m[Symbol("σ_exp_ait_rm$i")]^2
+        end
     end
 
     # Anticipated GDP growth
