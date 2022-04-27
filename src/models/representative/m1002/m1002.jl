@@ -958,6 +958,12 @@ buted to steady-state inflation.",
                            RootInverseGamma(4, .2), fixed=true,
                            description="σ_exp_rm$i: Standard deviation of the $i-period-ahead FFR measurement error.",
                            tex_label=@sprintf("\\sigma_{exp_rm%d}",i))
+            if  haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+                m <= parameter(Symbol("σ_exp_ait_rm$i"), 0.0375 + 0.00625 * i, (1e-7, 5.), (1e-7, 5.), ModelConstructors.Exponential(),
+                               RootInverseGamma(4, .2), fixed=true,
+                               description="σ_exp_rm$i: Standard deviation of the $i-period-ahead FFR measurement error.",
+                               tex_label=@sprintf("\\sigma_{exp_rm%d}",i))
+            end
         end
         m <= parameter(:ρ_exp_rm, 0., (-1e-5, 0.999), (-1e-5, 0.999), ModelConstructors.SquareRoot(), Normal(0.0, 0.2), fixed=true,
                        tex_label="\\rho_{exp_rm}")
