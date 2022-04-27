@@ -874,15 +874,18 @@ buted to steady-state inflation.",
                            RootInverseGamma(4, .2), fixed=false,
                            description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
                            tex_label=@sprintf("\\sigma_{ant%d}",i))
-            m <= parameter(Symbol("σ_ait_r_m$i"), .2, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(),
-                           RootInverseGamma(4, .2), fixed=false,
-                           description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
-                           tex_label=@sprintf("\\sigma_{ant%d}",i))
+            if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+                m <= parameter(Symbol("σ_ait_r_m$i"), .2, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(),
+                               RootInverseGamma(4, .2), fixed=false,
+                               description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
+                               tex_label=@sprintf("\\sigma_{ant%d}",i))
+            end
         else
-            m <= parameter(Symbol("σ_ait_r_m$i"), .0, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(), RootInverseGamma(4, .2), fixed=true,
-                           description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
-                           tex_label=@sprintf("\\sigma_{ant%d}",i))
-
+            if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+                m <= parameter(Symbol("σ_ait_r_m$i"), .0, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(), RootInverseGamma(4, .2), fixed=true,
+                               description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
+                               tex_label=@sprintf("\\sigma_{ant%d}",i))
+            end
             m <= parameter(Symbol("σ_r_m$i"), .0, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(), RootInverseGamma(4, .2), fixed=true,
                            description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
                            tex_label=@sprintf("\\sigma_{ant%d}",i))
