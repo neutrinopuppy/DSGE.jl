@@ -124,22 +124,24 @@ function init_model_indices!(m::Model1002)
     endogenous_states = [[
         :y_t, :c_t, :i_t, :qk_t, :k_t, :kbar_t, :u_t, :rk_t, :Rktil_t, :n_t, :mc_t,
         :π_t, :μ_ω_t, :w_t, :L_t, :R_t, :g_t, :b_t, :μ_t, :z_t, :λ_f_t, :λ_f_t1,
-        :λ_w_t, :λ_w_t1, :rm_t, :σ_ω_t, :μ_e_t, :γ_t, :π_star_t,
+        :λ_w_t, :λ_w_t1, :rm_t, :ait_rm_t, :σ_ω_t, :μ_e_t, :γ_t, :π_star_t,
         :Ec_t, :Eqk_t, :Ei_t, :Eπ_t, :EL_t, :Erk_t, :Ew_t, :ERktil_t, :ERktil_f_t,
         :y_f_t, :c_f_t, :i_f_t, :qk_f_t, :k_f_t,
         :kbar_f_t, :u_f_t, :rk_f_t, :w_f_t, :L_f_t, :r_f_t, :Ec_f_t, :Eqk_f_t, :Ei_f_t, :EL_f_t,
         :ztil_t, :π_t1, :π_t2, :π_a_t, :R_t1, :zp_t, :Ez_t,
         :Rktil_f_t, :n_f_t];
-        [Symbol("rm_tl$i") for i = 1:n_mon_anticipated_shocks(m)]]
+        [Symbol("rm_tl$i") for i = 1:n_mon_anticipated_shocks(m)];
+        [Symbol("rm_ait_tl$i") for i = 1:n_mon_anticipated_shocks(m)]]
     for (key, val) in get_setting(m, :antshocks)
         endogenous_states = vcat(endogenous_states, [Symbol(key, "_tl$i") for i = 1:val])
     end
 
     # Exogenous shocks
     exogenous_shocks = [[
-        :g_sh, :b_sh, :μ_sh, :ztil_sh, :λ_f_sh, :λ_w_sh, :rm_sh, :σ_ω_sh, :μ_e_sh,
+        :g_sh, :b_sh, :μ_sh, :ztil_sh, :λ_f_sh, :λ_w_sh, :rm_sh, :ait_rm_sh, :σ_ω_sh, :μ_e_sh,
         :γ_sh, :π_star_sh, :zp_sh, :lr_sh, :tfp_sh, :gdpdef_sh, :corepce_sh, :gdp_sh, :gdi_sh];
-        [Symbol("rm_shl$i") for i = 1:n_mon_anticipated_shocks(m)]]
+        [Symbol("rm_shl$i") for i = 1:n_mon_anticipated_shocks(m)];
+        [Symbol("rm_ait_shl$i") for i = 1:n_mon_anticipated_shocks(m)]]
     for (key, val) in get_setting(m, :antshocks)
         exogenous_shocks = vcat(exogenous_shocks, [Symbol(key, "_shl$i") for i = 1:val])
     end
@@ -153,12 +155,13 @@ function init_model_indices!(m::Model1002)
     equilibrium_conditions = [[
         :eq_euler, :eq_inv, :eq_capval, :eq_spread, :eq_nevol, :eq_output, :eq_caputl, :eq_capsrv, :eq_capev,
         :eq_mkupp, :eq_phlps, :eq_caprnt, :eq_msub, :eq_wage, :eq_mp, :eq_res, :eq_g, :eq_b, :eq_μ, :eq_z,
-        :eq_λ_f, :eq_λ_w, :eq_rm, :eq_σ_ω, :eq_μ_e, :eq_γ, :eq_λ_f1, :eq_λ_w1, :eq_Ec,
+        :eq_λ_f, :eq_λ_w, :eq_rm, :eq_ait_rm, :eq_σ_ω, :eq_μ_e, :eq_γ, :eq_λ_f1, :eq_λ_w1, :eq_Ec,
         :eq_Eqk, :eq_Ei, :eq_Eπ, :eq_EL, :eq_Erk, :eq_Ew, :eq_ERktil, :eq_euler_f, :eq_inv_f,
         :eq_capval_f, :eq_output_f, :eq_caputl_f, :eq_capsrv_f, :eq_capev_f, :eq_mkupp_f,
         :eq_caprnt_f, :eq_msub_f, :eq_res_f, :eq_Ec_f, :eq_Eqk_f, :eq_Ei_f, :eq_EL_f,
         :eq_ztil, :eq_π_star, :eq_π1, :eq_π2, :eq_π_a, :eq_Rt1, :eq_zp, :eq_Ez, :eq_spread_f,:eq_nevol_f,  :eq_ERktil_f];
-        [Symbol("eq_rml$i") for i=1:n_mon_anticipated_shocks(m)]]
+        [Symbol("eq_rml$i") for i=1:n_mon_anticipated_shocks(m)];
+        [Symbol("eq_ait_rml$i") for i=1:n_mon_anticipated_shocks(m)]]
     for (key, val) in get_setting(m, :antshocks)
         equilibrium_conditions = vcat(equilibrium_conditions, [Symbol("eq_", key, "l$i") for i = 1:val])
     end
@@ -871,7 +874,15 @@ buted to steady-state inflation.",
                            RootInverseGamma(4, .2), fixed=false,
                            description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
                            tex_label=@sprintf("\\sigma_{ant%d}",i))
+            m <= parameter(Symbol("σ_ait_r_m$i"), .2, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(),
+                           RootInverseGamma(4, .2), fixed=false,
+                           description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
+                           tex_label=@sprintf("\\sigma_{ant%d}",i))
         else
+            m <= parameter(Symbol("σ_ait_r_m$i"), .0, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(), RootInverseGamma(4, .2), fixed=true,
+                           description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
+                           tex_label=@sprintf("\\sigma_{ant%d}",i))
+
             m <= parameter(Symbol("σ_r_m$i"), .0, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(), RootInverseGamma(4, .2), fixed=true,
                            description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
                            tex_label=@sprintf("\\sigma_{ant%d}",i))
