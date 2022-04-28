@@ -191,6 +191,8 @@ function forecast(m::AbstractDSGEModel, system::Union{RegimeSwitchingSystem{S}, 
     if haskey(get_settings(m), :add_ait_rm) ? get_setting(m,:add_ait_rm) : false
         ind_r_sh = [m.exogenous_shocks[get_setting(m, :monetary_policy_shock)],
                     m.exogenous_shocks[get_setting(m, :monetary_policy_ait_shock)]]
+    else
+        ind_r_sh = [m.exogenous_shocks[get_setting(m, :monetary_policy_shock)]]
     end
     zlb_value = forecast_zlb_value(m)
 
@@ -204,8 +206,8 @@ function forecast(m::AbstractDSGEModel, system::Union{RegimeSwitchingSystem{S}, 
 end
 
 function forecast(system::System{S}, z0::Vector{S},
-                  shocks::Matrix{S}; enforce_zlb::Bool = false, ind_r = -1,
-                  ind_r_sh = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
+                  shocks::Matrix{S}; enforce_zlb::Bool = false, ind_r::Int64 = -1,
+                  ind_r_sh::Vector = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
     # Unpack system
     T, R, C = system[:TTT], system[:RRR], system[:CCC]
     Q, Z, D = system[:QQ], system[:ZZ], system[:DD]
@@ -258,24 +260,36 @@ function forecast(system::System{S}, z0::Vector{S},
 end
 
 function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Vector{S},
-                  shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = false, ind_r = -1,
-                  ind_r_sh = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
+                  shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = false, ind_r::Int = -1,
+                  ind_r_sh::Vector = [-1], zlb_value::S = 0.1/4) where {S<:AbstractFloat}
     # Determine how many regimes occur in the forecast, depending
     # on whether we need to subtract conditional forecast regimes or not
     n_fcast_reg = get_setting(m, :n_fcast_regimes)
     if cond_type != :none
-        n_fcast_reg -= get_setting(m, :reg_post_conditional_end) - # Remove number of regimes switched since starting
-        get_setting(m, :reg_forecast_start)                    # the conditional forecast
-        if n_fcast_reg == 0 # Then no new regimes after conditional forecast ends
-            n_fcast_reg = 1 # So we use the last conditional forecast regime
+        if :obs_nominalrate in cond_full_names(m)
+            n_fcast_reg -= (get_setting(m, :reg_post_conditional_end)-1) - # Remove number of regimes switched since starting
+                get_setting(m, :reg_forecast_start)                    # the conditional forecast
+            if n_fcast_reg == 0 # Then no new regimes after conditional forecast ends
+                n_fcast_reg = 1 # So we use the last conditional forecast regime
+            end
+        else
+            n_fcast_reg -= (get_setting(m, :reg_post_conditional_end)) - # Remove number of regimes switched since starting
+                get_setting(m, :reg_forecast_start)                    # the conditional forecast
+            if n_fcast_reg == 0 # Then no new regimes after conditional forecast ends
+                n_fcast_reg = 1 # So we use the last conditional forecast regime
+            end
         end
     end
 
     # Determine in which regime the forecast starts, after accounting for
     # conditional forecast regimes, if applicable
-    reg_fcast_cond_start = (cond_type == :none) ? get_setting(m, :reg_forecast_start) :
-    max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end))
-
+    if :obs_nominalrate in cond_full_names(m)
+        reg_fcast_cond_start = (cond_type == :none) ? get_setting(m, :reg_forecast_start) :
+            max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end) - 1)
+    else
+        reg_fcast_cond_start = (cond_type == :none) ? get_setting(m, :reg_forecast_start) :
+            max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end))
+    end
     if n_fcast_reg < get_setting(m, :n_regimes) - reg_fcast_cond_start + 1
         @warn "Number of forecast regimes was less than regimes - reg_fcast_cond_start + 1"
         n_fcast_reg = get_setting(m, :n_regimes) - reg_fcast_cond_start + 1
@@ -330,7 +344,7 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
                     end
                     # Solve for interest rate shock causing interest rate forecast to be exactly ZLB
 #                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
-                    ϵ_t[nonzero_ind] = 0. # get forecast when MP shock
+                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
                     z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
                     z_t_old = C + T*z_t1 + R*ϵ_t
 
