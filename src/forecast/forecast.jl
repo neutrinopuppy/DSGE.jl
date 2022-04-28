@@ -188,7 +188,10 @@ function forecast(m::AbstractDSGEModel, system::Union{RegimeSwitchingSystem{S}, 
 
     # Get variables necessary to enforce the zero lower bound in the forecast
     ind_r = m.observables[get_setting(m, :nominal_rate_observable)]
-    ind_r_sh = m.exogenous_shocks[get_setting(m, :monetary_policy_shock)]
+    if haskey(get_settings(m), :add_ait_rm) ? get_setting(m,:add_ait_rm) : false
+        ind_r_sh = [m.exogenous_shocks[get_setting(m, :monetary_policy_shock)],
+                    m.exogenous_shocks[get_setting(m, :monetary_policy_ait_shock)]]
+    end
     zlb_value = forecast_zlb_value(m)
 
     if isa(system, RegimeSwitchingSystem)
@@ -201,8 +204,8 @@ function forecast(m::AbstractDSGEModel, system::Union{RegimeSwitchingSystem{S}, 
 end
 
 function forecast(system::System{S}, z0::Vector{S},
-                  shocks::Matrix{S}; enforce_zlb::Bool = false, ind_r::Int = -1,
-                  ind_r_sh::Int = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
+                  shocks::Matrix{S}; enforce_zlb::Bool = false, ind_r = -1,
+                  ind_r_sh = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
     # Unpack system
     T, R, C = system[:TTT], system[:RRR], system[:CCC]
     Q, Z, D = system[:QQ], system[:ZZ], system[:DD]
@@ -255,8 +258,8 @@ function forecast(system::System{S}, z0::Vector{S},
 end
 
 function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Vector{S},
-                  shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = false, ind_r::Int = -1,
-                  ind_r_sh::Int = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
+                  shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = false, ind_r = -1,
+                  ind_r_sh = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
     # Determine how many regimes occur in the forecast, depending
     # on whether we need to subtract conditional forecast regimes or not
     n_fcast_reg = get_setting(m, :n_fcast_regimes)
@@ -310,26 +313,43 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
         # Change monetary policy shock to account for 0.13 interest rate bound
         if enforce_zlb
             interest_rate_forecast = getindex(D + Z*z_t, ind_r)
+
             if interest_rate_forecast < zlb_value
-                continue_enforce = check_has_unant_mp_sh ? abs.(Z[ind_r, :]' * R[:, ind_r_sh]) > 1e-4 : true
+
+                continue_enforce = check_has_unant_mp_sh ? sum(abs.(Z[ind_r, :]' * R[:, ind_r_sh])) .> 1e-4 : true
 
                 if continue_enforce
+                    # need to find index for nonzero shock
+                    # assumes only one is nonzero
+                    nonzero_ind = 0
+                    for inds in ind_r_sh
+                        if (abs.(Z[ind_r, :]' * R[:, inds])) != 0
+                            println("this hit")
+                            nonzero_ind = inds
+                        end
+                    end
                     # Solve for interest rate shock causing interest rate forecast to be exactly ZLB
-                    ϵ_t[ind_r_sh] = 0. # get forecast when MP shock
+#                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
+                    ϵ_t[nonzero_ind] = 0. # get forecast when MP shock
                     z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
                     z_t_old = C + T*z_t1 + R*ϵ_t
-                    ϵ_t[ind_r_sh] = getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
+
+#                    ϵ_t[ind_r_sh] .= getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
+
+                    ϵ_t[nonzero_ind] = getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, nonzero_ind]), 1)
 
                     # Forecast again with new shocks
                     z_t = C + T*z_t1 + R*ϵ_t
 
                     # Confirm procedure worked
                     interest_rate_forecast = getindex(D + Z*z_t, ind_r)
+                    println("new interest rate forecast")
+                    println(interest_rate_forecast)
                     if isnan(interest_rate_forecast)
-                        ϵ_t[ind_r_sh] = 0. # get forecast when MP shock
+                        ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
                         z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
                         z_t_old = C + T*z_t1 + R*ϵ_t
-                        ϵ_t[ind_r_sh] = getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
+                        ϵ_t[ind_r_sh] .= getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) ./ (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
                     end
 
                     # Subtract a small number to deal with numerical imprecision
