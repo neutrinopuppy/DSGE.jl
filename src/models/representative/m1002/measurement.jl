@@ -278,7 +278,7 @@ function measurement(m::Model1002{T},
     end
 
     if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-        QQ[exo[:ait_rm_sh], exo[:ait_rm_sh]] = m[:σ_ait_rm]^2
+        QQ[exo[:rm_ait_sh], exo[:rm_ait_sh]] = m[:σ_ait_rm]^2
     end
 
     if subspec(m) in ["ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss80", "ss82", "ss83"]
@@ -371,7 +371,7 @@ function measurement(m::Model1002{T},
             QQ[exo[Symbol("rm_shl$i")], exo[Symbol("rm_shl$i")]]     = m[Symbol("σ_r_m$i")]^2
 
             if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-                QQ[exo[Symbol("ait_rm_shl$i")], exo[Symbol("rm_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
+                QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
             end
         end
 
@@ -384,9 +384,7 @@ function measurement(m::Model1002{T},
             DD[obs[Symbol("obs_exp_nominalrate$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
 
             QQ[exo[Symbol("exp_rm_sh$i")], exo[Symbol("exp_rm_sh$i")]] = m[Symbol("σ_exp_rm$i")]^2
-            if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-                QQ[exo[Symbol("exp_ait_rm_sh$i")], exo[Symbol("exp_ait_rm_sh$i")]] = m[Symbol("σ_exp_ait_rm$i")]^2
-            end
+            QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
         end
     end
 
@@ -403,10 +401,7 @@ function measurement(m::Model1002{T},
         DD[obs[Symbol("obs_exp_nominalrate$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
 
         QQ[exo[Symbol("exp_rm_sh$i")], exo[Symbol("exp_rm_sh$i")]] = m[Symbol("σ_exp_rm$i")]^2
-
-        if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-            QQ[exo[Symbol("exp_ait_rm_sh$i")], exo[Symbol("exp_ait_rm_sh$i")]] = m[Symbol("σ_exp_ait_rm$i")]^2
-        end
+        QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
     end
 
     # Anticipated GDP growth
