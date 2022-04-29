@@ -211,7 +211,7 @@ n    if get_setting(m, :pgap_type) == :ngdp
 end
 
 function forecast(system::System{S}, z0::Vector{S},
-                  shocks::Matrix{S}; enforce_zlb::Bool = false, ind_r::Int64 = -1,
+                  shocks::Matrix{S}; enforce_zlb::Bool = true, ind_r::Int64 = -1,
                   ind_r_sh::Vector = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
     # Unpack system
     T, R, C = system[:TTT], system[:RRR], system[:CCC]
@@ -253,11 +253,12 @@ function forecast(system::System{S}, z0::Vector{S},
 
         if enforce_zlb
             interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-
+            println("interest rate forecast before enforce")
+            println(interest_rate_forecast)
             if interest_rate_forecast < zlb_value
-
+                println("irf is lower than zlb")
                 continue_enforce = check_has_unant_mp_sh ? sum(abs.(Z[ind_r, :]' * R[:, ind_r_sh])) .> 1e-4 : true
-
+                println(continue_enforce)
                 if continue_enforce
                     # need to find index for nonzero shock
                     # assumes only one is nonzero
@@ -320,7 +321,7 @@ function forecast(system::System{S}, z0::Vector{S},
 end
 
 function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Vector{S},
-                  shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = false, ind_r::Int = -1,
+                  shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = true, ind_r::Int = -1,
                   ind_r_sh::Vector = [-1], zlb_value::S = 0.1/4) where {S<:AbstractFloat}
     # Determine how many regimes occur in the forecast, depending
     # on whether we need to subtract conditional forecast regimes or not
@@ -383,14 +384,18 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     (!isempty(intersect([:zlb_rule, :zero_rate], [x.alternative_policy.key for x in values(get_setting(m, :regime_eqcond_info))])))
     function iterate(z_t1, ϵ_t, T, R, C, Q, Z, D)
         z_t = C + T*z_t1 + R*ϵ_t
-
+        println("what is happening?")
         # Change monetary policy shock to account for 0.13 interest rate bound
         if enforce_zlb
+            println("interest rate forecast before zlb enforce")
             interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-
+            println(interest_rate_forecast)
             if interest_rate_forecast < zlb_value
+                println("irf is lower than zlb")
 
                 continue_enforce = check_has_unant_mp_sh ? sum(abs.(Z[ind_r, :]' * R[:, ind_r_sh])) .> 1e-4 : true
+                println("printing cont_enf")
+                println(continue_enforce)
 
                 if continue_enforce
                     # need to find index for nonzero shock
@@ -446,7 +451,8 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     pseudo[:, 1] = D_pseudos[1] .+ Z_pseudos[1] * states[:, 1]
 
     println("states")
-
+    println(states[ind_r,1] + m[:Rstarn])
+    @assert false
     # If there's multiple regimes in forecast period, go through each set of indices. Otherwise, just take the first set
     if length(regime_inds) > 1
         for i in 1:length(regime_inds)
