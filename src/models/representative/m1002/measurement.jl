@@ -371,7 +371,7 @@ function measurement(m::Model1002{T},
             QQ[exo[Symbol("rm_shl$i")], exo[Symbol("rm_shl$i")]]     = m[Symbol("σ_r_m$i")]^2
 
             if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-                QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
+                QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
             end
         end
 
