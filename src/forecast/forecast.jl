@@ -452,7 +452,6 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
 
     println("states")
     println(states[ind_r,1] + m[:Rstarn])
-    @assert false
     # If there's multiple regimes in forecast period, go through each set of indices. Otherwise, just take the first set
     if length(regime_inds) > 1
         for i in 1:length(regime_inds)
