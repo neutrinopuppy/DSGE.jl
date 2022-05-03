@@ -558,18 +558,29 @@ function eqcond(m::Model1002, reg::Int)
         Γ0[eq[:eq_rml1], endo[:rm_tl1]] = 1.
         Ψ[eq[:eq_rml1], exo[:rm_shl1]]  = noant
 
-        if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-            Γ1[eq[:eq_ait_rm], endo[:rm_ait_tl1]]   = 1.0
-            Γ0[eq[:eq_ait_rml1], endo[:rm_ait_tl1]] = 1.
-            Ψ[eq[:eq_ait_rml1], exo[:rm_ait_shl1]]  = 1.0
-        end
+
 
         if n_mon_anticipated_shocks(m) > 1
             for i = 2:n_mon_anticipated_shocks(m)
                 Γ1[eq[Symbol("eq_rml$(i-1)")], endo[Symbol("rm_tl$i")]] = noant
                 Γ0[eq[Symbol("eq_rml$i")], endo[Symbol("rm_tl$i")]]     = 1.
                 Ψ[eq[Symbol("eq_rml$i")], exo[Symbol("rm_shl$i")]]      = noant
+            end
+        end
+    end
 
+    if n_mon_anticipated_ait_shocks(m) > 0
+
+
+
+        if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+            Γ1[eq[:eq_ait_rm], endo[:rm_ait_tl1]]   = 1.0
+            Γ0[eq[:eq_ait_rml1], endo[:rm_ait_tl1]] = 1.
+            Ψ[eq[:eq_ait_rml1], exo[:rm_ait_shl1]]  = 1.0
+        end
+
+        if n_mon_anticipated_ait_shocks(m) > 1
+            for i = 1:n_mon_anticipated_ait_shocks(m)
                 if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
                     Γ1[eq[Symbol("eq_ait_rml$(i-1)")], endo[Symbol("rm_ait_tl$i")]] = 1.0
                     Γ0[eq[Symbol("eq_ait_rml$i")], endo[Symbol("rm_ait_tl$i")]]     = 1.
@@ -585,6 +596,7 @@ function eqcond(m::Model1002, reg::Int)
                     Ψ[eq[:eq_rml2],  exo[:rm_shl2]] = 1.
                 end
             end=#
+
         end
     end
 
