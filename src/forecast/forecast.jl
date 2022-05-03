@@ -253,12 +253,9 @@ function forecast(system::System{S}, z0::Vector{S},
 
         if enforce_zlb
             interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-            println("interest rate forecast before enforce")
-            println(interest_rate_forecast)
             if interest_rate_forecast < zlb_value
-                println("irf is lower than zlb")
                 continue_enforce = check_has_unant_mp_sh ? sum(abs.(Z[ind_r, :]' * R[:, ind_r_sh])) .> 1e-4 : true
-                println(continue_enforce)
+
                 if continue_enforce
                     # need to find index for nonzero shock
                     # assumes only one is nonzero
@@ -271,7 +268,6 @@ function forecast(system::System{S}, z0::Vector{S},
                     end
                     # Solve for interest rate shock causing interest rate forecast to be exactly ZLB
 #                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
-                    println("fix issued")
                     ϵ_t[nonzero_ind] .= 0. # get forecast when MP shock
                     z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
                     z_t_old = C + T*z_t1 + R*ϵ_t
@@ -285,8 +281,6 @@ function forecast(system::System{S}, z0::Vector{S},
 
                     # Confirm procedure worked
                     interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-                    println("new interest rate forecast")
-                    println(interest_rate_forecast)
                     if isnan(interest_rate_forecast)
                         ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
                         z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
@@ -310,8 +304,7 @@ function forecast(system::System{S}, z0::Vector{S},
     for t in 2:horizon
         states[:, t], shocks[:, t] = iterate(states[:, t-1], shocks[:, t])
     end
-    println("Shlok's suggestion")
-    println(states[ind_r,1])
+
     # Apply measurement and pseudo-measurement equations
     obs    = D .+ Z*states
     pseudo = D_pseudo .+ Z_pseudo * states
@@ -384,18 +377,12 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     (!isempty(intersect([:zlb_rule, :zero_rate], [x.alternative_policy.key for x in values(get_setting(m, :regime_eqcond_info))])))
     function iterate(z_t1, ϵ_t, T, R, C, Q, Z, D)
         z_t = C + T*z_t1 + R*ϵ_t
-        println("what is happening?")
         # Change monetary policy shock to account for 0.13 interest rate bound
         if enforce_zlb
-            println("interest rate forecast before zlb enforce")
             interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-            println(interest_rate_forecast)
             if interest_rate_forecast < zlb_value
-                println("irf is lower than zlb")
 
                 continue_enforce = check_has_unant_mp_sh ? sum(abs.(Z[ind_r, :]' * R[:, ind_r_sh])) .> 1e-4 : true
-                println("printing cont_enf")
-                println(continue_enforce)
 
                 if continue_enforce
                     # need to find index for nonzero shock
@@ -421,8 +408,6 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
 
                     # Confirm procedure worked
                     interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-                    println("new interest rate forecast")
-                    println(interest_rate_forecast)
                     if isnan(interest_rate_forecast)
                         ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
                         z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
@@ -450,8 +435,6 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     obs[:, 1] = Ds[1] .+ Zs[1] * states[:, 1]
     pseudo[:, 1] = D_pseudos[1] .+ Z_pseudos[1] * states[:, 1]
 
-    println("states")
-    println(states[ind_r,1] + m[:Rstarn])
     # If there's multiple regimes in forecast period, go through each set of indices. Otherwise, just take the first set
     if length(regime_inds) > 1
         for i in 1:length(regime_inds)
@@ -477,8 +460,6 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     end
 
     # Return forecasts
-    println("shlok's suggestion")
-    println(states[ind_r,1])
     return states, obs, pseudo, shocks
 end
 
