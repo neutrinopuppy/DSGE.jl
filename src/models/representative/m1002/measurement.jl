@@ -385,7 +385,7 @@ function measurement(m::Model1002{T},
     end
 
     if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-        for i = 1:n_mon_anticipated_ait_shocks(m)
+        for i = 1:maximum(mon_anticipated_ait_shocks(m))
             QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
         end
     end
@@ -403,9 +403,9 @@ function measurement(m::Model1002{T},
         DD[obs[Symbol("obs_exp_nominalrate$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
 
         QQ[exo[Symbol("exp_rm_sh$i")], exo[Symbol("exp_rm_sh$i")]] = m[Symbol("σ_exp_rm$i")]^2
-        if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-            QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
-        end
+        # if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+        #     QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
+#        end
     end
 
     # Anticipated GDP growth

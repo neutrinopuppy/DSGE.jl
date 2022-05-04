@@ -23,11 +23,11 @@ model_type(m::AbstractDSGEModel{T}) where T = T
 n_anticipated_shocks(m::AbstractDSGEModel) = get_setting(m, :n_mon_anticipated_shocks)
 n_anticipated_shocks_padding(m::AbstractDSGEModel) = get_setting(m, :n_mon_anticipated_shocks_padding)
 n_mon_anticipated_shocks(m::AbstractDSGEModel) = get_setting(m, :n_mon_anticipated_shocks)
-n_mon_anticipated_ait_shocks(m::AbstractDSGEModel) = get_setting(m, :n_mon_anticipated_ait_shocks)
 n_mon_anticipated_shocks_padding(m::AbstractDSGEModel) = get_setting(m, :n_mon_anticipated_shocks_padding)
 n_anticipated_shocks_padding(m::AbstractDSGEModel) = get_setting(m, :n_mon_anticipated_shocks_padding)
 n_z_anticipated_shocks(m::AbstractDSGEModel) = get_setting(m, :n_z_anticipated_shocks)
 n_z_anticipated_shocks_padding(m::AbstractDSGEModel) = get_setting(m, :n_z_anticipated_shocks_padding)
+mon_anticipated_ait_shocks(m::AbstractDSGEModel) = get_setting(m, :mon_anticipated_ait_shocks)
 expected_ffr(m::AbstractDSGEModel) = get_setting(m, :expected_ffr)
 
 # Dates, indices, number of periods for each regime

@@ -569,33 +569,18 @@ function eqcond(m::Model1002, reg::Int)
         end
     end
 
-    if n_mon_anticipated_ait_shocks(m) > 0
+    if maximum(mon_anticipated_ait_shocks(m)) != 0
 
-
-
-        if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-            Γ1[eq[:eq_ait_rm], endo[:rm_ait_tl1]]   = 1.0
-            Γ0[eq[:eq_ait_rml1], endo[:rm_ait_tl1]] = 1.
-            Ψ[eq[:eq_ait_rml1], exo[:rm_ait_shl1]]  = 1.0
-        end
-
-        if n_mon_anticipated_ait_shocks(m) > 1
-            for i = 1:n_mon_anticipated_ait_shocks(m)
-                if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-                    Γ1[eq[Symbol("eq_ait_rml$(i-1)")], endo[Symbol("rm_ait_tl$i")]] = 1.0
-                    Γ0[eq[Symbol("eq_ait_rml$i")], endo[Symbol("rm_ait_tl$i")]]     = 1.
+        for i in 1:maximum(mon_anticipated_ait_shocks(m))
+            # we can get rid of these if statements once n_mon... fully implemented for ait
+            if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+                Γ1[eq[Symbol("eq_ait_rml$(i-1)")], endo[Symbol("rm_ait_tl$i")]] = 1.0
+                Γ0[eq[Symbol("eq_ait_rml$i")], endo[Symbol("rm_ait_tl$i")]]     = 1.
+                if i in mon_anticipated_ait_shocks(m)
                     Ψ[eq[Symbol("eq_ait_rml$i")], exo[Symbol("rm_ait_shl$i")]]      = 1.0
-
                 end
+
             end
-
-            #=if (haskey(m.settings, :flexible_ait_policy_change) ? get_setting(m, :flexible_ait_policy_change) : false)
-                if get_setting(m, :regime_dates)[reg] >= get_setting(m, :flexible_ait_policy_change_date)
-                    Γ1[eq[:eq_rml1], endo[:rm_tl2]] = 0.
-                    Γ0[eq[:eq_rml2], endo[:rm_tl2]] = 1.
-                    Ψ[eq[:eq_rml2],  exo[:rm_shl2]] = 1.
-                end
-            end=#
 
         end
     end
