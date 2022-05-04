@@ -211,8 +211,8 @@ function forecast(m::AbstractDSGEModel, system::Union{RegimeSwitchingSystem{S}, 
 end
 
 function forecast(system::System{S}, z0::Vector{S},
-                  shocks::Matrix{S}; enforce_zlb::Bool = true, ind_r::Int64 = -1,
-                  ind_r_sh::Vector = -1, zlb_value::S = 0.1/4) where {S<:AbstractFloat}
+                  shocks::Matrix{S}; enforce_zlb::Bool = false, ind_r::Int64 = -1,
+                  ind_r_sh::Vector = [-1], zlb_value::S = 0.1/4) where {S<:AbstractFloat}
     # Unpack system
     T, R, C = system[:TTT], system[:RRR], system[:CCC]
     Q, Z, D = system[:QQ], system[:ZZ], system[:DD]
