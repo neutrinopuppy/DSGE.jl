@@ -179,7 +179,7 @@ function forecast(m::AbstractDSGEModel, system::Union{RegimeSwitchingSystem{S}, 
     # TODO: check that these handling of the altpolicy cases work properly
     # Added separately to cover case where you're not using altpolicy but are using gensys2
     if haskey(m.settings, :pgap_type) && haskey(get_settings(m), :pgap_value)
-n    if get_setting(m, :pgap_type) == :ngdp
+    if get_setting(m, :pgap_type) == :ngdp
     _, z0 = ngdp_forecast_init(m, shocks, z0, cond_type = cond_type)
     end
     end
