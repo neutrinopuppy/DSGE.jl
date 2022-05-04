@@ -102,10 +102,10 @@ function forecast(m::AbstractDSGEModel, system::Union{RegimeSwitchingSystem{S}, 
                 # The regime in which forecast starts (indexing from presample_start as reg=1)
                 if :obs_nominalrate in cond_full_names(m)
                     sys_ind = cond_type == :none ? get_setting(m, :reg_forecast_start) :
-                        max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end))
+                    max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end))
                 else
                     sys_ind = cond_type == :none ? get_setting(m, :reg_forecast_start) :
-                        max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end) - 1)
+                    max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end) - 1)
                 end
                 for ts in regime_inds
                     σ = sqrt.(system[sys_ind, :QQ])
@@ -228,74 +228,43 @@ function forecast(system::System{S}, z0::Vector{S},
     # Define our iteration function
     function iterate(z_t1, ϵ_t)
         z_t = C + T*z_t1 + R*ϵ_t
-
-    #     # Change monetary policy shock to account for 0.13 interest rate bound
-    #     if enforce_zlb
-    #         interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-    #         if interest_rate_forecast < zlb_value
-    #             # Solve for interest rate shock causing interest rate forecast to be exactly ZLB
-    #             ϵ_t[ind_r_sh] = 0.
-    #             z_t = C + T*z_t1 + R*ϵ_t
-    #             ϵ_t[ind_r_sh] = getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
-
-    #             # Forecast again with new shocks
-    #             z_t = C + T*z_t1 + R*ϵ_t
-
-    #             # Confirm procedure worked
-    #             interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-    #             @assert interest_rate_forecast >= zlb_value - 0.01 "interest_rate_forecast = $interest_rate_forecast must be >= zlb_value - 0.01 = $(zlb_value - 0.01)"
-    #         end
-    #     end
-    #     return z_t, ϵ_t
-    # end
-
-
-
         if enforce_zlb
             interest_rate_forecast = getindex(D + Z*z_t, ind_r)
             if interest_rate_forecast < zlb_value
-                continue_enforce = check_has_unant_mp_sh ? sum(abs.(Z[ind_r, :]' * R[:, ind_r_sh])) .> 1e-4 : true
-
-                if continue_enforce
-                    # need to find index for nonzero shock
-                    # assumes only one is nonzero
-                    nonzero_ind = 0
-                    for inds in ind_r_sh
-                        if (abs.(Z[ind_r, :]' * R[:, inds])) != 0
-
-                            nonzero_ind = inds
-                        end
+                # need to find index for nonzero shock
+                # assumes only one is nonzero
+                nonzero_ind = 0
+                for inds in ind_r_sh
+                    if (abs.(Z[ind_r, :]' * R[:, inds])) != 0
+                        nonzero_ind = inds
                     end
-                    # Solve for interest rate shock causing interest rate forecast to be exactly ZLB
-#                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
-                    ϵ_t[nonzero_ind] .= 0. # get forecast when MP shock
+                end
+                # Solve for interest rate shock causing interest rate forecast to be exactly ZLB
+                #                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
+                ϵ_t[nonzero_ind] = 0. # get forecast when MP shock
+                z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
+                z_t_old = C + T*z_t1 + R*ϵ_t
+
+                ϵ_t[nonzero_ind] = getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, nonzero_ind]), 1)
+
+                # Forecast again with new shocks
+                z_t = C + T*z_t1 + R*ϵ_t
+
+                # Confirm procedure worked
+                interest_rate_forecast = getindex(D + Z*z_t, ind_r)
+                if isnan(interest_rate_forecast)
+                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
                     z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
                     z_t_old = C + T*z_t1 + R*ϵ_t
-
-#                    ϵ_t[ind_r_sh] .= getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
-
-                    ϵ_t[nonzero_ind] = getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, nonzero_ind]), 1)
-
-                    # Forecast again with new shocks
-                    z_t = C + T*z_t1 + R*ϵ_t
-
-                    # Confirm procedure worked
-                    interest_rate_forecast = getindex(D + Z*z_t, ind_r)
-                    if isnan(interest_rate_forecast)
-                        ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
-                        z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
-                        z_t_old = C + T*z_t1 + R*ϵ_t
-                        ϵ_t[ind_r_sh] .= getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) ./ (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
-                    end
-
-                    # Subtract a small number to deal with numerical imprecision
-                    @assert interest_rate_forecast >= zlb_value - 0.01 "interest_rate_forecast = $interest_rate_forecast must be >= zlb_value - 0.01 = $(zlb_value - 0.01)."
+                    ϵ_t[ind_r_sh] .= getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) ./ (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
                 end
+
+                # Subtract a small number to deal with numerical imprecision
+                @assert interest_rate_forecast >= zlb_value - 0.01 "interest_rate_forecast = $interest_rate_forecast must be >= zlb_value - 0.01 = $(zlb_value - 0.01)."
             end
         end
         return z_t, ϵ_t
     end
-
 
 
     # Iterate state space forward
@@ -314,7 +283,7 @@ function forecast(system::System{S}, z0::Vector{S},
 end
 
 function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Vector{S},
-                  shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = true, ind_r::Int = -1,
+                  shocks::Matrix{S}; cond_type::Symbol = :none, enforce_zlb::Bool = false, ind_r::Int = -1,
                   ind_r_sh::Vector = [-1], zlb_value::S = 0.1/4) where {S<:AbstractFloat}
     # Determine how many regimes occur in the forecast, depending
     # on whether we need to subtract conditional forecast regimes or not
@@ -322,13 +291,13 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     if cond_type != :none
         if :obs_nominalrate in cond_full_names(m)
             n_fcast_reg -= (get_setting(m, :reg_post_conditional_end)) - # Remove number of regimes switched since starting
-                get_setting(m, :reg_forecast_start)                    # the conditional forecast
+            get_setting(m, :reg_forecast_start)                    # the conditional forecast
             if n_fcast_reg == 0 # Then no new regimes after conditional forecast ends
                 n_fcast_reg = 1 # So we use the last conditional forecast regime
             end
         else
             n_fcast_reg -= (get_setting(m, :reg_post_conditional_end) - 1) - # Remove number of regimes switched since starting
-                get_setting(m, :reg_forecast_start)                    # the conditional forecast
+            get_setting(m, :reg_forecast_start)                    # the conditional forecast
             if n_fcast_reg == 0 # Then no new regimes after conditional forecast ends
                 n_fcast_reg = 1 # So we use the last conditional forecast regime
             end
@@ -339,10 +308,10 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
     # conditional forecast regimes, if applicable
     if :obs_nominalrate in cond_full_names(m)
         reg_fcast_cond_start = (cond_type == :none) ? get_setting(m, :reg_forecast_start) :
-            max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end))
+        max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end))
     else
         reg_fcast_cond_start = (cond_type == :none) ? get_setting(m, :reg_forecast_start) :
-            max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end) - 1)
+        max(get_setting(m, :reg_forecast_start), get_setting(m, :reg_post_conditional_end) - 1)
     end
     if n_fcast_reg < get_setting(m, :n_regimes) - reg_fcast_cond_start + 1
         @warn "Number of forecast regimes was less than regimes - reg_fcast_cond_start + 1"
@@ -394,12 +363,10 @@ function forecast(m::AbstractDSGEModel, system::RegimeSwitchingSystem{S}, z0::Ve
                         end
                     end
                     # Solve for interest rate shock causing interest rate forecast to be exactly ZLB
-#                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
+                    #                    ϵ_t[ind_r_sh] .= 0. # get forecast when MP shock
                     ϵ_t[nonzero_ind] = 0. # get forecast when MP shock
                     z_t = C + T*z_t1 + R*ϵ_t # is zeroed out
                     z_t_old = C + T*z_t1 + R*ϵ_t
-
-#                    ϵ_t[ind_r_sh] .= getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, ind_r_sh]), 1)
 
                     ϵ_t[nonzero_ind] = getindex((zlb_value - D[ind_r] - Z[ind_r, :]'*z_t) / (Z[ind_r, :]' * R[:, nonzero_ind]), 1)
 
@@ -508,13 +475,13 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
         for altpol_num in 1:length(get_setting(m, :endog_altpolicies)[2])
             altpol_ind = get_setting(m, :endog_altpolicies)[2][altpol_num]
             orig_altpol_temp_altpol_length[altpol_num] =
-                copy(get_setting(m, :alternative_policies)[altpol_ind].temporary_altpolicy_length)
+            copy(get_setting(m, :alternative_policies)[altpol_ind].temporary_altpolicy_length)
             orig_altpol_regime_eqcond_info[altpol_num] =
-                copy(get_setting(m, :alternative_policies)[altpol_ind].regime_eqcond_info)
+            copy(get_setting(m, :alternative_policies)[altpol_ind].regime_eqcond_info)
             orig_altpol_identical_eqcond_regimes[altpol_num] =
-                get_setting(m, :alternative_policies)[altpol_ind].identical_eqcond_regimes
+            get_setting(m, :alternative_policies)[altpol_ind].identical_eqcond_regimes
             orig_altpol_perfect_cred_identical_transitions[altpol_num] =
-                get_setting(m, :alternative_policies)[altpol_ind].perfect_credibility_identical_transitions
+            get_setting(m, :alternative_policies)[altpol_ind].perfect_credibility_identical_transitions
         end
     end
 
@@ -539,12 +506,12 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
     pre_fcast_regimes = n_hist_regimes
     #=
     if cond_type != :none
-        if is_regime_switch
-            pre_fcast_regimes += get_setting(m, :reg_post_conditional_end) - get_setting(m, :reg_forecast_start)
-        else
-            pre_fcast_regimes += subtract_quarters(get_setting(m, :date_conditional_end),
-                                                   get_setting(m, :date_forecast_start)) + 1
-        end
+    if is_regime_switch
+    pre_fcast_regimes += get_setting(m, :reg_post_conditional_end) - get_setting(m, :reg_forecast_start)
+    else
+    pre_fcast_regimes += subtract_quarters(get_setting(m, :date_conditional_end),
+    get_setting(m, :date_forecast_start)) + 1
+    end
     end
     =#
 
@@ -594,16 +561,16 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
         set_info_sets_altpolicy(m, get_setting(m, :n_regimes), first_aware)
 
         endozlb_forecast::Function = (zlb_start, zlb_end; unant_enforce_zlb = false, full_horizon = false) -> forecast_endozlb_helper(m, zlb_start, zlb_end, z0, states, shocks,
-            orig_regimes, eqcond_dict, regime_dates, info_set;
-            cond_type = cond_type, unant_enforce_zlb = unant_enforce_zlb,
-            set_zlb_regime_vals = set_zlb_regime_vals,
-            set_info_sets_altpolicy = set_info_sets_altpolicy,
-            update_regime_eqcond_info! = update_regime_eqcond_info!,
-            tol = tol, rerun_smoother = rerun_smoother, df = df,
-            draw_states = draw_states, histstates = histstates,
-            histshocks = histshocks, histpseudo = histpseudo,
-            initial_states = initial_states,
-            full_horizon = full_horizon)
+                                                                                                                                      orig_regimes, eqcond_dict, regime_dates, info_set;
+                                                                                                                                      cond_type = cond_type, unant_enforce_zlb = unant_enforce_zlb,
+                                                                                                                                      set_zlb_regime_vals = set_zlb_regime_vals,
+                                                                                                                                      set_info_sets_altpolicy = set_info_sets_altpolicy,
+                                                                                                                                      update_regime_eqcond_info! = update_regime_eqcond_info!,
+                                                                                                                                      tol = tol, rerun_smoother = rerun_smoother, df = df,
+                                                                                                                                      draw_states = draw_states, histstates = histstates,
+                                                                                                                                      histshocks = histshocks, histpseudo = histpseudo,
+                                                                                                                                      initial_states = initial_states,
+                                                                                                                                      full_horizon = full_horizon)
         ## 2. If we don't liftoff post minimum zlb, then enforce the rest of the contiguous zlb
         ##    intervals using two rule (zlb_rule alternative policy)
         if !has_neg_rates[min_zlb+1]
@@ -714,8 +681,8 @@ function forecast(m::AbstractDSGEModel, z0::Vector{S}, states::AbstractMatrix{S}
         end
         # Run the forecast over the full horizon.
         states, obs, pseudo, histstates, histshocks, histpseudo, initial_states =
-            endozlb_forecast(first_endo_zlb, last_endo_zlb+1, unant_enforce_zlb = false,
-                             full_horizon = true)
+        endozlb_forecast(first_endo_zlb, last_endo_zlb+1, unant_enforce_zlb = false,
+                         full_horizon = true)
 
         ## 6. If we still have further noncontiguous periods of negative rates, run a forecast enforcing zlb over those remaining periods
         ##    using unanticipated monetary policy shocks.
