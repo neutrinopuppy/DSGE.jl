@@ -385,7 +385,7 @@ function measurement(m::Model1002{T},
     end
 
     if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-        for i = 1:maximum(mon_anticipated_ait_shocks(m))
+        for i in mon_anticipated_ait_shocks(m)
             QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
         end
     end

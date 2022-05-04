@@ -569,9 +569,17 @@ function eqcond(m::Model1002, reg::Int)
         end
     end
 
-    if maximum(mon_anticipated_ait_shocks(m)) != 0
+    if !isempty(mon_anticipated_ait_shocks(m))
+        ## remove this if conditional
+        if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+            Γ1[eq[:eq_ait_rm], endo[Symbol("rm_ait_tl1")]] = 1.0
+            Γ0[eq[Symbol("eq_ait_rml1")], endo[Symbol("rm_ait_tl1")]]     = 1.
+            if 1 in mon_anticipated_ait_shocks(m)
+                Ψ[eq[Symbol("eq_ait_rml1")], exo[Symbol("rm_ait_shl1")]]      = 1.0
+            end
+        end
 
-        for i in 1:maximum(mon_anticipated_ait_shocks(m))
+        for i in 2:maximum(mon_anticipated_ait_shocks(m))
             # we can get rid of these if statements once n_mon... fully implemented for ait
             if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
                 Γ1[eq[Symbol("eq_ait_rml$(i-1)")], endo[Symbol("rm_ait_tl$i")]] = 1.0
