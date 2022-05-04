@@ -277,7 +277,7 @@ function measurement(m::Model1002{T},
         QQ[exo[:meas_π_sh], exo[:meas_π_sh]]   = m[:σ_meas_π]^2
     end
 
-    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm) && reg >= get_setting(m, :ait_liftoff_regime)
         QQ[exo[:rm_ait_sh], exo[:rm_ait_sh]] = m[:σ_ait_rm]^2
     end
 
@@ -384,7 +384,7 @@ function measurement(m::Model1002{T},
         end
     end
 
-    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm) && reg >= get_setting(m, :reg_forecast_start)
         for i in mon_anticipated_ait_shocks(m)
             QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
         end
