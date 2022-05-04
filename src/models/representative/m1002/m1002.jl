@@ -304,10 +304,12 @@ function init_model_indices!(m::Model1002)
         push!(endogenous_states, setdiff([:ait_rm_t], endogenous_states)...)
         push!(equilibrium_conditions, setdiff([:eq_ait_rm], equilibrium_conditions)...)
         push!(exogenous_shocks, setdiff([:rm_ait_sh], exogenous_shocks)...)
-        for i = 1:maximum(mon_anticipated_ait_shocks(m))
-            push!(endogenous_states, setdiff([Symbol("rm_ait_tl$i")], endogenous_states)...)
-            push!(exogenous_shocks, setdiff([Symbol("rm_ait_shl$i")], exogenous_shocks)...)
-            push!(equilibrium_conditions, setdiff([Symbol("eq_ait_rml$i")], equilibrium_conditions)...)
+        if !isempty(mon_anticipated_ait_shocks(m))
+            for i = 1:maximum(mon_anticipated_ait_shocks(m))
+                push!(endogenous_states, setdiff([Symbol("rm_ait_tl$i")], endogenous_states)...)
+                push!(exogenous_shocks, setdiff([Symbol("rm_ait_shl$i")], exogenous_shocks)...)
+                push!(equilibrium_conditions, setdiff([Symbol("eq_ait_rml$i")], equilibrium_conditions)...)
+            end
         end
     end
 
