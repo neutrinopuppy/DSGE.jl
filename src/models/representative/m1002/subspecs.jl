@@ -1874,7 +1874,7 @@ function ss64!(m::Model1002)
     m <= Setting(:regime_switching, true)
     regime_dates = Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31))
     n_hist_regimes = DSGE.subtract_quarters(get_setting(m,:date_forecast_start), Date(2020,3,12))+1
-    for i in 2:n_hist_regimes
+    for i in 1:n_hist_regimes
         regime_dates[i+1] = DSGE.iterate_quarters(Date(2020,3,31), i)
     end
     m <= Setting(:regime_dates, regime_dates)
@@ -6168,7 +6168,7 @@ function ss84!(m::Model1002)
     m <= Setting(:regime_switching, true)
     regime_dates = Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31))
     n_hist_regimes = DSGE.subtract_quarters(get_setting(m,:date_forecast_start), Date(2020,3,12))+1
-    for i in 2:n_hist_regimes
+    for i in 1:n_hist_regimes
         regime_dates[i+1] = DSGE.iterate_quarters(Date(2020,3,31), i)
     end
     m <= Setting(:regime_dates, regime_dates)
@@ -6379,7 +6379,7 @@ function ss85!(m::Model1002)
     m <= Setting(:regime_switching, true)
     regime_dates = Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31))
     n_hist_regimes = DSGE.subtract_quarters(get_setting(m,:date_forecast_start), Date(2020,3,12))+1
-    for i in 2:n_hist_regimes
+    for i in 1:n_hist_regimes
         regime_dates[i+1] = DSGE.iterate_quarters(Date(2020,3,31), i)
     end
     m <= Setting(:regime_dates, regime_dates)
