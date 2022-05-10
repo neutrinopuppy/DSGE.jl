@@ -201,11 +201,6 @@ function load_data_levels(m::AbstractDSGEModel; verbose::Symbol=:low,
 
     # Set SPD expected FFR to load
     if !isempty(expected_ffr(m))
-        if !(:obs_exp_nominalrate1 in cond_semi_names(m) || :obs_exp_nominalrate1 in cond_full_names(m))
-            spd_data = CSV.read(inpath(m, "raw", "spd_raw_$(data_vintage(m)).csv"), DataFrame, copycols = true)
-            spd_data = transform_spd_data(spd_data)
-            CSV.write(inpath(m, "raw", "spd_$(data_vintage(m)).csv"), spd_data)
-        end
         data_series[:SPD] = [Symbol("exp_ant$i") for i in expected_ffr(m)]
     end
 
