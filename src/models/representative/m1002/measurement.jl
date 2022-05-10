@@ -384,7 +384,7 @@ function measurement(m::Model1002{T},
         end
     end
 
-    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm) && reg >= get_setting(m, :reg_forecast_start)
+    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm) && reg >= 10  #get_setting(m, :reg_forecast_start)
         for i in mon_anticipated_ait_shocks(m)
             QQ[exo[Symbol("rm_ait_shl$i")], exo[Symbol("rm_ait_shl$i")]] = m[Symbol("σ_ait_r_m$i")]^2
         end
