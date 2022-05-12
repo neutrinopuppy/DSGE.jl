@@ -615,7 +615,7 @@ buted to steady-state inflation.",
     end
 
     if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
-        m <= parameter(:ρ_ait_rm, 0.2135, (0.0, 0.999), (0.0, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
+        m <= parameter(:ρ_ait_rm, 0.2135, (-1e-5, 0.999), (-1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
                        description="ρ_ait_rm: AR(1) coefficient in the AIT monetary policy shock process.",
                        tex_label="\\rho_{ait,r^m}")
     end
