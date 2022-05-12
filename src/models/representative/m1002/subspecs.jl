@@ -6767,6 +6767,52 @@ function rm_iid_pce_meas_err!(m)
     set_regime_val!(m[:σ_corepce], 2, 0.0)
 end
 
+function expected_nominal_rates!(m)
+    for i in expected_ffr(m) ## AIT expected FFR
+        symb_i = Symbol("σ_ait_r_m$(i)")
+        get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
+        for j in 1:11
+            if j < 10
+                get_setting(m, :model2para_regime)[symb_i][j] = 1
+            else
+                get_setting(m, :model2para_regime)[symb_i][j] = 2
+            end
+        end
+        set_regime_valuebounds!(m[symb_i], 1, m[symb_i].valuebounds)
+        set_regime_valuebounds!(m[symb_i], 2, m[symb_i].valuebounds)
+        m[symb_i].fixed = false
+
+        set_regime_val!(m[symb_i], 1, 0.0)
+        set_regime_val!(m[symb_i], 2, m[symb_i].value)
+
+        set_regime_fixed!(m[symb_i], 1, true)
+        set_regime_fixed!(m[symb_i], 2, false)
+   end
+
+    for i in 1:n_mon_anticipated_shocks_padding(m) ## Taylor Rule expected FFR
+        symb_i = Symbol("σ_r_m$(i)")
+        if symb_i in [m.parameters[j].key for j in 1:length(m.parameters)] && !m[symb_i].fixed
+            get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
+            for j in 1:11
+                if j < 10
+                    get_setting(m, :model2para_regime)[symb_i][j] = 1
+                else
+                    get_setting(m, :model2para_regime)[symb_i][j] = 2
+                end
+            end
+            set_regime_valuebounds!(m[symb_i], 1, m[symb_i].valuebounds)
+            set_regime_valuebounds!(m[symb_i], 2, m[symb_i].valuebounds)
+            m[symb_i].fixed = false
+
+        set_regime_val!(m[symb_i], 2, 0.0)
+            set_regime_val!(m[symb_i], 1, m[symb_i].value)
+
+            set_regime_fixed!(m[symb_i], 2, true)
+            set_regime_fixed!(m[symb_i], 1, false)
+        end
+    end
+end
+
 function ss86!(m)
     ss64!(m)
     add_sigma_mkup_iid!(m)
@@ -6878,6 +6924,8 @@ function ss97!(m)
     prior2 = get(m[:σ_meas_π].prior)
     prior2.τ = 0.4
     set_regime_prior!(m[:σ_meas_π], 2, prior2)
+
+    expected_nominal_rates!(m)
 end
 
 # Model 97 with mean reversion in biidc shock
