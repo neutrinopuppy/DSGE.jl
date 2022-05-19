@@ -94,6 +94,19 @@ function pseudo_measurement(m::Model1002{T},
         CCC5        = CCC5 ./ 20.
     end
 
+    if haskey(m.settings, :add_expected_FFR_pseudo)
+        for i in 1:get_setting(m, :add_expected_FFR_pseudo)
+            TTT_accum, CCC_accum = k_periods_ahead_expectations(TTT, CCC, TTTs, CCCs, reg, i, permanent_t;
+                                                                integ_series = integ_series,
+                                                                memo = (isnothing(memo) || !use_fwd_exp) ? nothing :
+                                                                ForwardExpectationsMemo(memo.time_varying_memo[min(reg + i, permanent_t, 17)],
+                                                                                        memo.permanent_memo))
+
+            ZZ_pseudo[pseudo[Symbol("ExpectedFFR$i")], :] = view(TTT_accum, endo[:R_t], :)
+            DD_pseudo[pseudo[Symbol("ExpectedFFR$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
+        end
+    end
+
     if get_setting(m, :add_laborproductivity_measurement)
         # Construct pseudo-obs from integrated states first
         ZZ_pseudo[pseudo[:laborproductivity], endo[:y_t]] = 1.

@@ -146,6 +146,12 @@ function init_pseudo_observable_mappings!(m::Model1002)
         push!(pseudo_names, :Expected5YearRealNaturalRate)
     end
 
+    if haskey(get_settings(m), :add_expected_FFR_pseudo)
+        for i in 1:get_setting(m, :add_expected_FFR_pseudo)
+            push!(pseudo_names, Symbol("ExpectedFFR$(i)"))
+        end
+    end
+
     # Create PseudoObservable objects
     pseudo = OrderedDict{Symbol,PseudoObservable}()
     for k in pseudo_names
@@ -224,6 +230,14 @@ pseudo[:Expected10YearNaturalRate].rev_transform = quartertoannual
         pseudo[:Expected5YearRealNaturalRate].name     = "Expected 5-Year Real Natural Rate"
         pseudo[:Expected5YearRealNaturalRate].longname = "Expected 5-Year Real Natural Rate of Interest"
         pseudo[:Expected5YearRealNaturalRate].rev_transform = quartertoannual
+    end
+
+    if haskey(get_settings(m), :add_expected_FFR_pseudo)
+        for i in 1:get_setting(m, :add_expected_FFR_pseudo)
+            pseudo[Symbol("ExpectedFFR$(i)")].name = "Expected FFR $(i) quarters ahead"
+            pseudo[Symbol("ExpectedFFR$(i)")].longname = "Expected FFR $(i) quarters ahead at an annual rate"
+            pseudo[Symbol("ExpectedFFR$(i)")].rev_transform = quartertoannual
+        end
     end
 
     pseudo[:ExpectedNominalNaturalRate].name     = "Expected Nominal Natural Rate"
@@ -468,6 +482,17 @@ pseudo[:Expected10YearNaturalRate].rev_transform = quartertoannual
         m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate, :Expected5YearNaturalRate, :Expected10YearRealNaturalRate, :Expected5YearRealNaturalRate])
     else
         m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate])
+    end
+
+    if haskey(get_settings(m), :add_expected_FFR_pseudo) && get_setting(m, :add_expected_FFR_pseudo) >= 1
+        if haskey(m.settings, :forward_looking_pseudo_observables)
+            append!(get_setting(m, :forward_looking_pseudo_observables), [Symbol("ExpectedFFR1")])
+        else
+            m <= Setting(:forward_looking_pseudo_observables, [Symbol("ExpectedFFR1")])
+        end
+        for i in 2:get_setting(m, :add_expected_FFR_pseudo)
+            append!(get_setting(m, :forward_looking_pseudo_observables), [Symbol("ExpectedFFR$(i)")])
+        end
     end
 
     # Add to model object
