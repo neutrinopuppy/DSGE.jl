@@ -6768,7 +6768,7 @@ function rm_iid_pce_meas_err!(m)
 end
 
 function expected_nominal_rates!(m)
-    for i in expected_ffr(m) ## AIT expected FFR
+    for i in mon_anticipated_ait_shocks(m) ## AIT expected FFR
         symb_i = Symbol("σ_ait_r_m$(i)")
         get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
         for j in 1:11
@@ -6804,13 +6804,71 @@ function expected_nominal_rates!(m)
             set_regime_valuebounds!(m[symb_i], 2, m[symb_i].valuebounds)
             m[symb_i].fixed = false
 
-        set_regime_val!(m[symb_i], 2, 0.0)
+            set_regime_val!(m[symb_i], 2, 0.0)
             set_regime_val!(m[symb_i], 1, m[symb_i].value)
 
             set_regime_fixed!(m[symb_i], 2, true)
             set_regime_fixed!(m[symb_i], 1, false)
         end
     end
+
+    # Contemporaneous AIT shocks
+    get_setting(m, :model2para_regime)[:σ_ait_rm] = Dict(1 => 1)
+    for i in 1:9
+        get_setting(m, :model2para_regime)[:σ_ait_rm][i] = 1
+    end
+    for i in 10:11
+        get_setting(m, :model2para_regime)[:σ_ait_rm][i] = 2
+    end
+    set_regime_valuebounds!(m[:σ_ait_rm], 1, m[:σ_ait_rm].valuebounds)
+    set_regime_valuebounds!(m[:σ_ait_rm], 2, m[:σ_ait_rm].valuebounds)
+    m[:σ_ait_rm].fixed = false
+
+    set_regime_val!(m[:σ_ait_rm], 1, 0.0)
+    set_regime_val!(m[:σ_ait_rm], 2, m[:σ_ait_rm].value)
+
+    set_regime_fixed!(m[:σ_ait_rm], 1, true)
+    set_regime_fixed!(m[:σ_ait_rm], 2, false)
+
+    # Contemporaneous Taylor shock
+    get_setting(m, :model2para_regime)[:σ_r_m] = Dict(1 => 1)
+    for i in 1:9
+        get_setting(m, :model2para_regime)[:σ_r_m][i] = 1
+    end
+    for i in 10:11
+        get_setting(m, :model2para_regime)[:σ_r_m][i] = 2
+    end
+    set_regime_valuebounds!(m[:σ_r_m], 1, m[:σ_r_m].valuebounds)
+    set_regime_valuebounds!(m[:σ_r_m], 2, m[:σ_r_m].valuebounds)
+    m[:σ_r_m].fixed = false
+
+    set_regime_val!(m[:σ_r_m], 2, 0.0)
+    set_regime_val!(m[:σ_r_m], 1, m[:σ_r_m].value)
+
+    set_regime_fixed!(m[:σ_r_m], 2, true)
+    set_regime_fixed!(m[:σ_r_m], 1, false)
+
+    # iid measurement error on expected AIT shock
+    for i in expected_ffr(m)
+        symb_i = Symbol("σ_exp_rm$(i)")
+        get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
+        for j in 1:11
+            if j < 10
+                get_setting(m, :model2para_regime)[symb_i][j] = 1
+            else
+                get_setting(m, :model2para_regime)[symb_i][j] = 2
+            end
+        end
+        set_regime_valuebounds!(m[symb_i], 1, m[symb_i].valuebounds)
+        set_regime_valuebounds!(m[symb_i], 2, m[symb_i].valuebounds)
+        m[symb_i].fixed = false
+
+        set_regime_val!(m[symb_i], 1, 0.0)
+        set_regime_val!(m[symb_i], 2, m[symb_i].value)
+
+        set_regime_fixed!(m[symb_i], 1, true)
+        set_regime_fixed!(m[symb_i], 2, false)
+   end
 end
 
 function ss86!(m)

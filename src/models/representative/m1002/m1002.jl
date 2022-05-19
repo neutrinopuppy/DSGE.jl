@@ -644,7 +644,7 @@ buted to steady-state inflation.",
     m <= parameter(:σ_λ_w, 0.3864, (1e-8, 5.), (1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
                    tex_label="\\sigma_{\\lambda_w}")
 
-    m <= parameter(:σ_r_m, 0.2380, (1e-8, 5.), (1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
+    m <= parameter(:σ_r_m, 0.2380, (0.0, 5.), (0.0, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
                    description="σ_r_m: The standard deviation of the monetary policy shock.",
                    tex_label="\\sigma_{r^m}")
 
@@ -692,7 +692,7 @@ buted to steady-state inflation.",
     end
 
     if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
-        m <= parameter(:σ_ait_rm, 0.2380, (1e-8, 5.), (1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
+        m <= parameter(:σ_ait_rm, 0.2380, (0.0, 5.), (0.0, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
                        description="σ_ait_rm: The standard deviation of the AIT monetary policy shock.",
                        tex_label="\\sigma_{ait,r^m}")
     end
@@ -962,7 +962,7 @@ buted to steady-state inflation.",
     # SPD expected FFR measurement error parameters
     if !isempty(expected_ffr(m))
         for i in expected_ffr(m)
-            m <= parameter(Symbol("σ_exp_rm$i"), 0.0375 + 0.00625 * i, (1e-7, 5.), (1e-7, 5.), ModelConstructors.Exponential(),
+            m <= parameter(Symbol("σ_exp_rm$i"), 0.0375 + 0.00625 * i, (0.0, 5.), (0.0, 5.), ModelConstructors.Exponential(),
                            RootInverseGamma(4, .2), fixed=true,
                            description="σ_exp_rm$i: Standard deviation of the $i-period-ahead FFR measurement error.",
                            tex_label=@sprintf("\\sigma_{exp_rm%d}",i))
