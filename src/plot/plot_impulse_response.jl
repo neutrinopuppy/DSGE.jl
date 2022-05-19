@@ -200,8 +200,8 @@ function plot_impulse_response(m::Vector,
                                addl_text::String = "",
                                verbose::Symbol = :low,
                                cumulative_vars::Vector{Symbol} = Symbol[],
+                               labels::Vector{String} = repeat([""], length(m)),
                                kwargs...)
-
     # Read in MeansBands
     mbs = Vector{MeansBands}(undef,length(m))
     for i in 1:length(mbs)
@@ -233,18 +233,18 @@ function plot_impulse_response(m::Vector,
                                  title = title, input_type = input_type[1], input_type2 = Symbol(),
                                  bands_color = bands_color[1], bands_alpha = bands_alpha[1],
                                  bands_pcts = bands_pcts, mean_color = bands_color[1],
-                                 cumulative = cumulative, kwargs...)
+                                 cumulative = cumulative, label = labels[1], kwargs...)
                 for i in 2:length(mbs)
                     irf!(shock, var, mbs[i], MeansBands();
                          title = title, input_type = input_type[i], input_type2 = Symbol(),
                          bands_color = bands_color[i], bands_alpha = bands_alpha[i],
                          bands_pcts = bands_pcts, mean_color = bands_color[i],
-                         cumulative = cumulative, kwargs...)
+                         cumulative = cumulative, label = labels[i], kwargs...)
                 end
 
                 # Save plot
                 if !isempty(plotroot)
-                    output_file = get_forecast_filename(plotroot, filestring_base(mbs[which_model]),
+                    output_file = get_forecast_filename(plotroot, filestring_base(m[which_model]),
                                                         input_type[which_model],
                                                         cond_type[which_model],
                                                         Symbol("irf_", detexify(shock), "_", detexify(var), (cumulative ? "_cumulative" : ""), addl_text),
@@ -298,7 +298,8 @@ irf
                    bands_pcts = which_density_bands(irf.args[3], uniquify = true),
                    input_type = Symbol(),
                    input_type2 = Symbol(),
-                   cumulative = false)
+                   cumulative = false,
+                   label = "")
     # Error checking
   #=  if length(irf.args) != 3 || typeof(irf.args[1]) != Symbol || typeof(irf.args[2]) != Symbol ||
         typeof(irf.args[3]) != MeansBands
@@ -310,7 +311,6 @@ irf
     varshock = Symbol(var, "__", shock)
     sign = flip_sign ? -1 : 1
     quarters_ahead = collect(1:size(mb.means,1))
-
     # Bands
    for pct in bands_pcts
         @series begin
@@ -330,7 +330,7 @@ irf
 
     # Mean
     @series begin
-        label     := label_mean_bands ? "Mean"*string(input_type) : ""
+        label     := label_mean_bands ? (label != "" ? label : "Mean"*string(input_type)) : ""
         linewidth := 2
         linecolor := mean_color
         quarters_ahead, sign * ir
