@@ -354,7 +354,7 @@ function measurement(m::Model1002{T},
     # Anticipated monetary policy shocks
     # ZZ_obs_nomrate = ZZ[obs[:obs_nominalrate], :]'
     finished_expffr = []
-    #for i = 1:n_mon_anticipated_shocks(m)
+    # for i = 1:n_mon_anticipated_shocks(m)
         TTT_accum, CCC_accum = one_to_k_periods_ahead_expectations(TTT, CCC, TTTs, CCCs, reg, n_mon_anticipated_shocks(m), permanent_t)
 #=k_periods_ahead_expectations(TTT, CCC, TTTs, CCCs, reg, i, permanent_t;
                                                             integ_series = integ_series,
@@ -381,8 +381,8 @@ function measurement(m::Model1002{T},
 
                 QQ[exo[Symbol("exp_rm_sh$i")], exo[Symbol("exp_rm_sh$i")]] = m[Symbol("σ_exp_rm$i")]^2
             end
-
-#=        # ZZ[obs[Symbol("obs_nominalrate$i")], :] = ZZ_obs_nomrate * TTT_accum
+#=
+        # ZZ[obs[Symbol("obs_nominalrate$i")], :] = ZZ_obs_nomrate * TTT_accum
         ZZ[obs[Symbol("obs_nominalrate$i")], :] = view(TTT_accum, endo[:R_t], :)
         # DD[obs[Symbol("obs_nominalrate$i")]]    = m[:Rstarn] + ZZ_obs_nomrate * CCC_accum
         DD[obs[Symbol("obs_nominalrate$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
@@ -425,7 +425,8 @@ function measurement(m::Model1002{T},
 #        end
     end
 
-#=    spd_left = sort(setdiff(expected_ffr(m), finished_expffr))
+#=
+    spd_left = sort(setdiff(expected_ffr(m), finished_expffr))
     for j in 1:length(spd_left)
         i = spd_left[j]
         if n_mon_anticipated_shocks(m) < 1 && j == 1
@@ -449,8 +450,8 @@ function measurement(m::Model1002{T},
                                                                                     memo.permanent_memo))
 
         if n_mon_anticipated_shocks(m) >= 1 || j > 1
-            TTT_accum = TTT_accum * T_last
             CCC_accum = CCC_accum .+ TTT_accum * C_last
+            TTT_accum = TTT_accum * T_last
         end
 
         ZZ[obs[Symbol("obs_exp_nominalrate$i")], :] = view(TTT_accum, endo[:R_t], :)
