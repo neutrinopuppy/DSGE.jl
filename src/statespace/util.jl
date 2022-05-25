@@ -734,8 +734,8 @@ function one_to_k_periods_ahead_expectations(TTT, CCC, TTTs, CCCs, t, k, permane
     final_C = Vector{Vector{Float64}}(undef, k)
 
     if isempty(TTTs) || isempty(CCCs)
-        final_T[1] = copy(TTT)
-        final_C[1] = copy(CCC)
+        final_T[1] = TTT
+        final_C[1] = CCC
         for i in 2:k
             final_T[i] = TTT * final_T[i-1]
             # Tᵏsum = (I - TTT) \ (I - Tᵏ)
