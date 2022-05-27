@@ -877,7 +877,7 @@ buted to steady-state inflation.",
         for i in mon_anticipated_ait_shocks(m)
             m <= parameter(Symbol("σ_ait_r_m$i"), .2, (0.0, 100.), (0.0, 0.), ModelConstructors.Exponential(),
                            RootInverseGamma(4, .2), fixed=false,
-                           description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
+                           description="σ_ait_r_m$i: Standard deviation of the $i-period-ahead anticipated AIT policy shock.",
                            tex_label=@sprintf("\\sigma_{ant%d}",i))
         end
     end

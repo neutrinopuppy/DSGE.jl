@@ -221,7 +221,7 @@ But if data given for quarter rather than meeting, use that value for whole quar
 function transform_spd_data(df::DataFrame; column::Symbol = :MODAL_MEDIAN,
                             use_last_survey::Bool = true, use_last_meeting::Bool = false,
                             remove_zlb::Bool = true, interpolation::Bool = true,
-                            interpolation_in_data::Bool = true,
+                            interpolation_in_data::Bool = false,
                             fomc_dates::Vector{Int64} = Vector{Int64}())
     # Copy to ensure we don't change df
     spd_df = copy(df)
@@ -438,10 +438,10 @@ function spd_data_bands(spd_df::DataFrame)
 Transform the raw SPD Modal Path data into a format matching that of OIS.
 Returns 3 datasets, one each for 25%, 50%, and 75%.
 """
-function spd_data_bands(spd_df::DataFrame)
-    df_med = transform_spd_data(spd_df, column = :MODAL_MEDIAN)
-    df_25 = transform_spd_data(spd_df, column = :MODAL_25TH)
-    df_75 = transform_spd_data(spd_df, column = :MODAL_75TH)
+function spd_data_bands(spd_df::DataFrame; kwargs...)
+    df_med = transform_spd_data(spd_df, column = :MODAL_MEDIAN; kwargs...)
+    df_25 = transform_spd_data(spd_df, column = :MODAL_25TH; kwargs...)
+    df_75 = transform_spd_data(spd_df, column = :MODAL_75TH; kwargs...)
 
     return df_med, df_25, df_75
 end
