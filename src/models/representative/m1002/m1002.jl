@@ -611,7 +611,7 @@ buted to steady-state inflation.",
 
     if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
         m <= parameter(:ρ_meas_π, 0.2320, (0.0, 0.999), (0.0, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
-                       tex_label="\\rho_{meas}_\\pi")
+                       tex_label="\\rho_{meas_\\pi}")
     end
 
     if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
@@ -688,7 +688,7 @@ buted to steady-state inflation.",
 
     if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
         m <= parameter(:σ_meas_π, 0.0999, (0.0, 5.),(0.0, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
-                       tex_label="\\sigma_{meas}_\\pi}")
+                       tex_label="\\sigma_{meas_\\pi}")
     end
 
     if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
