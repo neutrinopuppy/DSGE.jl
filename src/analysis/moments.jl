@@ -421,7 +421,9 @@ function prior_table(m::AbstractDSGEModel; subset_string::String = "",
 
             dist_id = para.fixed ? "-" : distid(get(para.prior))
 
-            append!(entries, [PriorTableEntry(para.key, 1, para.fixed, para.tex_label, dist_id, prior_mean, prior_sd)])
+            if !(para.fixed && prior_mean == 0.)
+                append!(entries, [PriorTableEntry(para.key, 1, para.fixed, para.tex_label, dist_id, prior_mean, prior_sd)])
+            end
 
             if haskey(para.regimes, :prior)
                 for reg in keys(para.regimes[:prior])
@@ -429,7 +431,9 @@ function prior_table(m::AbstractDSGEModel; subset_string::String = "",
                         (prior_mean, prior_sd) = moments(para, reg)
                         fixed = haskey(para.regimes, :fixed) ? para.regimes[:fixed][reg] : para.fixed
                         tex_label = para.tex_label * ", reg $reg"
-                        append!(entries, [PriorTableEntry(para.key, reg, fixed, tex_label, fixed ? "-" : distid(get(para.regimes[:prior][reg])), prior_mean, prior_sd)])
+                        if !(fixed && prior_mean == 0.)
+                           append!(entries, [PriorTableEntry(para.key, reg, fixed, tex_label, fixed ? "-" : distid(get(para.regimes[:prior][reg])), prior_mean, prior_sd)])
+                       end
                     end
                 end
             end
@@ -548,13 +552,17 @@ function posterior_table(m::AbstractDSGEModel, post_means::Vector, post_bands::M
         for para in params
             para_i = m.keys[para.key]
             fixed = haskey(para.regimes, :fixed) ? para.regimes[:fixed][1] : para.fixed
-            append!(entries, [PosteriorTableEntry(para.key, 1, fixed, para.tex_label, post_means[para_i], post_bands[para_i, :])])
+            if !(para.fixed && post_means[para_i] == 0.)
+                append!(entries, [PosteriorTableEntry(para.key, 1, fixed, para.tex_label, post_means[para_i], post_bands[para_i, :])])
+            end
             if haskey(para.regimes, :value)
                 for reg in keys(para.regimes[:value])
                     if reg > 1
                         fixed = haskey(para.regimes, :fixed) ? para.regimes[:fixed][reg] : para.fixed
                         tex_label = para.tex_label * ", reg $reg"
-                        append!(entries, [PosteriorTableEntry(para.key, reg, fixed, tex_label, post_means[para_regime_indices[para_i][reg]], post_bands[para_regime_indices[para_i][reg], :])])
+                        if !(fixed && post_means[para_regime_indices[para_i][reg]] == 0.)
+                            append!(entries, [PosteriorTableEntry(para.key, reg, fixed, tex_label, post_means[para_regime_indices[para_i][reg]], post_bands[para_regime_indices[para_i][reg], :])])
+                        end
                     end
                 end
             end
