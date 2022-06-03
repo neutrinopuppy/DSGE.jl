@@ -246,7 +246,7 @@ if it is nonempty, or else in `tablespath(m, \"estimate\")`.
           i = length(m.parameters)
           for para in m.parameters
               if haskey(para.regimes, :value)
-                  for key in keys(para.regimes[:value])
+                  for key in sort(collect(keys(para.regimes[:value])))
                       if key == 1
                           para_regime_indices[m.keys[para.key]] = [m.keys[para.key]]
                       else

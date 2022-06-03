@@ -878,7 +878,7 @@ buted to steady-state inflation.",
             m <= parameter(Symbol("σ_ait_r_m$i"), .2, (0.0, 100.), (0.0, 0.), ModelConstructors.Exponential(),
                            RootInverseGamma(4, .2), fixed=false,
                            description="σ_ait_r_m$i: Standard deviation of the $i-period-ahead anticipated AIT policy shock.",
-                           tex_label=@sprintf("\\sigma_{ant%d}",i))
+                           tex_label=@sprintf("\\sigma_{ait,r^m%d}",i))
         end
     end
 
@@ -965,7 +965,7 @@ buted to steady-state inflation.",
             m <= parameter(Symbol("σ_exp_rm$i"), 0.0375 + 0.00625 * i, (0.0, 5.), (0.0, 5.), ModelConstructors.Exponential(),
                            RootInverseGamma(4, .2), fixed=true,
                            description="σ_exp_rm$i: Standard deviation of the $i-period-ahead FFR measurement error.",
-                           tex_label=@sprintf("\\sigma_{exp_rm%d}",i))
+                           tex_label=@sprintf("\\sigma_{exp_{r^m}%d}",i))
 
         end
         m <= parameter(:ρ_exp_rm, 0., (-1e-5, 0.999), (-1e-5, 0.999), ModelConstructors.SquareRoot(), Normal(0.0, 0.2), fixed=true,
@@ -1269,7 +1269,8 @@ function parameter_groupings(m::Model1002)
     subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
 
     policy     = [[:ψ1, :ψ2, :ψ3, :ρ, :ρ_rm, :σ_r_m];
-                  [Symbol("σ_r_m$i") for i = 1:n_mon_anticipated_shocks(m)]]
+                  [Symbol("σ_r_m$i") for i = 1:n_mon_anticipated_shocks(m)];
+                  [Symbol("σ_ait_r_m$i") for i in mon_anticipated_ait_shocks(m)]]
     sticky     = [:ζ_p, :ι_p, :ϵ_p, :ζ_w, :ι_w, :ϵ_w]
     other_endo = [:γ, :α, :β, :σ_c, :h, :ν_l, :δ, :Φ, :S′′, :ppsi, :π_star,
                   :Γ_gdpdef, :δ_gdpdef, :Lmean, :λ_w, :g_star]
@@ -1284,6 +1285,9 @@ function parameter_groupings(m::Model1002)
     end
     if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 100
         push!(policy, :φ_π, :φ_y, :ρ_smooth)
+    end
+    if haskey(get_settings(m), :add_ait_rm) && get_setting(m, :add_ait_rm)
+        push!(policy, :σ_ait_rm, :ρ_ait_rm)
     end
 
     # SPD expected FFR measurement error

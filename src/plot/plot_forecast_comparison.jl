@@ -72,7 +72,7 @@ function plot_forecast_comparison(m_old::AbstractDSGEModel, m_new::AbstractDSGEM
 	                			  save_as_csv::Bool = false,
                                   use_bdd_new::Symbol = :unbdd,
                                   use_bdd_old::Symbol = :unbdd,
-                                  weights::Array{Float64} = [],
+                                  weights::Array{Float64} = Vector{Float64}(undef,0),
                                   kwargs...)
 
     plots = plot_forecast_comparison(m_old, m_new, [var], class, input_type, cond_type;
@@ -94,7 +94,7 @@ function plot_forecast_comparison(m_old::AbstractDSGEModel, m_new::AbstractDSGEM
 				                  save_as_csv::Bool = false,
                                   use_bdd_new::Symbol = :unbdd,
                                   use_bdd_old::Symbol = :unbdd,
-                                  weights::Array{Float64} = [],
+                                  weights::Array{Float64} = Vector{Float64}(undef,0),
                                   kwargs...)
 
     plots = plot_forecast_comparison(m_old, m_new, [var_old], class_old,
@@ -130,7 +130,7 @@ function plot_forecast_comparison(m_old::AbstractDSGEModel, m_new::AbstractDSGEM
                                   titles::Vector{String} = String[],
                                   verbose::Symbol = :low,
 				                  save_as_csv::Bool = false,
-                                  weights::Array{Float64} = [],
+                                  weights::Array{Float64} = Vector{Float64}(undef,0),
                                   kwargs...)
     # Read in MeansBands
     histold = read_mb(m_old, input_type_old, cond_type_old, Symbol(:hist, class),
@@ -219,7 +219,7 @@ function plot_forecast_comparison(m_old::AbstractDSGEModel, m_new::AbstractDSGEM
                                   titles::Vector{String} = String[],
                                   verbose::Symbol = :low,
 				                  save_as_csv::Bool = false,
-                                  weights::Array{Float64} = [],
+                                  weights::Array{Float64} = Vector{Float64}(undef,0),
                                   kwargs...)
     # Read in MeansBands
     histold = read_mb(m_old, input_type_old, cond_type_old, Symbol(:hist, class_old),
