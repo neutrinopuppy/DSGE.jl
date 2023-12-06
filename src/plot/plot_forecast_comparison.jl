@@ -164,8 +164,8 @@ function plot_forecast_comparison(m_old::AbstractDSGEModel, m_new::AbstractDSGEM
                                   kwargs...)
 	    if save_as_csv
    	        df_plot_data = df_plot_data[setdiff(names(df_plot_data), [:mean_history])]
-            rename!(df_plot_data, :mean_forecast => Symbol("mean_forecast_old"))
             sort!(df_plot_data, [:dates])
+            rename!(df_plot_data, :mean_forecast => Symbol("mean_forecast_old"))
 	    end
 
         histforecast!(var, histnew, forecastnew;
@@ -272,6 +272,7 @@ function plot_forecast_comparison(m_old::AbstractDSGEModel, m_new::AbstractDSGEM
                 mkdir("blog_plot_data")
             end
             rename!(df_plot_data, :mean_forecast => Symbol("mean_forecast_new"))
+            select!(df_plot_data, :dates, :mean_forecast_old, :mean_history, :mean_forecast_new)
             CSV.write(string("blog_plot_data/", get_setting(m_new, :data_vintage),
                              "_", replace(replace(title, " " => "_"), "," => ""), "_", var,
                              "_", join(string.(weights), "_"), ".csv"), df_plot_data)
