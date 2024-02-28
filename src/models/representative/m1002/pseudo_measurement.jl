@@ -85,6 +85,12 @@ function pseudo_measurement(m::Model1002{T},
     TTT10        = TTT10./ 40. # divide by 40 to average across 10 years
     CCC10        = CCC10 ./ 40.
 
+
+    econo_perm_t = if reg >= 11 length(TTTs) else permanent_t end
+    TTT10Econo, CCC10Econo = k_periods_ahead_expected_sums(TTT, CCC, TTTs, CCCs, reg, 40, econo_perm_t;
+                                                           integ_series = integ_series,
+                                                           memo = use_fwd_exp_sum ? memo : nothing)
+
     if haskey(m.settings, :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
         # Compute TTT^5, used for Expected5YearNaturalRate
         TTT5, CCC5 = k_periods_ahead_expected_sums(TTT, CCC, TTTs, CCCs, reg, 20, permanent_t;
@@ -259,6 +265,10 @@ function pseudo_measurement(m::Model1002{T},
     ZZ_pseudo[pseudo[:Expected10YearRateGap], :] = view(TTT10, endo[:R_t], :) - view(TTT10, endo[:r_f_t], :) - view(TTT10, endo[:Eπ_t], :)
     DD_pseudo[pseudo[:Expected10YearRateGap]]    = CCC10[endo[:R_t]] - CCC10[endo[:r_f_t]] - CCC10[endo[:Eπ_t]]
 
+
+#Econometrician's 10 Year Rate gap -- calculated using the econometrician's beliefs rather than the agents:
+ZZ_pseudo[pseudo[:Econometricians10YearRateGap], :] = view(TTT10Econo, endo[:R_t], :) - view(TTT10Econo, endo[:r_f_t], :) - view(TTT10Econo, endo[:Eπ_t], :)
+    DD_pseudo[pseudo[:Econometricians10YearRateGap]]    = CCC10[endo[:R_t]] - CCC10[endo[:r_f_t]] - CCC10[endo[:Eπ_t]]
     ## Nominal FFR
     ZZ_pseudo[pseudo[:NominalFFR], endo[:R_t]] = 1.
     DD_pseudo[pseudo[:NominalFFR]] = m[:Rstarn]
