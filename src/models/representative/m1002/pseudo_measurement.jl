@@ -86,10 +86,13 @@ function pseudo_measurement(m::Model1002{T},
     CCC10        = CCC10 ./ 40.
 
 
-    econo_perm_t = if reg >= 11 length(TTTs) else permanent_t end
+    econo_perm_t = if reg >= 11 length(TTTs) else permanent_t end # THIS IS HARD CODED, IF YOU ARE THINKING ABOUT CHANGING IT REACH OUT TO PG/BP
     TTT10Econo, CCC10Econo = k_periods_ahead_expected_sums(TTT, CCC, TTTs, CCCs, reg, 40, econo_perm_t;
                                                            integ_series = integ_series,
                                                            memo = use_fwd_exp_sum ? memo : nothing)
+    TTT10Econo   = TTT10Econo ./ 40
+    CCC10Econo   = CCC10Econo ./ 40
+
 
     if haskey(m.settings, :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
         # Compute TTT^5, used for Expected5YearNaturalRate
