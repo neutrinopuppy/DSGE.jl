@@ -382,6 +382,9 @@ function Model1002(subspec::String = "ss10";
         m <= custom_setting
     end
 
+    # Initialize base settings
+    init_settings!(m)
+
     # Set observable and pseudo-observable transformations
     init_observable_mappings!(m)
     init_pseudo_observable_mappings!(m)
@@ -395,6 +398,36 @@ function Model1002(subspec::String = "ss10";
 
     return m
 end
+
+"""
+```
+init_settings!(m::Model1002)
+```
+
+Initializes the model's settings as per sub specification
+"""
+function init_settings!(m::Model1002)
+    subspec_int = parse(Int, subspec(m)[3:end])
+        if subspec_int == 104
+            m <= Setting(:date_forecast_start, date_forecast_start(m))
+            m <= Setting(:forecast_horizons, 40)
+            m <= Setting(:add_pseudo_gdp, true), Setting(:add_pseudo_corepce, true)
+            m <= Setting(:add_iid_cond_obs_gdp_meas_err, true)
+            m <= Setting(:add_iid_cond_obs_corepce_meas_err, true)
+            m <= Setting(:standard_shocks_mode_adjust, 1, false, "modeadj", "")
+            m <= Setting(:standard_shocks_spread_adjust, 2, false, "spreadadj", "")
+            m <= Setting(:add_altpolicy_pgap, true)
+            m <= Setting(:add_altpolicy_ygap, true)
+            m <= Setting(:add_shadow_taylor, true)
+            m <= Setting(:add_shadow_ait, true)
+            m <= Setting(:mon_anticipated_ait_shocks, [1, 2, 3, 4, 5, 6])
+            m <= Setting(:add_ait_rm, false)
+            m <= Setting(:expected_ffr, [1, 2, 3, 4, 5, 6])
+            m <= Setting(:add_ait_rm, true)
+            m <= Setting(:add_taylor_rm, true)
+        end
+end
+
 
 """
 ```
@@ -822,6 +855,18 @@ buted to steady-state inflation.",
         m <= parameter(:ρ_smooth, 0.9, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.75, 0.10), fixed=false,
                        description="ρ_smooth: Degree of inertia in AIT Rule",
                        tex_label="\\rho_{smooth}")
+    end
+
+    if subspec(m) == "ss103"
+        m <= parameter(:κ_std_bcshocks, 1.0, (0.0, 1.0), (0.0, 1.0), ModelConstructors.SquareRoot(), Uniform(0,1), fixed=false,
+                       description="κ_std_bcshocks: scaling factor for standard business cycle shocks during covid",
+                       tex_label="\\kappa_{bcshocks}")
+        m <= parameter(:κ_covid, 1.0, (0.0, 1.0), (0.0, 1.0), Untransformed(), Uniform(0,1), fixed=false,
+                       description="Fraction of regime 2 value used in regime 3 for σ_{covid}",
+                       tex_label = "\\kappa_{covid}")
+        m <= parameter(:κ_pce, 1.0, (0.0, 1.0), (0.0, 1.0), Untransformed(), Uniform(0,1), fixed=false,
+                       description="Fraction of regime 2 value used in regime 3 for σ_{meas,π}",
+                       tex_label = "\\kappa_{pce}")
     end
 
     if haskey(get_settings(m), :add_initialize_pgap_ygap_pseudoobs) ?

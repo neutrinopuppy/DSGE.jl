@@ -129,6 +129,10 @@ function init_subspec!(m::Model1002)
         return ss101!(m)
     elseif subspec(m) == "ss102"
         return ss102!(m)
+    elseif subspec(m) == "ss103"
+        return ss103!(m)
+    elseif subspec(m) == "ss104"
+        return ss104!(m)
     else
         error("This subspec is not defined.")
     end
@@ -6588,294 +6592,6 @@ function ss85!(m::Model1002)
     ModelConstructors.toggle_regime!(m.parameters, 1) # ensure that regimes are toggled to regime 1
 end
 
-function add_sigma_mkup_iid!(m)
-    get_setting(m, :model2para_regime)[:σ_λ_f_iid] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 3)
-    for i in 6:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:σ_λ_f_iid][i] = 1
-    end
-
-    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
-    set_regime_val!(m[:σ_λ_f_iid], 1, 0.)
-    set_regime_val!(m[:σ_λ_f_iid], 2, 5.0)
-    set_regime_val!(m[:σ_λ_f_iid], 3, 0.05)
-
-    # Fix shocks to 0 in para regime 1
-    set_regime_fixed!(m[:σ_λ_f_iid], 1, true)
-    set_regime_fixed!(m[:σ_λ_f_iid], 2, false)
-    set_regime_fixed!(m[:σ_λ_f_iid], 3, false)
-
-    # Regime-switching priors for regime 3
-    for i in 1:2
-        set_regime_prior!(m[:σ_λ_f_iid], i, m[:σ_λ_f_iid].prior)
-    end
-    set_regime_prior!(m[:σ_λ_f_iid], 3, RootInverseGamma(10.0, 0.0501))
-end
-
-
-function add_meas_pi!(m)
-    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 2)
-    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 1)
-    for i in 10:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 2
-        get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
-    end
-
-    # Set regime value bounds
-    set_regime_valuebounds!(m[:ρ_meas_π], 1, (0.0, 5.0))
-    set_regime_valuebounds!(m[:σ_meas_π], 1, (0.0, 5.0))
-    set_regime_valuebounds!(m[:ρ_meas_π], 2, (1.0e-8, 5.0))
-    m[:ρ_meas_π].valuebounds = (1.0e-8, 5.0)
-    set_regime_valuebounds!(m[:σ_meas_π], 2, (1.0e-8, 5.0))
-
-    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
-    set_regime_val!(m[:ρ_meas_π], 1, 0.)
-    set_regime_val!(m[:ρ_meas_π], 2, 0.2320)
-    m[:ρ_meas_π].value = 0.2320
-    set_regime_val!(m[:σ_meas_π], 1, 0.)
-    set_regime_val!(m[:σ_meas_π], 2, 0.0999)
-
-    # Fix shocks to 0 in para regime 1
-    m[:ρ_meas_π].fixed = false#true
-    m[:σ_meas_π].fixed = true
-    set_regime_fixed!(m[:ρ_meas_π], 1, true)
-    set_regime_fixed!(m[:ρ_meas_π], 2, false)
-    set_regime_fixed!(m[:σ_meas_π], 1, true)
-    set_regime_fixed!(m[:σ_meas_π], 2, false)
-
-    set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
-    set_regime_prior!(m[:σ_meas_π], 2, m[:σ_meas_π].prior)
-    # set_regime_prior!(m[:ρ_meas_π], 1, m[:ρ_meas_π].prior)
-    # set_regime_prior!(m[:ρ_meas_π], 2, m[:ρ_meas_π].prior)
-end
-
-function add_zero_meas_pi!(m)
-    # Set measurement errors from ss87 to 0
-    get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 2)
-    get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 1)
-    for i in 10:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:ρ_meas_π][i] = 2
-        get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
-    end
-
-    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
-    set_regime_val!(m[:ρ_meas_π], 1, 0.)
-    set_regime_val!(m[:ρ_meas_π], 2, 0.0)
-    m[:ρ_meas_π].value = 0.0
-    set_regime_val!(m[:σ_meas_π], 1, 0.)
-    set_regime_val!(m[:σ_meas_π], 2, 0.0)
-
-    # Fix shocks to 0 in para regime 1
-    m[:ρ_meas_π].fixed = false#true
-    m[:σ_meas_π].fixed = true
-    set_regime_fixed!(m[:ρ_meas_π], 1, true)
-    set_regime_fixed!(m[:ρ_meas_π], 2, true)
-    set_regime_fixed!(m[:σ_meas_π], 1, true)
-    set_regime_fixed!(m[:σ_meas_π], 2, true)
-end
-
-function remove_persist_mkup!(m)
-    # get_setting(m, :model2para_regime)[:ρ_λ_f] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2)
-    get_setting(m, :model2para_regime)[:σ_λ_f] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2)
-    for i in 6:get_setting(m, :n_regimes)
-        # get_setting(m, :model2para_regime)[:ρ_λ_f][i] = 1
-        get_setting(m, :model2para_regime)[:σ_λ_f][i] = 1
-    end
-
-    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
-    # set_regime_val!(m[:ρ_meas_π], 1, m[:ρ_λ_f].value)
-    # set_regime_val!(m[:ρ_meas_π], 2, 0.0)
-    set_regime_val!(m[:σ_λ_f], 1, m[:σ_λ_f].value)
-    set_regime_val!(m[:σ_λ_f], 2, 0.0)
-
-    # Fix shocks to 0 in para regime 2
-    # set_regime_fixed!(m[:ρ_meas_π], 1, false)
-    # set_regime_fixed!(m[:ρ_meas_π], 2, true)
-    m[:σ_λ_f].fixed = false
-    set_regime_fixed!(m[:σ_λ_f], 1, false)
-    set_regime_fixed!(m[:σ_λ_f], 2, true)
-end
-
-function rm_iid_pce_meas_err!(m)
-
-    #get_setting(m, :model2para_regime)[:ρ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    #get_setting(m, :model2para_regime)[:σ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
-    get_setting(m, :model2para_regime)[:ρ_corepce] = Dict(1 => 1) ## Don't need to change ρ_corepce
-    get_setting(m, :model2para_regime)[:σ_corepce] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 1)
-    for i in 2:9
-        get_setting(m, :model2para_regime)[:ρ_corepce][i] = 1
-    end
-    for i in 10:get_setting(m, :n_regimes)
-        #get_setting(m, :model2para_regime)[:ρ_gdpdef][i] = 1
-        #get_setting(m, :model2para_regime)[:σ_gdpdef][i] = 1
-        get_setting(m, :model2para_regime)[:ρ_corepce][i] = 1
-        get_setting(m, :model2para_regime)[:σ_corepce][i] = 1
-    end
-
-    # Change valuebounds in regime 2 and keep those in regime 1
-    #set_regime_valuebounds!(m[:ρ_gdpdef], 1, m[:ρ_gdpdef].valuebounds)
-    #set_regime_valuebounds!(m[:σ_gdpdef], 1, m[:σ_gdpdef].valuebounds)
-    set_regime_valuebounds!(m[:ρ_corepce], 1, m[:ρ_corepce].valuebounds)
-    set_regime_valuebounds!(m[:σ_corepce], 1, m[:σ_corepce].valuebounds)
-
-    #set_regime_valuebounds!(m[:ρ_gdpdef], 2, (0.0, m[:ρ_gdpdef].valuebounds[2]))
-    #set_regime_valuebounds!(m[:σ_gdpdef], 2, (0.0, m[:σ_gdpdef].valuebounds[2]))
-    set_regime_valuebounds!(m[:ρ_corepce], 2, (0.0, m[:ρ_corepce].valuebounds[2]))
-    set_regime_valuebounds!(m[:σ_corepce], 2, (0.0, m[:σ_corepce].valuebounds[2]))
-
-    # Set values (priors are set already)
-    #set_regime_val!(m[:ρ_gdpdef], 1, 0.5379)
-    #set_regime_val!(m[:ρ_gdpdef], 2, 0.0)
-    #set_regime_val!(m[:σ_gdpdef], 1, 0.1575)
-    #set_regime_val!(m[:σ_gdpdef], 2, 0.0)
-
-    set_regime_val!(m[:ρ_corepce], 1, 0.2320)
-    set_regime_val!(m[:ρ_corepce], 2, 0.0)
-    set_regime_val!(m[:σ_corepce], 1, 0.0999)
-    set_regime_val!(m[:σ_corepce], 2, 0.0)
-
-    # Fix shocks to 0 in para regime 1
-    #set_regime_fixed!(m[:ρ_gdpdef], 1, false)
-    #set_regime_fixed!(m[:ρ_gdpdef], 2, true)
-    #set_regime_fixed!(m[:σ_gdpdef], 1, false)
-    #set_regime_fixed!(m[:σ_gdpdef], 2, true)
-
-    m[:ρ_corepce].fixed = false
-    m[:σ_corepce].fixed = false
-
-    set_regime_fixed!(m[:ρ_corepce], 1, false)
-    set_regime_fixed!(m[:ρ_corepce], 2, true)
-    set_regime_fixed!(m[:σ_corepce], 1, false)
-    set_regime_fixed!(m[:σ_corepce], 2, true)
-
-    # Change valuebounds in regime 2 and keep those in regime 1
-    #set_regime_valuebounds!(m[:ρ_gdpdef], 1, m[:ρ_gdpdef].valuebounds)
-    #set_regime_valuebounds!(m[:σ_gdpdef], 1, m[:σ_gdpdef].valuebounds)
-    set_regime_valuebounds!(m[:ρ_corepce], 1, m[:ρ_corepce].valuebounds)
-    set_regime_valuebounds!(m[:σ_corepce], 1, m[:σ_corepce].valuebounds)
-
-    #set_regime_valuebounds!(m[:ρ_gdpdef], 2, (0.0, m[:ρ_gdpdef].valuebounds[2]))
-    #set_regime_valuebounds!(m[:σ_gdpdef], 2, (0.0, m[:σ_gdpdef].valuebounds[2]))
-    set_regime_valuebounds!(m[:ρ_corepce], 2, (0.0, m[:ρ_corepce].valuebounds[2]))
-    set_regime_valuebounds!(m[:σ_corepce], 2, (0.0, m[:σ_corepce].valuebounds[2]))
-
-    # Set values
-    ## Should I set rho_gdpdef to 0 or not?
-    #set_regime_val!(m[:ρ_gdpdef], 1, 0.5379)
-    #set_regime_val!(m[:ρ_gdpdef], 2, 0.0)
-
-    set_regime_val!(m[:ρ_corepce], 1, 0.2320)
-    set_regime_val!(m[:ρ_corepce], 2, 0.0)
-    set_regime_val!(m[:σ_corepce], 1, 0.0999)
-    set_regime_val!(m[:σ_corepce], 2, 0.0)
-end
-
-function expected_nominal_rates!(m)
-    if mon_anticipated_ait_shocks(m) != false
-        for i in mon_anticipated_ait_shocks(m) ## AIT expected FFR
-            symb_i = Symbol("σ_ait_r_m$(i)")
-            get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
-            for j in 1:18 #Iterate each new system!!! UPDATE
-                if j < 10
-                    get_setting(m, :model2para_regime)[symb_i][j] = 1
-                else
-                    get_setting(m, :model2para_regime)[symb_i][j] = 2
-                end
-            end
-            set_regime_valuebounds!(m[symb_i], 1, m[symb_i].valuebounds)
-            set_regime_valuebounds!(m[symb_i], 2, m[symb_i].valuebounds)
-            m[symb_i].fixed = false
-
-            set_regime_val!(m[symb_i], 1, 0.0)
-            set_regime_val!(m[symb_i], 2, m[symb_i].value)
-
-            set_regime_fixed!(m[symb_i], 1, true)
-            set_regime_fixed!(m[symb_i], 2, false)
-        end
-    end
-
-    for i in 1:n_mon_anticipated_shocks_padding(m) ## Taylor Rule expected FFR
-        symb_i = Symbol("σ_r_m$(i)")
-        if symb_i in [m.parameters[j].key for j in 1:length(m.parameters)] && !m[symb_i].fixed
-            get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
-            for j in 1:18 ##UPDATE!!
-                if j < 10
-                    get_setting(m, :model2para_regime)[symb_i][j] = 1
-                else
-                    get_setting(m, :model2para_regime)[symb_i][j] = 2
-                end
-            end
-            set_regime_valuebounds!(m[symb_i], 1, m[symb_i].valuebounds)
-            set_regime_valuebounds!(m[symb_i], 2, m[symb_i].valuebounds)
-            m[symb_i].fixed = false
-
-            set_regime_val!(m[symb_i], 2, 0.0)
-            set_regime_val!(m[symb_i], 1, m[symb_i].value)
-
-            set_regime_fixed!(m[symb_i], 2, true)
-            set_regime_fixed!(m[symb_i], 1, false)
-        end
-    end
-
-    # Contemporaneous AIT shocks
-    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
-        get_setting(m, :model2para_regime)[:σ_ait_rm] = Dict(1 => 1)
-        for i in 1:9
-            get_setting(m, :model2para_regime)[:σ_ait_rm][i] = 1
-        end
-        for i in 10:18 #UPDATE
-            get_setting(m, :model2para_regime)[:σ_ait_rm][i] = 2
-        end
-        set_regime_valuebounds!(m[:σ_ait_rm], 1, m[:σ_ait_rm].valuebounds)
-        set_regime_valuebounds!(m[:σ_ait_rm], 2, m[:σ_ait_rm].valuebounds)
-        m[:σ_ait_rm].fixed = false
-
-        set_regime_val!(m[:σ_ait_rm], 1, 0.0)
-        set_regime_val!(m[:σ_ait_rm], 2, m[:σ_ait_rm].value)
-
-        set_regime_fixed!(m[:σ_ait_rm], 1, true)
-        set_regime_fixed!(m[:σ_ait_rm], 2, false)
-    end
-
-    # Contemporaneous Taylor shock
-    get_setting(m, :model2para_regime)[:σ_r_m] = Dict(1 => 1)
-    for i in 1:9
-        get_setting(m, :model2para_regime)[:σ_r_m][i] = 1
-    end
-    for i in 10:18 #UPDATE!
-        get_setting(m, :model2para_regime)[:σ_r_m][i] = 2
-    end
-    set_regime_valuebounds!(m[:σ_r_m], 1, m[:σ_r_m].valuebounds)
-    set_regime_valuebounds!(m[:σ_r_m], 2, m[:σ_r_m].valuebounds)
-    m[:σ_r_m].fixed = false
-
-    set_regime_val!(m[:σ_r_m], 2, 0.0)
-    set_regime_val!(m[:σ_r_m], 1, m[:σ_r_m].value)
-
-    set_regime_fixed!(m[:σ_r_m], 2, true)
-    set_regime_fixed!(m[:σ_r_m], 1, false)
-
-    # iid measurement error on expected AIT shock
-    for i in expected_ffr(m)
-        symb_i = Symbol("σ_exp_rm$(i)")
-        get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
-        for j in 1:18 #UPDATE!
-            if j < 10
-                get_setting(m, :model2para_regime)[symb_i][j] = 1
-            else
-                get_setting(m, :model2para_regime)[symb_i][j] = 2
-            end
-        end
-        set_regime_valuebounds!(m[symb_i], 1, m[symb_i].valuebounds)
-        set_regime_valuebounds!(m[symb_i], 2, m[symb_i].valuebounds)
-        m[symb_i].fixed = false
-
-        set_regime_val!(m[symb_i], 1, 0.0)
-        set_regime_val!(m[symb_i], 2, m[symb_i].value)
-
-        set_regime_fixed!(m[symb_i], 1, true)
-        set_regime_fixed!(m[symb_i], 2, false)
-   end
-end
 
 function ss86!(m)
     ss64!(m)
@@ -6896,7 +6612,6 @@ function ss89!(m)
     ss88!(m)
     remove_persist_mkup!(m)
 end
-
 
 function ss90!(m)
     ss89!(m)
@@ -6990,6 +6705,7 @@ function ss97!(m)
     set_regime_prior!(m[:σ_meas_π], 2, prior2)
 
     expected_nominal_rates!(m)
+
 end
 
 # Model 97 with mean reversion in biidc shock
@@ -7029,4 +6745,269 @@ end
 
 function ss102!(m)
     ss97!(m) #but with change to long run inflation series and no reduction of bps
+end
+
+
+
+"""
+'''
+ss103!(m::Model1002)
+'''
+
+ss103 builds on a combination of 10, 97, and 103 in simplifying and estimating post covid, as of 05/24. Changes include introducing and estimating a κ_pce/business_cycle parameter, estimating AIT parameters (as in ss100), and simplifying other regime changes made during covid so that we are not estimating regimes on minimal quarters of data.
+
+Implementation by RAs Brian Pacula and Pranay Gundam
+"""
+
+function ss103!(m)
+    ss100!(m)
+
+    # Covid Shocks changed to turn off one period before they do in ss100
+
+    set_regime_val!(m[:κ_covid], 1, m[:κ_covid].value)
+    set_regime_val!(m[:κ_covid], 2, m[:κ_covid].value)
+
+    set_regime_fixed!(m[:κ_covid], 1, true)
+    set_regime_fixed!(m[:κ_covid], 2, false)
+
+    set_regime_prior!(m[:κ_covid], 1, m[:κ_covid].prior)
+    set_regime_prior!(m[:κ_covid], 2, m[:κ_covid].prior)
+
+    set_regime_valuebounds!(m[:κ_covid], 1, (0.0, 1.0))
+    set_regime_valuebounds!(m[:κ_covid], 2, (0.0, 1.0))
+
+    m2p_dict = Dict()
+    for i in vcat(1:4, 10:get_setting(m, :n_regimes))
+        m2p_dict[i] = 1
+    end
+
+    for i in 5:9
+        m2p_dict[i] = 2
+    end
+
+    get_setting(m, :model2para_regime)[:κ_covid] = m2p_dict
+
+    toggle_regime!(m[:κ_covid], 1)
+
+    get_setting(m, :model2para_regime)[:κ_covid][10] = 1
+
+    # Remove 2020 Q2 and 2020 Q3 Anticipated Covid Shocks
+
+    for i = 4:5
+        get_setting(m, :model2para_regime)[:σ_biidc1][i] = 1
+    end
+
+    for i = 5:9
+        get_setting(m, :model2para_regime)[:σ_biidc][i] = 2
+        get_setting(m, :model2para_regime)[:σ_ziid][i] = 2
+        get_setting(m, :model2para_regime)[:σ_φ][i] = 2
+    end
+
+    # Measurement Error shocks (everything but core pce) go straight back to pre-covid regimes in 2020Q3
+
+    get_setting(m, :model2para_regime)[:σ_gdpdef][4] = 1
+
+    # Standard Shocks: still uncertain but potentially implement a κ_standardcovid (either estimated or fixed it tbd) during 2020Q1 and 2020Q2 rather than estimating a different regime
+
+    for para in [:σ_g, :σ_b, :σ_μ, :σ_ztil, :σ_λ_f, :σ_λ_w, :σ_σ_ω, :σ_μ_e, :σ_γ, :σ_π_star]
+        for i in 1:get_setting(m, :n_regimes)
+            get_setting(m, :model2para_regime)[para][i] = 1
+        end
+    end
+
+
+    set_regime_val!(m[:κ_std_bcshocks], 1, m[:κ_std_bcshocks].value)
+    set_regime_val!(m[:κ_std_bcshocks], 2, m[:κ_std_bcshocks].value)
+
+    set_regime_fixed!(m[:κ_std_bcshocks], 1, true)
+    set_regime_fixed!(m[:κ_std_bcshocks], 2, false)
+
+    set_regime_prior!(m[:κ_std_bcshocks], 1, m[:κ_std_bcshocks].prior)
+    set_regime_prior!(m[:κ_std_bcshocks], 2, m[:κ_std_bcshocks].prior)
+
+    set_regime_valuebounds!(m[:κ_std_bcshocks], 1, (0.0, 1.0))
+    set_regime_valuebounds!(m[:κ_std_bcshocks], 2, (0.0, 1.0))
+
+    m2p_dict = Dict(1 => 1, 2 => 2, 3 => 2)
+    for i in 4:get_setting(m, :n_regimes)
+        m2p_dict[i] = 1
+    end
+
+    get_setting(m, :model2para_regime)[:κ_std_bcshocks] = m2p_dict
+
+    toggle_regime!(m[:κ_std_bcshocks], 1)
+
+    # Add κ_pce, return model back to pre-covid regimes starting in 2022 Q1, IS THIS ESTIMATED?
+
+    set_regime_val!(m[:κ_pce], 1, m[:κ_pce].value)
+    set_regime_val!(m[:κ_pce], 2, m[:κ_pce].value)
+
+    set_regime_fixed!(m[:κ_pce], 1, true)
+    set_regime_fixed!(m[:κ_pce], 2, false)
+
+    set_regime_prior!(m[:κ_pce], 1, m[:κ_pce].prior)
+    set_regime_prior!(m[:κ_pce], 2, m[:κ_pce].prior)
+
+    set_regime_valuebounds!(m[:κ_pce], 1, (0.0, 1.0))
+    set_regime_valuebounds!(m[:κ_pce], 2, (0.0, 1.0))
+
+    m2p_dict = Dict()
+    for i in vcat(1:4, 10:get_setting(m, :n_regimes))
+        m2p_dict[i] = 1
+    end
+
+    for i in 5:9
+        m2p_dict[i] = 2
+    end
+
+    get_setting(m, :model2para_regime)[:κ_pce] = m2p_dict
+
+    #get_setting(m, :model2para_regime)[:ρ_meas_π][10] = 1
+    #get_setting(m, :model2para_regime)[:ρ_meas_π][11] = 1
+
+    for i = 2:9
+        get_setting(m, :model2para_regime)[:σ_meas_π][i] = 2
+        get_setting(m, :model2para_regime)[:σ_corepce][i] = 2
+    end
+
+    for i = 10:get_setting(m, :n_regimes)
+        get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
+        get_setting(m, :model2para_regime)[:σ_corepce][i] = 1
+    end
+
+    toggle_regime!(m[:κ_pce], 1)
+
+    # Inflation Target tbd
+
+
+    # Taylor Shocks both cont and ant are as is in either SS97 or SS100, one thing to clear up DO PEOPLE WITH IMPERFECT CRED BELIEFS ON TAYLOR STILL NEED TAYLOR SHOCKS IN THE MODEL TO STAY TRUE TO THEIR BELIEF EXPERIENCE
+
+
+end
+
+
+# ss97 except we have moved all the previously neccesary forecasting spec model changes into
+function ss104!(m)
+    ss97!(m)
+
+    # Hardcoding these because they rarely (and I mean never) change now that we are past the covid era
+    sig_condgdp = 2.0
+    sig_condcorepce = 1.25
+    start_zlb_date = Date(2020, 12, 31)
+    end_zlb_date = Date(2021, 12, 31)
+    φ_π = 4.
+    φ_y = 3.
+    Thalf = 10.
+    pgap_init = 0.125
+    ygap_init = 12.
+    ρ_smooth = 0.9
+    end_tvcred_level = 1.0
+    start_tvcred_date = Date(2020, 12, 31)
+    end_tvcred_date = Date(2026, 12, 31)
+    tworule_zlb = true
+    adjusted_historical_expectations = true
+    spd_expect = true
+    cond_type = :full
+    pgap_ygap_init_date = Date(2020, 6, 30)
+    start_tvcred_level = 0.
+    endo_zlb = false
+    sig_meas_pi = true
+    θ = (φ_π = φ_π, φ_y = φ_y, Thalf = Thalf, pgap = pgap_init, ygap = ygap_init, ρ_smooth = ρ_smooth, cred = 1., historical_policy = default_policy())
+
+    qtrs_before_last = DSGE.subtract_quarters(date_forecast_start(m), Date(2019, 12, 31))
+
+    set_regime_vals_fnct = (x, n) -> model2para_covid_set_regime_vals(x, n; start_regime = qtrs_before_last + 1)
+
+
+    m2p = get_setting(m, :model2para_regime)
+    m <= Setting(:remove_rm_t_shocks, 8)
+    m <= Setting(:remove_pistar_shocks, 5)
+
+    m2p[:σ_condgdp] = Dict()
+    for i in 1:qtrs_before_last
+        m2p[:σ_condgdp][i] = 1
+    end
+
+
+    set_regime_val!(m[:σ_condgdp], 1, 0.)
+    set_regime_val!(m[:σ_condgdp], 2, sig_condgdp * m[:σ_gdp].value)
+    set_regime_fixed!(m[:σ_condgdp], 1, true)
+    set_regime_fixed!(m[:σ_condgdp], 2, false)
+
+    m2p[:σ_condcorepce] = Dict()
+    for i in vcat(1:qtrs_before_last, qtrs_before_last+2:get_setting(m, :n_regimes))
+        m2p[:σ_condcorepce][i] = 1
+    end
+
+    set_regime_val!(m[:σ_condcorepce], 1, 0.)
+    set_regime_val!(m[:σ_condcorepce], 2, sig_condcorepce * m[:σ_corepce].value)
+    set_regime_fixed!(m[:σ_condcorepce], 1, true)
+    set_regime_fixed!(m[:σ_condcorepce], 2, false)
+
+    setup_flexait_tempzlb!(m, cond_type, start_zlb_date, end_zlb_date, θ; pgap_ygap_init_date = pgap_ygap_init_date,
+                           altpolicy = false, skip_altpolicy_state_init = true, uncertain_altpolicy = true,
+                           set_regime_vals_fnct = set_regime_vals_fnct,
+                           tvcred_dates = (start_tvcred_date, end_tvcred_date), start_tvcred_level = start_tvcred_level,
+                           end_tvcred_level = end_tvcred_level,
+                           adjusted_historical_expectations = true,
+                           spd_expect = true,
+                           tworule_zlb = true, endo_zlb = endo_zlb)
+
+    for i in 1:6
+        cur_modelreg = 19
+        for mreg in 9:cur_modelreg
+            get_setting(m, :model2para_regime)[Symbol("σ_ait_r_m$(i)")][mreg] = 2
+        end
+        for mreg in cur_modelreg+1:29
+            get_setting(m, :model2para_regime)[Symbol("σ_ait_r_m$(i)")][mreg] = 1
+        end
+    end
+
+    m2p[:σ_condgdp][qtrs_before_last+1] = 2
+    m2p[:σ_condcorepce][qtrs_before_last+1] = 2
+
+    para_meas = [:ρ_meas_π, :σ_meas_π, :ρ_corepce, :σ_corepce]
+    for p in para_meas
+        end_ind = sig_meas_pi ? 10 : 9
+        for i in 2:end_ind
+            get_setting(m, :model2para_regime)[p][i] = 2
+        end
+        if p == :ρ_meas_π
+            for i in 2:get_setting(m, :n_regimes)
+                get_setting(m, :model2para_regime)[p][i] = 2
+            end
+        end
+        if p == :ρ_corepce
+            for i in 1:get_setting(m, :n_regimes)
+                get_setting(m, :model2para_regime)[p][i] = 1
+            end
+        end
+        if (p != :ρ_meas_π && p != :ρ_corepce)
+            for i in end_ind+1:get_setting(m, :n_regimes)
+                get_setting(m, :model2para_regime)[p][i] = 1
+            end
+        end
+    end
+
+
+
+    # Add settings to speed up computation for estimation
+    zlb_start_reg = minimum(collect(keys(get_setting(m, :regime_eqcond_info))))
+    altpol_names = [get_setting(m, :regime_eqcond_info)[reg].alternative_policy.key
+                    for reg in sort!(collect(keys(get_setting(m, :regime_eqcond_info))))]
+    flex_ait_start = findfirst(x -> x == :flexible_ait, altpol_names) + # minus 1 to correctly account for regimes that
+        minimum(collect(keys(get_setting(m, :regime_eqcond_info)))) - 1 # have passed since the ZLB started
+    m <= Setting(:tvis_information_set, vcat([i:i for i in 1:(zlb_start_reg - 1)],
+                                             [i:flex_ait_start for i in zlb_start_reg:flex_ait_start],
+                                             [i:i for i in (flex_ait_start + 1):get_setting(m, :n_regimes)]))
+
+
+    get_setting(m, :model2para_regime)[:σ_meas_π][7] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][9] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][10] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][11] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][6] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][8] = 3
+
+
 end
