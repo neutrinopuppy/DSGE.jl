@@ -34,7 +34,7 @@ means, standard deviations,
 function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bool = true,
                    verbose::Symbol=:low, check_empty_columns::Bool = true,
                    summary_statistics::Symbol = :low, add_vals = (false, Date(2020,12,31)),
-                   fomc_dates::Vector{Int64} = Vector{Int64}())
+                   fomc_dates::Vector{Int64} = Vector{Int64}(), post_covid_mod = false, cm_ffr = DataFrame())
     recreate_data = false
 
     # Check if already downloaded
@@ -129,6 +129,11 @@ function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bo
                 end
             end
         end
+    end
+
+    # Neccesary manual adjustments to the dataframe when implementing subspecs 97 and above to address the covid and post-covid era.
+    if post_covid_mod
+        df = post_covid_data_mods(m, df, cond_type, fomc_dates; cm_ffr)
     end
 
     return df

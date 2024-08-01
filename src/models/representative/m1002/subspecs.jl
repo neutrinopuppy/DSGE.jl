@@ -6754,9 +6754,7 @@ end
 ss103!(m::Model1002)
 '''
 
-ss103 builds on a combination of 10, 97, and 103 in simplifying and estimating post covid, as of 05/24. Changes include introducing and estimating a κ_pce/business_cycle parameter, estimating AIT parameters (as in ss100), and simplifying other regime changes made during covid so that we are not estimating regimes on minimal quarters of data.
-
-Implementation by RAs Brian Pacula and Pranay Gundam
+ss103 builds on a combination of 100 and 97 in simplifying and estimating post covid, as of 05/24. Changes include introducing and estimating a κ_pce/business_cycle parameter, estimating AIT parameters (as in ss100), and simplifying other regime changes made during covid so that we are not estimating regimes on minimal quarters of data. This is only a preliminary test model and will not be used in production.
 """
 
 function ss103!(m)
@@ -6886,11 +6884,18 @@ function ss103!(m)
 end
 
 
-# ss97 except we have moved all the previously neccesary forecasting spec model changes into
+"""
+'''
+ss104!(m::Model1002)
+'''
+
+This subspecification was created in an effort to clean the forecasting process in the post-covid era (currently July 2024), and is based off of ss97.
+"""
+
 function ss104!(m)
     ss97!(m)
 
-    # Hardcoding these because they rarely (and I mean never) change now that we are past the covid era
+    # Hardcoding these because they rarely (and I mean never) change now that we are past the covid era nad have determined the nessesary settings
     sig_condgdp = 2.0
     sig_condcorepce = 1.25
     start_zlb_date = Date(2020, 12, 31)
@@ -6912,6 +6917,7 @@ function ss104!(m)
     start_tvcred_level = 0.
     endo_zlb = false
     sig_meas_pi = true
+
     θ = (φ_π = φ_π, φ_y = φ_y, Thalf = Thalf, pgap = pgap_init, ygap = ygap_init, ρ_smooth = ρ_smooth, cred = 1., historical_policy = default_policy())
 
     qtrs_before_last = DSGE.subtract_quarters(date_forecast_start(m), Date(2019, 12, 31))
@@ -6944,6 +6950,7 @@ function ss104!(m)
     set_regime_fixed!(m[:σ_condcorepce], 1, true)
     set_regime_fixed!(m[:σ_condcorepce], 2, false)
 
+    # Setting changes relevant for setting up flexible ait and temporary zero lower bound policies
     setup_flexait_tempzlb!(m, cond_type, start_zlb_date, end_zlb_date, θ; pgap_ygap_init_date = pgap_ygap_init_date,
                            altpolicy = false, skip_altpolicy_state_init = true, uncertain_altpolicy = true,
                            set_regime_vals_fnct = set_regime_vals_fnct,
@@ -6954,7 +6961,7 @@ function ss104!(m)
                            tworule_zlb = true, endo_zlb = endo_zlb)
 
     for i in 1:6
-        cur_modelreg = 19
+        cur_modelreg = Dict(map(reverse, collect(get_setting(m, :regime_dates))))[date_forecast_start(m)]
         for mreg in 9:cur_modelreg
             get_setting(m, :model2para_regime)[Symbol("σ_ait_r_m$(i)")][mreg] = 2
         end
@@ -7010,4 +7017,15 @@ function ss104!(m)
     get_setting(m, :model2para_regime)[:σ_meas_π][8] = 3
 
 
+end
+
+"""
+'''
+ss105!(m::Model1002)
+'''
+
+ss105 builds on a combination of subspecs 100 and 104 in simplifying and estimating post covid, as of 08/24. Changes include introducing and estimating a κ_pce/business_cycle parameter, estimating AIT parameters (as in ss100), and simplifying other regime changes made during covid so that we are not estimating regimes on minimal quarters of data.
+"""
+function ss105!(m)
+    pass
 end

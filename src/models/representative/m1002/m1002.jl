@@ -409,7 +409,6 @@ Initializes the model's settings as per sub specification
 function init_settings!(m::Model1002)
     subspec_int = parse(Int, subspec(m)[3:end])
         if subspec_int == 104
-            m <= Setting(:date_forecast_start, date_forecast_start(m))
             m <= Setting(:forecast_horizons, 40)
             m <= Setting(:add_pseudo_gdp, true), Setting(:add_pseudo_corepce, true)
             m <= Setting(:add_iid_cond_obs_gdp_meas_err, true)

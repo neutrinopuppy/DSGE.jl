@@ -1,3 +1,22 @@
+"""
+'''
+setup_flexait_tempzlb!(m::AbstractDSGEModel, cond_type::Symbol, start_zlb_date::Date, end_zlb_date::Date,
+                                θ::NamedTuple; pgap_ygap_init_date::Date = Date(2020, 6, 30),
+                                set_regime_vals_fnct::Function = baseline_covid_set_regime_vals,
+                                altpolicy::Bool = false, skip_altpolicy_state_init::Bool = false,
+                                include_zlb::Bool = true, uncertain_altpolicy::Bool = true,
+                                tvcred_dates::Union{Tuple{Date, Date}, Nothing} = nothing,
+                                start_tvcred_level::Union{Number, Nothing} = nothing,
+                                end_tvcred_level::Union{Number, Nothing} = nothing,
+                                chosen_altpolicy::AltPolicy = flexible_ait(),
+                                adjusted_historical_expectations::Bool = true,
+                                spd_expect::Bool = true,
+                                tworule_zlb::Bool = true, endo_zlb::Bool = false
+'''
+
+This is a helper function used in subspecs.jl to make the relevant model setting changes needed to setup flexible ait and temporary zero lower bound policies.
+
+"""
 function setup_flexait_tempzlb!(m::AbstractDSGEModel, cond_type::Symbol, start_zlb_date::Date, end_zlb_date::Date,
                                 θ::NamedTuple; pgap_ygap_init_date::Date = Date(2020, 6, 30),
                                 set_regime_vals_fnct::Function = baseline_covid_set_regime_vals,
@@ -31,8 +50,6 @@ function setup_flexait_tempzlb!(m::AbstractDSGEModel, cond_type::Symbol, start_z
         @warn "altpolicy kwarg is deprecated and does nothing"
     end
     m <= Setting(:skip_altpolicy_state_init, skip_altpolicy_state_init)
-
-    ## Update data
 
 
     if include_zlb
@@ -120,7 +137,6 @@ function setup_flexait_tempzlb!(m::AbstractDSGEModel, cond_type::Symbol, start_z
             end
         end
 
-        # ok, so... a lot of this is redundant. TODO fix it.
         if tworule_zlb
             tworule_eqcond_info = deepcopy(get_setting(m, :regime_eqcond_info))
             for (reg, eq_entry) in tworule_eqcond_info
@@ -158,6 +174,18 @@ function setup_flexait_tempzlb!(m::AbstractDSGEModel, cond_type::Symbol, start_z
     end
 end
 
+
+"""
+'''
+zlb_and_taylor!(m::AbstractDSGEModel, cond_type::Symbol,  start_zlb_date::Date, end_zlb_date::Date;
+                         set_regime_vals_fnct::Function = baseline_covid_set_regime_vals,
+                         include_zlb::Bool = true,
+                         tvcred_dates::Union{Tuple{Date, Date}, Nothing} = nothing)
+'''
+
+This is a helper function that can be used in subspecs.jl to modify a model for implementing zlb and taylor policies.
+
+"""
 
 function zlb_and_taylor!(m::AbstractDSGEModel, cond_type::Symbol,  start_zlb_date::Date, end_zlb_date::Date;
                          set_regime_vals_fnct::Function = baseline_covid_set_regime_vals,
@@ -247,6 +275,13 @@ function zlb_and_taylor!(m::AbstractDSGEModel, cond_type::Symbol,  start_zlb_dat
 end
 
 
+"""
+'''
+setup_historical_expectations!(m::AbstractDSGEModel, start_zlb_date::Date, end_zlb_date::Date; spd_expect::Bool = true)
+'''
+
+Changing alternative policies and expectation weights at specific model regimes.
+"""
 function setup_historical_expectations!(m::AbstractDSGEModel, start_zlb_date::Date, end_zlb_date::Date; spd_expect::Bool = true)
     reg_forecast_start = get_setting(m, :reg_forecast_start)
     ## True Policy - ZLB until 2021Q4 and then AIT (or Taylor if no_altpol_2022)
@@ -432,6 +467,14 @@ function setup_historical_expectations!(m::AbstractDSGEModel, start_zlb_date::Da
 end
 
 
+"""
+'''
+model2para_covid_set_regime_vals(m::AbstractDSGEModel, n::Int, new_model2para_reg::Int = 1; start_regime::Int = 6)
+'''
+
+Helper function when using temporary alternative policies with these scenarios and when there is a model2para_regimes dictionary. `start_regime` specifies the first regime for which we may or may not need to add extra regimes for parameters `new_model2para_reg` specifies what parameter regime to which extra model regimes are mapped. It is assumed that all regime-switching parameters are in model2para_regime, which is assumed to avoid looping over unnecessary parameters.
+"""
+
 # helper function when using temporary alternative policies with these scenarios
 # and when there is a model2para_regimes dictionary.
 # `start_regime` specifies the first regime for which we may or may not need to add extra regimes for parameters
@@ -456,7 +499,7 @@ function model2para_covid_set_regime_vals(m::AbstractDSGEModel, n::Int, new_mode
 end
 
 
-function add_sigma_mkup_iid!(m)
+function add_sigma_mkup_iid!(m::AbstractDSGEModel)
     get_setting(m, :model2para_regime)[:σ_λ_f_iid] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 3)
     for i in 6:get_setting(m, :n_regimes)
         get_setting(m, :model2para_regime)[:σ_λ_f_iid][i] = 1
@@ -480,7 +523,7 @@ function add_sigma_mkup_iid!(m)
 end
 
 
-function add_meas_pi!(m)
+function add_meas_pi!(m::AbstractDSGEModel)
     get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 2)
     get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 1)
     for i in 10:get_setting(m, :n_regimes)
@@ -516,7 +559,7 @@ function add_meas_pi!(m)
     # set_regime_prior!(m[:ρ_meas_π], 2, m[:ρ_meas_π].prior)
 end
 
-function add_zero_meas_pi!(m)
+function add_zero_meas_pi!(m::AbstractDSGEModel)
     # Set measurement errors from ss87 to 0
     get_setting(m, :model2para_regime)[:ρ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 2)
     get_setting(m, :model2para_regime)[:σ_meas_π] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2, 8 => 2, 9 => 2, 10 => 1)
@@ -541,7 +584,7 @@ function add_zero_meas_pi!(m)
     set_regime_fixed!(m[:σ_meas_π], 2, true)
 end
 
-function remove_persist_mkup!(m)
+function remove_persist_mkup!(m::AbstractDSGEModel)
     # get_setting(m, :model2para_regime)[:ρ_λ_f] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2)
     get_setting(m, :model2para_regime)[:σ_λ_f] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2)
     for i in 6:get_setting(m, :n_regimes)
@@ -563,7 +606,7 @@ function remove_persist_mkup!(m)
     set_regime_fixed!(m[:σ_λ_f], 2, true)
 end
 
-function rm_iid_pce_meas_err!(m)
+function rm_iid_pce_meas_err!(m::AbstractDSGEModel)
 
     #get_setting(m, :model2para_regime)[:ρ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
     #get_setting(m, :model2para_regime)[:σ_gdpdef] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 7 => 2)
@@ -637,12 +680,12 @@ function rm_iid_pce_meas_err!(m)
     set_regime_val!(m[:σ_corepce], 2, 0.0)
 end
 
-function expected_nominal_rates!(m)
+function expected_nominal_rates!(m::AbstractDSGEModel; irf_reg::Integer = Dict(map(reverse, collect(get_setting(m, :regime_dates))))[date_forecast_start(m)])
     if mon_anticipated_ait_shocks(m) != false
         for i in mon_anticipated_ait_shocks(m) ## AIT expected FFR
             symb_i = Symbol("σ_ait_r_m$(i)")
             get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
-            for j in 1:19 #Iterate each new system!!! UPDATE
+            for j in 1:irf_reg
                 if j < 10
                     get_setting(m, :model2para_regime)[symb_i][j] = 1
                 else
@@ -665,7 +708,7 @@ function expected_nominal_rates!(m)
         symb_i = Symbol("σ_r_m$(i)")
         if symb_i in [m.parameters[j].key for j in 1:length(m.parameters)] && !m[symb_i].fixed
             get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
-            for j in 1:19 ##UPDATE!!
+            for j in 1:irf_reg
                 if j < 10
                     get_setting(m, :model2para_regime)[symb_i][j] = 1
                 else
@@ -690,7 +733,7 @@ function expected_nominal_rates!(m)
         for i in 1:9
             get_setting(m, :model2para_regime)[:σ_ait_rm][i] = 1
         end
-        for i in 10:19 #UPDATE
+        for i in 10:irf_reg
             get_setting(m, :model2para_regime)[:σ_ait_rm][i] = 2
         end
         set_regime_valuebounds!(m[:σ_ait_rm], 1, m[:σ_ait_rm].valuebounds)
@@ -709,7 +752,7 @@ function expected_nominal_rates!(m)
     for i in 1:9
         get_setting(m, :model2para_regime)[:σ_r_m][i] = 1
     end
-    for i in 10:19 #UPDATE!
+    for i in 10:irf_reg
         get_setting(m, :model2para_regime)[:σ_r_m][i] = 2
     end
     set_regime_valuebounds!(m[:σ_r_m], 1, m[:σ_r_m].valuebounds)
@@ -726,7 +769,7 @@ function expected_nominal_rates!(m)
     for i in expected_ffr(m)
         symb_i = Symbol("σ_exp_rm$(i)")
         get_setting(m, :model2para_regime)[symb_i] = Dict(1 => 1)
-        for j in 1:19 #UPDATE!
+        for j in 1:irf_reg
             if j < 10
                 get_setting(m, :model2para_regime)[symb_i][j] = 1
             else
