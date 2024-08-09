@@ -6929,6 +6929,8 @@ function ss104!(m)
     m <= Setting(:remove_rm_t_shocks, 8)
     m <= Setting(:remove_pistar_shocks, 5)
 
+
+
     m2p[:σ_condgdp] = Dict()
     for i in 1:qtrs_before_last
         m2p[:σ_condgdp][i] = 1
@@ -7027,5 +7029,5 @@ ss105!(m::Model1002)
 ss105 builds on a combination of subspecs 100 and 104 in simplifying and estimating post covid, as of 08/24. Changes include introducing and estimating a κ_pce/business_cycle parameter, estimating AIT parameters (as in ss100), and simplifying other regime changes made during covid so that we are not estimating regimes on minimal quarters of data.
 """
 function ss105!(m)
-    pass
+    ss97!(m)
 end
