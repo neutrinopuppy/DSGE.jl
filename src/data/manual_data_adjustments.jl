@@ -11,7 +11,7 @@ Neccesary manual adjustments to the dataframe when implementing subspecs 97 and 
 
 """
 function post_covid_data_mods(m, df, cond_type, fomc_dates; cm_ffr::DataFrame = DataFrame(),
-                              spd_expect_data::Bool = true, keep_Q1_spd::Bool = true, add_22Q1_ffr::Bool = true,
+                              spd_expect_data::Bool = true, keep_Q1_spd::Bool = true, add_22Q1_ffr::Bool = false,
                               expected_ffr::Vector{Int64} = [1,2,3,4,5,6],
                               all_ffr_qs::Vector{Int64} = [1,2,3,4,5,6],
                               fcast_date::Date = date_forecast_start(m))
@@ -63,7 +63,7 @@ function post_covid_data_mods(m, df, cond_type, fomc_dates; cm_ffr::DataFrame = 
         end
     end
 
-    if spd_expect_data && add_22Q1_ffr
+    if spd_expect_data && add_22Q1_ffr && !isempty(cm_ffr)
         col_ind = 2 #it's 4 if using 220314.csv
         exp_cm_vec = zeros(10)
         if false## Last day
