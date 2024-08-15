@@ -408,23 +408,25 @@ Initializes the model's settings as per sub specification
 """
 function init_settings!(m::Model1002)
     subspec_int = parse(Int, subspec(m)[3:end])
-        if subspec_int == 104
-            m <= Setting(:forecast_horizons, 40)
-            m <= Setting(:add_pseudo_gdp, true), Setting(:add_pseudo_corepce, true)
-            m <= Setting(:add_iid_cond_obs_gdp_meas_err, true)
-            m <= Setting(:add_iid_cond_obs_corepce_meas_err, true)
-            m <= Setting(:standard_shocks_mode_adjust, 1, false, "modeadj", "")
-            m <= Setting(:standard_shocks_spread_adjust, 2, false, "spreadadj", "")
-            m <= Setting(:add_altpolicy_pgap, true)
-            m <= Setting(:add_altpolicy_ygap, true)
-            m <= Setting(:add_shadow_taylor, true)
-            m <= Setting(:add_shadow_ait, true)
-            m <= Setting(:mon_anticipated_ait_shocks, [1, 2, 3, 4, 5, 6])
-            m <= Setting(:add_ait_rm, false)
-            m <= Setting(:expected_ffr, [1, 2, 3, 4, 5, 6])
-            m <= Setting(:add_ait_rm, true)
-            m <= Setting(:add_taylor_rm, true)
-        end
+
+    if subspec_int == 104
+        m <= Setting(:forecast_horizons, 40)
+        m <= Setting(:add_pseudo_gdp, true)
+        m <= Setting(:add_pseudo_corepce, true)
+        m <= Setting(:add_iid_cond_obs_gdp_meas_err, true)
+        m <= Setting(:add_iid_cond_obs_corepce_meas_err, true)
+        m <= Setting(:standard_shocks_mode_adjust, 1, false, "modeadj", "")
+        m <= Setting(:standard_shocks_spread_adjust, 2, false, "spreadadj", "")
+        m <= Setting(:add_altpolicy_pgap, true)
+        m <= Setting(:add_altpolicy_ygap, true)
+        m <= Setting(:add_shadow_taylor, true)
+        m <= Setting(:add_shadow_ait, true)
+        m <= Setting(:mon_anticipated_ait_shocks, [1, 2, 3, 4, 5, 6])
+        m <= Setting(:add_ait_rm, false)
+        m <= Setting(:expected_ffr, [1, 2, 3, 4, 5, 6])
+        m <= Setting(:add_ait_rm, true)
+        m <= Setting(:add_taylor_rm, true)
+    end
 end
 
 

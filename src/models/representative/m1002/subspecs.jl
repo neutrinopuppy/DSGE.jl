@@ -6895,6 +6895,8 @@ This subspecification was created in an effort to clean the forecasting process 
 function ss104!(m)
     ss97!(m)
 
+    m <= Setting(:cur_model_regime, Dict(map(reverse, collect(get_setting(m, :regime_dates))))[date_forecast_start(m)])
+
     # Hardcoding these because they rarely (and I mean never) change now that we are past the covid era nad have determined the nessesary settings
     sig_condgdp = 2.0
     sig_condcorepce = 1.25
@@ -6930,7 +6932,6 @@ function ss104!(m)
     m <= Setting(:remove_pistar_shocks, 5)
 
 
-
     m2p[:σ_condgdp] = Dict()
     for i in 1:qtrs_before_last
         m2p[:σ_condgdp][i] = 1
@@ -6963,11 +6964,11 @@ function ss104!(m)
                            tworule_zlb = true, endo_zlb = endo_zlb)
 
     for i in 1:6
-        cur_modelreg = Dict(map(reverse, collect(get_setting(m, :regime_dates))))[date_forecast_start(m)]
-        for mreg in 9:cur_modelreg
+
+        for mreg in 9:get_setting(m, :cur_model_regime)
             get_setting(m, :model2para_regime)[Symbol("σ_ait_r_m$(i)")][mreg] = 2
         end
-        for mreg in cur_modelreg+1:29
+        for mreg in get_setting(m, :cur_model_regime)+1:29
             get_setting(m, :model2para_regime)[Symbol("σ_ait_r_m$(i)")][mreg] = 1
         end
     end
