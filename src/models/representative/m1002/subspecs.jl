@@ -7011,7 +7011,11 @@ function ss104!(m)
                                              [i:flex_ait_start for i in zlb_start_reg:flex_ait_start],
                                              [i:i for i in (flex_ait_start + 1):get_setting(m, :n_regimes)]))
 
+    m <= Setting(:baseline_start_reg, [r for (r, d) in get_setting(m, :regime_dates) if d == date_forecast_start(m)][1] + 1)
 
+
+
+    # Is this something to include?
     get_setting(m, :model2para_regime)[:σ_meas_π][7] = 3
     get_setting(m, :model2para_regime)[:σ_meas_π][9] = 3
     get_setting(m, :model2para_regime)[:σ_meas_π][10] = 3
