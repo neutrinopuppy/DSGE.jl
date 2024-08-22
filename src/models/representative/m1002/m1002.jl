@@ -1419,7 +1419,12 @@ function shock_groupings(m::Model1002)
 
         rm_vec = vcat([:rm_sh], [Symbol("rm_shl$i") for i = 1:n_mon_anticipated_shocks(m)])
         if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
-            append!(rm_vec, :rm_ait_sh)
+            append!(rm_vec, [:rm_ait_sh])
+            if !isempty(mon_anticipated_ait_shocks(m))
+                for i in mon_anticipated_ait_shocks(m)
+                    push!(rm_vec, Symbol("ait_rm_sh$i"))
+                end
+            end
         end
 
         pol = ShockGroup("pol", rm_vec, RGB(1.0, 0.84, 0.0)) # gold
@@ -1432,7 +1437,8 @@ function shock_groupings(m::Model1002)
         end
         if !isempty(expected_ffr(m))
             for i in expected_ffr(m)
-                push!(exogenous_shocks, Symbol("exp_rm_sh$i"))
+                push!(rm_vec, Symbol("exp_rm_sh$i"))
+                #push!(exogenous_shocks, Symbol("exp_rm_sh$i"))
             end
         end
 
