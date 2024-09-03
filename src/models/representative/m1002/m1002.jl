@@ -1309,6 +1309,7 @@ parameter groupings (e.g. \"Policy Parameters\") to vectors of
 function parameter_groupings(m::Model1002)
     # For parsing model subspec to Int
     subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+    subspec_num = parse(Int, SubString(subspec(m),3,subspec_ind))
 
     policy     = [[:ψ1, :ψ2, :ψ3, :ρ, :ρ_rm, :σ_r_m];
                   [Symbol("σ_r_m$i") for i = 1:n_mon_anticipated_shocks(m)];
@@ -1322,10 +1323,10 @@ function parameter_groupings(m::Model1002)
     error      = [:me_level, :ρ_gdp, :ρ_gdi, :ρ_lr, :ρ_tfp, :ρ_gdpdef, :ρ_corepce,
                   :ρ_gdpvar, :σ_gdp, :σ_gdi, :σ_lr, :σ_tfp, :σ_gdpdef, :σ_corepce]
 
-    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
+    if subspec_num >= 87
         push!(error, :ρ_meas_π, :σ_meas_π)
     end
-    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 100
+    if subspec_num >= 100 && subspec_num != 104
         push!(policy, :φ_π, :φ_y, :ρ_smooth)
     end
     if haskey(get_settings(m), :add_ait_rm) && get_setting(m, :add_ait_rm)
@@ -1346,7 +1347,7 @@ function parameter_groupings(m::Model1002)
                     "Financial Frictions Parameters", "Exogenous Process Parameters",
                     "Measurement Error Parameters"]
 
-    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
+    if subspec_num >= 59
         covid = [:σ_ziid, :σ_biidc, :σ_φ]
         for (sh, ant_num) in get_setting(m, :antshocks)
             for i in 1:ant_num
@@ -1373,7 +1374,7 @@ function parameter_groupings(m::Model1002)
     incl_params    = vcat(collect(values(groupings))...)
     excl_params_sym = vcat([:Upsilon, :ρ_μ_e, :ρ_γ, :σ_μ_e, :σ_γ, :Iendoα, :γ_gdi, :δ_gdi],
                            [Symbol("σ_r_m$i") for i=n_mon_anticipated_shocks(m)+1:n_mon_anticipated_shocks_padding(m)])
-    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
+    if subspec_num >= 59
         push!(excl_params_sym, :ρ_ziid, :ρ_biidc, :ρ_φ)
     end
     if haskey(get_settings(m), :add_initialize_pgap_ygap_pseudoobs) ?
