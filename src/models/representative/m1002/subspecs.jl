@@ -6755,6 +6755,8 @@ ss103!(m::Model1002)
 '''
 
 ss103 builds on a combination of 100 and 97 in simplifying and estimating post covid, as of 05/24. Changes include introducing and estimating a κ_pce/business_cycle parameter, estimating AIT parameters (as in ss100), and simplifying other regime changes made during covid so that we are not estimating regimes on minimal quarters of data. This is only a preliminary test model and will not be used in production.
+
+Implementation by RAs Brian Pacula and Pranay Gundam
 """
 
 function ss103!(m)
