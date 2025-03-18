@@ -10,8 +10,9 @@
 
 Manifest.toml
 
-# Working files
+# Scratch files
 *.orig
+*.swp
 
 # Data
 *.mat

@@ -15,7 +15,7 @@ Random.seed!(1793)
 @testset "Test regime switching" begin
     n_reg_temp = 14
 
-    m = Model1002("ss10", custom_settings = Dict{Symbol, Setting}(:add_altpolicy_pgap => Setting(:add_altpolicy_pgap, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_altpolicy_pgap, true)])
     m <= Setting(:forecast_smoother, :koopman)
     m <= Setting(:date_forecast_start, Date(2020, 6, 30))
     m <= Setting(:date_conditional_end, Date(2020, 6, 30))
@@ -67,7 +67,7 @@ Random.seed!(1793)
     for i in (3 - 2):(n_reg_temp - 2)
         global Γ0s[i], Γ1s[i], Cs[i], Ψs[i], Πs[i] = haskey(replace_eqcond, i+2) ? replace_eqcond[i+2].alternative_policy.eqcond(m, i+2) : eqcond(m, i + 2)
     end
-    Tcal, Rcal, Ccal = DSGE.gensys2(m, Γ0s, Γ1s, Cs, Ψs, Πs, t_s[1:n_endo, 1:n_endo], r_s[1:n_endo, :], c_s[1:n_endo], 12)
+    Tcal, Rcal, Ccal = DSGE.gensys2(m, Γ0s, Γ1s, Cs, Ψs, Πs, t_s[1:n_endo, 1:n_endo], r_s[1:n_endo, :], c_s[1:n_endo], 12, length(Γ0s))
     @test Tcal[1] ≈ sys_temp[1][3][1:n_endo, 1:n_endo]
 
     # Then when start recrusion with rule, should get same TTTs in every perod
@@ -75,7 +75,7 @@ Random.seed!(1793)
 
     get_setting(m, :regime_eqcond_info)[n_reg_temp].alternative_policy = DSGE.ngdp()
     Γ0s[end], Γ1s[end], Cs[end], Ψs[end], Πs[end] = eqcond(m, n_reg_temp)
-    Tcal, Rcal, Ccal = DSGE.gensys2(m, Γ0s, Γ1s, Cs, Ψs, Πs, t[1:n_endo, 1:n_endo], r[1:n_endo, :], c[1:n_endo], n_reg_temp - 2)
+    Tcal, Rcal, Ccal = DSGE.gensys2(m, Γ0s, Γ1s, Cs, Ψs, Πs, t[1:n_endo, 1:n_endo], r[1:n_endo, :], c[1:n_endo], n_reg_temp - 2, length(Γ0s))
     for i in 1:length(Tcal)
         @test Tcal[i] ≈ t[1:n_endo, 1:n_endo]
     end
@@ -163,8 +163,7 @@ end
 @testset "Temporary alternative policies with non-trivial conditional forecasting" begin
     output_vars = [:forecastobs]
 
-    m = Model1002("ss10", custom_settings = Dict{Symbol, Setting}(:add_altpolicy_pgap =>
-                                                                  Setting(:add_altpolicy_pgap, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_altpolicy_pgap, true)])
     m <= Setting(:forecast_smoother, :koopman)
 
     m <= Setting(:regime_switching, true)
@@ -233,36 +232,36 @@ end
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31), 3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 6, 30))
-    push!(answers[:none], [1:1, 2:60])
-    push!(answers[:full], [1:59])
+    push!(answers[:none], [1:1, 2:40])
+    push!(answers[:full], [1:39])
 
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31), 3 => Date(2020, 6, 30),
                                4 => Date(2021, 12, 31)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 6, 30))
-    push!(answers[:none], [1:6, 7:60])
-    push!(answers[:full], [1:5, 6:59])
+    push!(answers[:none], [1:6, 7:40])
+    push!(answers[:full], [1:5, 6:39])
 
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31), 3 => Date(2020, 12, 31),
                                4 => Date(2021, 12, 31)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 12, 31))
-    push!(answers[:none], [1:2, 3:6, 7:60])
-    push!(answers[:full], [1:3, 4:57])
+    push!(answers[:none], [1:2, 3:6, 7:40])
+    push!(answers[:full], [1:3, 4:37])
 
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31), 3 => Date(2021, 12, 31),
                                4 => Date(2022, 12, 31)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 12, 31))
-    push!(answers[:none], [1:6, 7:10, 11:60])
-    push!(answers[:full], [1:3, 4:7, 8:57])
+    push!(answers[:none], [1:6, 7:10, 11:40])
+    push!(answers[:full], [1:3, 4:7, 8:37])
 
     push!(rss, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 6, 30), 3 => Date(2021, 12, 31),
                                4 => Date(2022, 12, 31)))
     push!(fss, Date(2020, 6, 30))
     push!(ces, Date(2020, 12, 31))
-    push!(answers[:none], [1:6, 7:10, 11:60])
-    push!(answers[:full], [1:3, 4:7, 8:57])
+    push!(answers[:none], [1:6, 7:10, 11:40])
+    push!(answers[:full], [1:3, 4:7, 8:37])
 
     for cond_type in [:full, :none]
         for (i, rs, fs, ce) in zip(1:length(rss), rss, fss, ces)
@@ -412,10 +411,10 @@ end
 @testset "Test smoothing with regime switching and gensys2 matches plain Kalman filtering and conditional data" begin
     n_reg_temp = 16
 
-    m = Model1002("ss10", custom_settings = Dict{Symbol, Setting}(:add_pgap => Setting(:add_pgap, true),
-                                                                  :add_ygap => Setting(:add_ygap, true),
-                                                                  :add_anticipated_obs_gdp => Setting(:add_anticipated_obs_gdp, true),
-                                                                  :n_anticipated_obs_gdp => Setting(:n_anticipated_obs_gdp, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_pgap, true),
+                                             Setting(:add_ygap, true),
+                                             Setting(:add_anticipated_obs_gdp, true),
+                                             Setting(:n_anticipated_obs_gdp, true)])
     m <= Setting(:date_forecast_start, Date(2020, 3, 31))
     m <= Setting(:date_conditional_end, Date(2020, 3, 31))
     m <= Setting(:regime_switching, true)

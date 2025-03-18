@@ -167,12 +167,14 @@ function filter_likelihood(m::AbstractDSGEModel, df::DataFrame, system::Union{Sy
                            P_0::Matrix{S} = Matrix{S}(undef, 0, 0);
                            cond_type::Symbol = :none, include_presample::Bool = true,
                            in_sample::Bool = true,
+                           add_zlb_duration::Tuple{Bool, Int} = (false, 1),
                            tol::Float64 = 0.0) where {S<:AbstractFloat}
 
     data = df_to_matrix(m, df; cond_type = cond_type, in_sample = in_sample)
     start_date = max(date_presample_start(m), df[1, :date])
 
     filter_likelihood(m, data, system, s_0, P_0; start_date = start_date,
+                      add_zlb_duration = add_zlb_duration,
                       include_presample = include_presample, tol = tol)
 end
 
@@ -181,6 +183,7 @@ function filter_likelihood(m::AbstractDSGEModel, data::AbstractArray, system::Sy
                            P_0::Matrix{S} = Matrix{S}(undef, 0, 0);
                            start_date::Date = date_presample_start(m),
                            include_presample::Bool = true,
+                           add_zlb_duration::Tuple{Bool, Int} = (false, 1),
                            tol::Float64 = 0.0) where {S<:AbstractFloat}
 
     # Partition sample into pre- and post-ZLB regimes
@@ -204,7 +207,8 @@ function filter_likelihood(m::AbstractDSGEModel, data::AbstractArray, system::Sy
 
     # Run Kalman filter, construct Kalman object, and return
     kalman_likelihood(regime_inds, data, TTTs, RRRs, CCCs, QQs,
-                      ZZs, DDs, EEs, s_0, P_0; Nt0 = Nt0, tol = tol)
+                      ZZs, DDs, EEs, s_0, P_0;
+                      Nt0 = Nt0, tol = tol)
 end
 
 function filter_likelihood(m::AbstractDSGEModel, data::AbstractArray,
@@ -213,6 +217,7 @@ function filter_likelihood(m::AbstractDSGEModel, data::AbstractArray,
                            P_0::Matrix{S} = Matrix{S}(undef, 0, 0);
                            start_date::Date = date_presample_start(m),
                            include_presample::Bool = true,
+                           add_zlb_duration::Tuple{Bool, Int} = (false, 1),
                            tol::Float64 = 0.0) where {S<:AbstractFloat}
 
     # Partition sample into regimes (including pre- and post-ZLB regimes).
@@ -238,8 +243,113 @@ function filter_likelihood(m::AbstractDSGEModel, data::AbstractArray,
     Nt0 = include_presample ? 0 : n_presample_periods(m)
 
     # Run Kalman filter, construct Kalman object, and return
-    kalman_likelihood(regime_inds, data, TTTs, RRRs, CCCs, QQs,
-                      ZZs, DDs, EEs, s_0, P_0; Nt0 = Nt0, tol = tol)
+    if !add_zlb_duration[1]
+        kalman_likelihood(regime_inds, data, TTTs, RRRs, CCCs, QQs,
+                          ZZs, DDs, EEs, s_0, P_0; add_zlb_duration = add_zlb_duration,
+                          Nt0 = Nt0, tol = tol)
+    else
+        filter_lik, zlb_st = kalman_likelihood(regime_inds, data, TTTs, RRRs, CCCs, QQs,
+                          ZZs, DDs, EEs, s_0, P_0; add_zlb_duration = add_zlb_duration,
+                          Nt0 = Nt0, tol = tol)
+
+        # Compute implied ZLB duration
+        zlb_ind = findfirst(x -> add_zlb_duration[2] in x, regime_inds)#regime_indices(m, start_date))
+        ##TODO: Handle case when add_zlb_duration[2] != regime_inds[zlb_ind][end]
+
+        ### Save settings that need to change to forecast from add_zlb_duration[2]
+        horizons = get_setting(m, :forecast_horizons)
+        orig_regime_eqcond_info = get_setting(m, :regime_eqcond_info)
+        orig_temp_altpol_len = get_setting(m, :temporary_altpolicy_length)
+        orig_reg_forecast_start = get_setting(m, :reg_forecast_start)
+        orig_reg_post_conditional_end = get_setting(m, :reg_post_conditional_end)
+        orig_n_fcast_regimes = get_setting(m, :n_fcast_regimes)
+        orig_n_hist_regimes = get_setting(m, :n_hist_regimes)
+        orig_min_temp_altpol_len = haskey(m.settings, :min_temporary_altpolicy_length) ? get_setting(m, :min_temporary_altpolicy_length) : nothing
+        orig_max_temp_altpol_len = haskey(m.settings, :max_temporary_altpolicy_length) ? get_setting(m, :max_temporary_altpolicy_length) : nothing
+        orig_hist_temp_altpol_len = haskey(m.settings, :historical_temporary_altpolicy_length) ? get_setting(m, :historical_temporary_altpolicy_length) : nothing
+        orig_cred_vary_until = haskey(m.settings, :cred_vary_until) ? get_setting(m, :cred_vary_until) : nothing
+        orig_perf_cred = haskey(m.settings, :perfect_credibility_identical_transitions) ? get_setting(m, :perfect_credibility_identical_transitions) : nothing
+        orig_iden_eqcond = haskey(m.settings, :identical_eqcond_regimes) ? get_setting(m, :identical_eqcond_regimes) : nothing
+
+        ### Reset settings for add_zlb_duration[2]
+        for a in collect(keys(get_setting(m, :regime_eqcond_info)))#zlb_ind+1:length(get_setting(m, :regime_eqcond_info))
+            #=if get_setting(m, :regime_eqcond_info)[a].alternative_policy in [DSGE.zlb_rule(), DSGE.zero_rate()]
+                get_setting(m, :temporary_altpolicy_length) += 1
+            end=#
+            if a >= zlb_ind ## = included b/c Great Recession ZLB adds 1 to regime_inds
+                # get_setting(m, :regime_eqcond_info)[a].weights = get_setting(m, :regime_eqcond_info)[zlb_ind].weights
+                get_setting(m, :regime_eqcond_info)[a].alternative_policy = DSGE.flexible_ait()
+                # get_setting(m, :regime_eqcond_info)[a].temporary_altpolicy_length = zlb_ind - 1
+            end
+        end ## TODO: Change expectations? No, leave alternative_policies as is.
+        first_eqcond_key = sort(collect(keys(get_setting(m, :regime_eqcond_info))))[1]
+        m <= Setting(:temporary_altpolicy_length, max(0,zlb_ind - first_eqcond_key + 1)) ## subtract 1 implicitly for ZLB regime
+        m <= Setting(:reg_forecast_start, zlb_ind)
+        m <= Setting(:reg_post_conditional_end, zlb_ind)
+        m <= Setting(:n_fcast_regimes, get_setting(m, :n_regimes) - zlb_ind + 1)
+        m <= Setting(:n_hist_regimes, zlb_ind - 1)
+        if !isnothing(orig_min_temp_altpol_len)
+            m <= Setting(:min_temporary_altpolicy_length, 0)
+        end
+        if !isnothing(orig_max_temp_altpol_len)
+            delete!(m.settings, :max_temporary_altpolicy_length)
+            # m <= Setting(:max_temporary_altpolicy_length, 30)
+        end
+        m <= Setting(:historical_temporary_altpolicy_length, max(0,zlb_ind - first_eqcond_key)) ## subtract 1 for ZLB regime
+        # m <= Setting(:cred_vary_until, get_setting(m, :n_regimes))
+        if !isnothing(orig_perf_cred)
+            delete!(m.settings, :perfect_credibility_identical_transitions)
+        end
+        if !isnothing(orig_iden_eqcond)
+            delete!(m.settings, :identical_eqcond_regimes)
+        end
+
+        ## Actually get the implied ZLB duration
+        @show [get_setting(m, :regime_eqcond_info)[i].alternative_policy.key for i in collect(keys(get_setting(m, :regime_eqcond_info)))]
+        _, fcast_obs, _ = forecast(m, zlb_st, zeros(length(zlb_st), horizons), zeros(length(m.observables), horizons),
+                 zeros(length(m.pseudo_observables), horizons), zeros(length(m.exogenous_shocks), horizons);
+                 cond_type = :none)
+
+        implied_zlb_duration = findfirst(x -> x > get_setting(m, :zlb_rule_value) / 4.0 + 1e-5, fcast_obs[m.observables[:obs_nominalrate],:]) - 1
+
+        ### Reset to original model settings
+        m <= Setting(:regime_eqcond_info, orig_regime_eqcond_info)
+        m <= Setting(:reg_forecast_start, orig_reg_forecast_start)
+        m <= Setting(:reg_post_conditional_end, orig_reg_post_conditional_end)
+        m <= Setting(:n_fcast_regimes, orig_n_fcast_regimes)
+        m <= Setting(:n_hist_regimes, orig_n_hist_regimes)
+        m <= Setting(:temporary_altpolicy_length, orig_temp_altpol_len)
+        if !isnothing(orig_min_temp_altpol_len)
+            m <= Setting(:min_temporary_altpolicy_length, orig_min_temp_altpol_len)
+        end
+        if !isnothing(orig_max_temp_altpol_len)
+            m <= Setting(:max_temporary_altpolicy_length, orig_max_temp_altpol_len)
+        end
+        if isnothing(orig_hist_temp_altpol_len)
+            delete!(m.settings, :historical_temporary_altpolicy_length)
+        else
+            m <= Setting(:historical_temporary_altpolicy_length, orig_hist_temp_altpol_len)
+        end
+        if isnothing(orig_cred_vary_until)
+            delete!(m.settings, :cred_vary_until)
+        else
+            m <= Setting(:cred_vary_until, orig_cred_vary_until)
+        end
+        if !isnothing(orig_perf_cred)
+            m <= Setting(:perfect_credibility_identical_transitions, orig_perf_cred)
+        end
+        if !isnothing(orig_iden_eqcond)
+            m <= Setting(:identical_eqcond_regimes, orig_iden_eqcond)
+        end
+
+        # Compute loss for ZLB duration
+        prior_prob = log(pdf(Normal(0.0, 0.25), abs(log(get_setting(m, :zlb_duration)) - log(implied_zlb_duration))))
+
+        # zlb_dist = Normal(log(get_setting(m, :zlb_duration)) - log(), log(1.5))
+        # prior_prob = log(pdf(zlb_dist, log(implied_zlb_duration))) ##:zlb_duration is the actual median ZLB duration. -1 b/c we are actually including liftoff qtr (since implied_zlb_duration can be 0)
+
+        return filter_lik#, prior_prob
+    end
 end
 
 function filter_shocks(m::AbstractDSGEModel, df::DataFrame, system::System{S},
@@ -380,20 +490,6 @@ function filter(m::PoolModel, data::AbstractArray,
         tuning[:n_presample_periods] = Nt0
     end
 
-    # Compute transition and measurement equations
-    Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
-
-    # Check initial states
-    n_particles = haskey(tuning, :n_particles) ? tuning[:n_particles] : 1000
-    if isempty(s_0)
-        s_0 = reshape(rand(F_λ, n_particles), 1, n_particles)
-        s_0 = [s_0; 1 .- s_0]
-    elseif get_setting(m, :weight_type) == :dynamic
-        if size(s_0,2) != n_particles
-            error("s0 does not contain enough particles")
-        end
-    end
-
     # Check tuning
     if isempty(tuning)
         try
@@ -406,6 +502,31 @@ function filter(m::PoolModel, data::AbstractArray,
     end
     if haskey(tuning, :parallel) # contains parallel? change keyword to that if so
         parallel = tuning[:parallel]
+    end
+
+    # Compute transition and measurement equations
+    ## TODO: Save time by just doing compute_system on 1 worker and then sending to
+    ### each worker. But sendto and passobj are not working on functions.
+    if parallel
+        Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
+        let m = m
+            @sync @distributed for p in workers()
+                Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
+            end
+        end
+    else
+        Φ, Ψ, F_ϵ, F_u, F_λ = compute_system(m)
+    end
+
+    # Check initial states
+    n_particles = haskey(tuning, :n_particles) ? tuning[:n_particles] : 1000
+    if isempty(s_0)
+        s_0 = quantile.(Normal(), rand(F_λ, n_particles))
+        # s_0 = minimum(F_λ) == 0.0 && maximum(F_λ) == 1.0 ? rand(F_λ, n_particles) : quantile.(Normal(), rand(F_λ, n_particles))
+    elseif get_setting(m, :weight_type) == :dynamic
+        if size(s_0,1) != n_particles && size(s_0,2) != n_particles
+            error("s0 does not contain enough particles")
+        end
     end
 
     # Check if PoolModel has fixed_sched. If not, assume no tempering

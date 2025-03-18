@@ -27,7 +27,7 @@ end
 description(m::RepDSGEGovDebt) = "RepDSGEGovDebt, $(m.subspec)"
 
 function RepDSGEGovDebt(het::HetDSGEGovDebt;
-                        custom_settings::Dict{Symbol, Setting} = Dict{Symbol, Setting}())
+                        custom_settings::Array{Setting} = Array{Setting}(undef, 0))
 
     @assert !isnan(het[:βstar].value) "Must have already called steadystate! on `het` before instantiating a RepDSGEGovDebt model"
 
@@ -61,7 +61,7 @@ function RepDSGEGovDebt(het::HetDSGEGovDebt;
 
     # Set settings
     model_settings!(m, het)
-    for custom_setting in values(custom_settings)
+    for custom_setting in custom_settings
         m <= custom_setting
     end
 

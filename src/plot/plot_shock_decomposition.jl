@@ -40,12 +40,13 @@ function plot_shock_decomposition(m::AbstractDSGEModel, var::Symbol, class::Symb
                                   title = "", file_ext = "", four_quarter_avg = false,
                                   trend_nostates::DataFrame = DataFrame(), df_enddate::Date = Date(2100,12,31),
                                   groups::Vector{ShockGroup} = shock_groupings(m), ylim_dict = Dict(),
-                                  product::Symbol = :shockdec,
+                                  product::Symbol = :shockdec, ext_black::Bool = false,
                                   kwargs...)
     plots = plot_shock_decomposition(m, [var], class, input_type, cond_type;
                                      titles = isempty(title) ? String[] : [title], file_ext = file_ext,
                                      four_quarter_avg = four_quarter_avg, trend_nostates = trend_nostates,
-                                     df_enddate = df_enddate, groups = groups, ylim_dict = ylim_dict, product = product, kwargs...)
+                                     df_enddate = df_enddate, groups = groups, ylim_dict = ylim_dict, product = product,
+                                     ext_black = ext_black, kwargs...)
     return plots[var]
 end
 
@@ -58,7 +59,7 @@ function plot_shock_decomposition(m::AbstractDSGEModel, vars::Vector{Symbol}, cl
                                   file_ext::String = "", four_quarter_avg = false,
                                   trend_nostates::DataFrame = DataFrame(), verbose::Symbol = :low,
                                   df_enddate::Date = Date(2100,12,31), ylim_dict = Dict(),
-                                  product::Symbol = :shockdec,
+                                  product::Symbol = :shockdec, ext_black::Bool = false,
                                   kwargs...)
     # Read in MeansBands
     output_vars = [Symbol(prod, class) for prod in [product, :trend, :dettrend, :hist, :forecast]]
@@ -66,9 +67,15 @@ function plot_shock_decomposition(m::AbstractDSGEModel, vars::Vector{Symbol}, cl
     if four_quarter_avg
         mbs = map(output_var -> read_mb_4q(m, input_type, cond_type, output_var, forecast_string = forecast_string),
                   output_vars)
+
     else
         mbs = map(output_var -> read_mb(m, input_type, cond_type, output_var, forecast_string = forecast_string),
                   output_vars)
+    end
+
+    if ext_black
+        push!(mbs[4].means, mbs[5].means[1,:])
+        mbs[5].means = mbs[5].means[2:end,:]
     end
 
     # Get titles if not provided
@@ -82,17 +89,17 @@ function plot_shock_decomposition(m::AbstractDSGEModel, vars::Vector{Symbol}, cl
     for (var, title) in zip(vars, titles)
 
         # Call recipe
-        ylabs = trend_nostates == DataFrame() ? "\n(deviations from mean)" : ""
+        ylabs = trend_nostates == DataFrame() ? "\n(deviations from mean)" : "\n(deviations from mean)"
 
         # Change ylims based on variable
         if ylim_dict != Dict() && var in keys(ylim_dict)
             plots[var] = shockdec(var, mbs..., groups;
-                              ylabel = series_ylabel(m, var, class) * ylabs, ylim = ylim_dict[var],
-                              title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
+                                  ylabel = series_ylabel(m, var, class) * ylabs, ylim = ylim_dict[var],
+                                  title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
         else
             plots[var] = shockdec(var, mbs..., groups;
-                              ylabel = series_ylabel(m, var, class) * ylabs,
-                              title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
+                                  ylabel = series_ylabel(m, var, class) * ylabs,
+                                  title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
         end
 
         # Save plot
@@ -111,6 +118,88 @@ function plot_shock_decomposition(m::AbstractDSGEModel, vars::Vector{Symbol}, cl
     end
     return plots
 end
+
+
+function plot_shock_decomposition(m::AbstractDSGEModel, m_old::AbstractDSGEModel, vars::Vector{Symbol}, class::Symbol,
+                                  input_type::Symbol, input_type_old::Symbol, cond_type::Symbol, cond_type_old::Symbol;
+                                  forecast_string::String = "", forecast_string_old::String = forecast_string,
+                                  groups::Vector{ShockGroup} = shock_groupings(m),
+                                  plotroot::String = figurespath(m, "forecast"),
+                                  titles::Vector{String} = String[],
+                                  file_ext::String = "", four_quarter_avg = false,
+                                  trend_nostates::DataFrame = DataFrame(), verbose::Symbol = :low,
+                                  df_enddate::Date = Date(2100,12,31), ylim_dict = Dict(),
+                                  product::Symbol = :shockdec,
+                                  kwargs...)
+    # Read in MeansBands
+    output_vars = [Symbol(prod, class) for prod in [product, :trend, :dettrend, :hist, :forecast]]
+
+    if four_quarter_avg
+        mbs = map(output_var -> read_mb_4q(m, input_type, cond_type, output_var, forecast_string = forecast_string),
+                  output_vars)
+
+        mbs_old = map(output_var -> read_mb_4q(m_old, input_type_old, cond_type_old, output_var,
+                                               forecast_string = forecast_string_old), output_vars)
+    else
+        mbs = map(output_var -> read_mb(m, input_type, cond_type, output_var, forecast_string = forecast_string),
+                  output_vars)
+
+        mbs_old = map(output_var -> read_mb(m_old, input_type_old, cond_type_old, output_var, forecast_string = forecast_string_old),
+                  output_vars)
+    end
+
+    # Subtract the shockdecs dataframes (new - old)
+    for mbs_ind in 1:length(mbs)
+        old_inds = [findfirst(x->x==mbs[mbs_ind].means[j,:date], mbs_old[mbs_ind].means[:,:date]) for j in 1:length(mbs[mbs_ind].means[:,1])]
+        for i in names(mbs[mbs_ind].means)
+            if i != "date"
+                mbs[mbs_ind].means[:,i] .= mbs[mbs_ind].means[:,i] .- mbs_old[mbs_ind].means[old_inds, i]
+            end
+        end
+    end
+
+    # Get titles if not provided
+    if isempty(titles)
+        detexify_title = typeof(Plots.backend()) == Plots.GRBackend
+        titles = map(var -> describe_series(m, var, class, detexify = detexify_title), vars)
+    end
+
+    # Loop through variables
+    plots = OrderedDict{Symbol, Plots.Plot}()
+    for (var, title) in zip(vars, titles)
+
+        # Call recipe
+        ylabs = trend_nostates == DataFrame() ? "\n(deviations from mean)" : "\n(deviations from mean)"
+
+        # Change ylims based on variable
+        if ylim_dict != Dict() && var in keys(ylim_dict)
+            plots[var] = shockdec(var, mbs..., groups;
+                                  ylabel = series_ylabel(m, var, class) * ylabs,
+                                  ylim = ylim_dict[var],
+                                  title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
+        else
+            plots[var] = shockdec(var, mbs..., groups;
+                                  ylabel = series_ylabel(m, var, class) * ylabs,
+                                  title = title, trend_nostates = trend_nostates, df_enddate = df_enddate, kwargs...)
+        end
+
+        # Save plot
+        if !isempty(plotroot)
+            if isempty(file_ext)
+                filestr_base = filestring_base(m)
+            else
+                filestr_base = vcat(filestring_base(m), [file_ext])
+            end
+            output_file = get_forecast_filename(plotroot, filestr_base, input_type, cond_type,
+                                                Symbol("shockdec_", detexify(var)),
+                                                forecast_string = forecast_string,
+                                                fileformat = plot_extension())
+            save_plot(plots[var], output_file, verbose = verbose)
+        end
+    end
+    return plots
+end
+
 
 @userplot Shockdec
 
@@ -159,9 +248,15 @@ shockdec
                    hist_color = :black,
                    forecast_color = :red,
                    tick_size = 5,
+                   legend = :bottomleft,
+                   legendfontsize = 6,
                    vert_line = quartertodate("0000-Q1"),
                    vert_line2 = quartertodate("0000-Q1"),
                    trend_nostates = DataFrame(), df_enddate = Date(2100,12,31))
+
+    start_date = Date("2023-03-31")
+    end_date = Date("2028-03-31")
+    tick_size = 1
 
     # Error checking
     if length(sd.args) != 7 || typeof(sd.args[1]) != Symbol ||
@@ -219,7 +314,7 @@ shockdec
 
         inds = findall(start_date .<= dates .<= end_date)
         x = xnums[inds]
-        y = convert(Matrix{Float64}, df[inds, cat_names])
+        y = Matrix{Float64}(df[inds, cat_names])
         StatsPlots.GroupedBar((x, y))
     end
 

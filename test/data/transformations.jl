@@ -5,14 +5,13 @@ data = JLD2.jldopen("$path/../reference/load_data_out.jld2", "r") do file
     read(file, "data")
 end
 fred = CSV.read("$path/../reference/fred_160812.csv", DataFrame)
-custom_settings = Dict{Symbol, Setting}(
-    :data_vintage             => Setting(:data_vintage, "160812"),
-    :cond_vintage             => Setting(:cond_vintage, "160812"),
-    :cond_id                  => Setting(:cond_id, 0),
-    :use_population_forecast  => Setting(:use_population_forecast, true),
-    :date_forecast_start      => Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-    :date_conditional_end     => Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-    :n_anticipated_shocks     => Setting(:n_anticipated_shocks, 6))
+custom_settings = [Setting(:data_vintage, "160812"),
+                   Setting(:cond_vintage, "160812"),
+                   Setting(:cond_id, 0),
+                   Setting(:use_population_forecast, true),
+                   Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                   Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                   Setting(:n_anticipated_shocks, 6)]
 
 m = Model990(custom_settings = custom_settings, testing = true)
 m <= Setting(:rate_expectations_source, :ois)
@@ -42,14 +41,14 @@ end
 @testset "Check loggrowth and loglevel transforms" begin
     @test loggrowthtopct([1., 3.]) == 100 .* (exp.([.01, .03]) .- 1.)
     @test loggrowthtopct_percapita([1., 3.], [1., 3.]) == 100. .* ((exp.([.01, .03]) .*
-                                                                   exp.([1., 3.]).^4) .- 1.)
+                                                                    exp.([1., 3.]).^4) .- 1.)
     @test loggrowthtopct_percapita([1. 3.; 1. 3.], [1., 3.]) == (100. .* ((exp.([.01, .03]) .*
                                                                            exp.([1., 3.]).^4) .- 1.))' .* ones(2)
     @test_throws AssertionError loggrowthtopct_percapita([1., 3.], [1., 3., 4.])
     @test loggrowthtopct_annualized([1., 3.]) == 100. .* (exp.([.01, .03]).^4 .- 1.)
     @test loggrowthtopct_annualized_percapita([2., 3.], [1.1, 1.2]) == 100. * (exp.([2., 3.] ./ 100. .+  [1.1, 1.2]).^4 .- 1.)
     @test loggrowthtopct_annualized_percapita([2. 3.; 2. 3.], [1.1, 1.2]) == ones(2) * (100. * (exp.([2., 3.] ./ 100. .+
-                                                                                                  [1.1, 1.2]).^4 .- 1.))'
+                                                                                                     [1.1, 1.2]).^4 .- 1.))'
     @test_throws AssertionError loggrowthtopct_annualized_percapita([1., 3.], [1., 3., 4.])
 
     @test isnan(logleveltopct_annualized_approx([.1, .2])[1])
@@ -92,7 +91,7 @@ end
     @test DSGE.loggrowthtopct_4q_percapita([1.], [1., 1., 1., 1.], [1., 1., 1.]) == 100. .* (exp.([4.] ./ 100. .+ [4.]) .- 1.)
     @test sum(isnan.(DSGE.loggrowthtopct_4q_percapita([1. 1.; 1. 1.], [1., 1., 1., 1., 1.]))) == 4
     @test DSGE.loggrowthtopct_4q_percapita([1. 1.; 1. 1.], [1., 1., 1., 1., 1.], [1., 1., 1.]) == ones(2) * 100. .* (exp.([4.; 4.] ./
-                                                                                                                100. .+ [4.; 4.]) .- 1.)'
+                                                                                                                          100. .+ [4.; 4.]) .- 1.)'
     @test sum(isnan.(DSGE.logleveltopct_4q([1., 2., 3., 4.]))) == 4
     @test DSGE.logleveltopct_4q([1., 2., 3., 4. ], [1., 1., 1., 1.]) == 100. .* (exp.([0., 1., 2., 3.] ./ 100) .- 1.)
     @test sum(isnan.(DSGE.logleveltopct_4q([1. 2. 3. 4. ; 1. 2. 3. 4. ]))) == 8
@@ -103,7 +102,7 @@ end
                                                                                                 [4., 4., 4., 4.]) .- 1.)
     @test sum(isnan.(DSGE.logleveltopct_4q_percapita([1. 2. 3. 4.; 1. 2. 3. 4.], ones(7)))) == 8
     @test DSGE.logleveltopct_4q_percapita([1. 2. 3. 4.; 1. 2. 3. 4.], ones(7), zeros(4)) == 100. .*
-              (exp.([1. 2. 3. 4.; 1. 2. 3. 4.] ./ 100. + 4 * ones(2,4)) .- 1.)
+    (exp.([1. 2. 3. 4.; 1. 2. 3. 4.] ./ 100. + 4 * ones(2,4)) .- 1.)
     @test_throws AssertionError DSGE.logleveltopct_4q_percapita([1., 2., 3., 4.], [1., 2., 3.])
 
     @test sum(isnan.(loggrowthtopct_4q_approx([.1, .2]))) == 2

@@ -1,13 +1,13 @@
 function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
                              cond_new::Symbol, cond_old::Symbol, classes::Vector{Symbol}; forecast_string_new = "", forecast_string_old = "",
-                             verbose::Symbol = :low) where M<:AbstractDSGEModel
+                             verbose::Symbol = :low, model_decomp::Bool = false) where M<:AbstractDSGEModel
     # Print
     println(verbose, :low, )
     info_print(verbose, :low, "Computing means of forecast decomposition...")
     println(verbose, :low, "Start time: " * string(now()))
     begin_time = time_ns()
 
-    input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, classes, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old)
+    input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, classes, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old, model_decomp = model_decomp)
 
     for class in classes
         print(verbose, :high, "Computing " * string(class) * "...")
@@ -22,7 +22,7 @@ function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
         mapfcn = use_parallel_workers(m_new) ? pmap : map
         decomp_vec = mapfcn(var -> decomposition_means(m_new, m_old, input_type,
                                                        cond_new, cond_old, class, var, forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old,
-                                                       verbose = verbose),
+                                                       verbose = verbose, model_decomp = model_decomp),
                             variable_names)
         decomps = OrderedDict{Symbol, DataFrame}()
         for (var, decomp) in zip(variable_names, decomp_vec)
@@ -50,26 +50,34 @@ end
 function decomposition_means(m_new::M, m_old::M, input_type::Symbol,
                              cond_new::Symbol, cond_old::Symbol,
                              class::Symbol, var::Symbol;
-forecast_string_new = "", forecast_string_old = "",
-                             verbose::Symbol = :low) where M<:AbstractDSGEModel
+                             forecast_string_new = "", forecast_string_old = "",
+                             verbose::Symbol = :low, model_decomp::Bool = false) where M<:AbstractDSGEModel
     # Read in dates
-    input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, [class], forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old)
+    input_files = get_decomp_output_files(m_new, m_old, input_type, cond_new, cond_old, [class], forecast_string_new = forecast_string_new, forecast_string_old = forecast_string_old, model_decomp = model_decomp)
     input_file = input_files[Symbol(:decomptotal, class)]
     dates = jldopen(input_file, "r") do file
         sort(collect(keys(read(file, "date_indices"))))
     end
 
     decomp = DataFrame(date = dates)
-    for comp in [:data, :news, :shockdec, :dettrend, :para, :total]
-        product = Symbol(:decomp, comp)
+    #decomp = decomp[1:end-1, :]
+    # comps = [:policyait, :policyeqcond, :shockdec, :dettrend, :trend, :release, :cond, :revise, :param, :spd, :total]
+    if (get_setting(m_new, :date_forecast_start) != get_setting(m_old, :date_forecast_start))
+       comps = [:shockdec, :dettrend, :trend, :release, :cond, :revise, :param, :spd, :total]
+    else
+       comps = [:shockdec, :dettrend, :trend, :cond, :revise, :param, :spd, :total]
+    end
+    # comps = [:shockdec, :dettrend, :trend, :release, :cond, :revise, :param, :total] - what you'd use for m1010
 
+    comps = model_decomp ? vcat(comps, :model) : comps
+    for comp in comps
+        product = Symbol(:decomp, comp)
         input_file = input_files[Symbol(product, class)]
         #jldopen(input_file, "r") do file
         # Parse transform
         class_long = get_class_longname(class)
         transforms = load(input_file, string(class_long) * "_revtransforms")
         transform = parse_transform(transforms[var])
-
         # If shockdec, loop over shocks
         loopkeys = if comp == :shockdec
             shock_indices = load(input_file, "shock_indices")
@@ -81,7 +89,6 @@ forecast_string_new = "", forecast_string_old = "",
         if comp == :shockdec
             shock_indices = load(input_file, "shock_indices")
         end
-
         indices = load(input_file, "$(class_long)_indices")
         var_ind = indices[var]
         for key in loopkeys
@@ -95,10 +102,8 @@ forecast_string_new = "", forecast_string_old = "",
             else
                 read_forecast_series(input_file, product, var_ind)
             end
-
             # Reverse transform
             transformed_decomp = scenario_mb_reverse_transform(decomp_series, transform, :forecast)
-
             # Compute mean and add to DataFrame
             decomp[!,key] = vec(mean(transformed_decomp, dims = 1))
         end

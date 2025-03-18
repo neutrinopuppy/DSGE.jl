@@ -1,7 +1,11 @@
 """
 ```
-load_data(m::AbstractDSGEModel; try_disk::Bool = true, verbose::Symbol = :low,
-          check_empty_columns::Bool = true, summary_statistics::Symbol = :low)
+load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bool = true,
+          verbose::Symbol=:low, check_empty_columns::Bool = true,
+          summary_statistics::Symbol = :low, add_vals = (false, Date(2020,12,31)),
+          fomc_dates::Vector{Int64} = Vector{Int64}(), builtin_mods::Vector{Symbol} = [],
+          custom_mods::Vector{Function} = [], cm_ffr::DataFrame = DataFrame(),
+          recreate_data = false)
 ```
 
 Create a DataFrame with all data series for this model, fully transformed.
@@ -29,12 +33,23 @@ in the loaded data set if it is set to true.
 The keyword `summary_statistics` prints out a variety of summary statistics
 on the loaded data. When set to :low, we print only the number of
 missing/NaNs for each data series. When set to :high, we also print
-means, standard deviations,
+means and standard deviations.
+
+Additionally, `builtin_mods` takes in a list of symbols which determine what DataFrame modification
+functions we want to use from the `manual_data_adjustments.jl` file.
+
+`custom_mods` on the other hand takes in a list of functions that map the model object and
+DataFrame back to a DataFrame. This allows the user to have more flexibility with merging their
+personal data loading and transforming routines with DSGE.jl.
 """
 function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bool = true,
                    verbose::Symbol=:low, check_empty_columns::Bool = true,
-                   summary_statistics::Symbol = :low, add_vals = (false, Date(2020,12,31)))
-    recreate_data = false
+                   summary_statistics::Symbol = :low, add_vals = (false, Date(2020,12,31)),
+                   fomc_dates::Vector{Int64} = Vector{Int64}(),
+                   builtin_mods::Vector{Symbol} = Vector{Symbol}(),
+                   custom_mods::Vector{Any} = [], cm_ffr::DataFrame = DataFrame(),
+                   recreate_data = false)
+
 
     # Check if already downloaded
     if try_disk && has_saved_data(m; cond_type=cond_type)
@@ -63,6 +78,7 @@ function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bo
         end
         df = transform_data(m, levels; cond_type=cond_type, verbose=verbose)
 
+        # Conditional OIS data
         if :obs_nominalrate1 in cond_semi_names(m) || :obs_nominalrate1 in cond_full_names(m)
             ois_data = CSV.read(inpath(m, "raw", "ois_$(data_vintage(m)).csv"), DataFrame, copycols = true)
             dates = DSGE.get_quarter_ends(iterate_quarters(date_mainsample_end(m), 1), date_conditional_end(m))
@@ -71,6 +87,21 @@ function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bo
             ois_data_want = ois_data[date_mainsample_end(m) .< ois_data[!, :date] .<= date_conditional_end(m), [Symbol("ant$i") for i in 1:n_mon_anticipated_shocks(m)]]
 
             df[date_mainsample_end(m) .< df[!, :date] .<= date_conditional_end(m), [Symbol("obs_nominalrate$i") for i in 1:n_mon_anticipated_shocks(m)]] .= Matrix{Float64}(ois_data_want)
+        end
+
+        # Conditional SPD Data
+        if any(occursin.("obs_exp_nominalrate", string.(vcat(cond_semi_names(m), cond_full_names(m)))))
+            spd_data = CSV.read(inpath(m, "raw", "spd_raw_$(data_vintage(m)).csv"), DataFrame, copycols = true)
+            # Transform into usable form
+            spd_data = transform_spd_data(spd_data, fomc_dates = fomc_dates)
+            CSV.write(inpath(m, "raw", "spd_$(data_vintage(m)).csv"), spd_data)
+
+            dates = DSGE.get_quarter_ends(iterate_quarters(date_mainsample_end(m), 1), date_conditional_end(m))
+            n_cond = length(dates)
+
+            spd_data_want = spd_data[date_mainsample_end(m) .< spd_data[!, :date] .<= date_conditional_end(m), [Symbol("exp_ant$i") for i in expected_ffr(m)]]
+
+            df[date_mainsample_end(m) .< df[!, :date] .<= date_conditional_end(m), [Symbol("obs_exp_nominalrate$i") for i in expected_ffr(m)]] .= Matrix{Float64}(spd_data_want)
         end
 
         # Ensure that only appropriate rows make it into the returned DataFrame.
@@ -112,6 +143,21 @@ function load_data(m::AbstractDSGEModel; cond_type::Symbol = :none, try_disk::Bo
                 end
             end
         end
+    end
+
+    # DSGE in-built adjustments to the dataframe.
+    for mod in builtin_mods
+        if mod == :post_covid
+            df = post_covid_data_mods(m, df, cond_type, fomc_dates; cm_ffr)
+        end
+        if mod == :pgbpid_estim
+            df = ss104_estimation(df)
+        end
+    end
+
+    # Custom adjustments to the dataframe
+    for func in custom_mods
+        df = func(m, df)
     end
 
     return df
@@ -182,6 +228,10 @@ function load_data_levels(m::AbstractDSGEModel; verbose::Symbol=:low,
         end
     end
 
+    # Set SPD expected FFR to load
+    if !isempty(expected_ffr(m))
+        data_series[:SPD] = [Symbol("exp_ant$i") for i in expected_ffr(m)]
+    end
 
     # For each additional source, search for the file with the proper name. Open
     # it, read it in, and merge it with fred_series
@@ -243,7 +293,11 @@ function load_data_levels(m::AbstractDSGEModel; verbose::Symbol=:low,
             end
         else
             # If series not found, use all missings
-            addl_data = DataFrame(fill(missing, (size(df,1), length(mnemonics))))
+            addl_data = try
+                DataFrame(fill(missing, (size(df,1), length(mnemonics))), :auto)
+            catch
+                DataFrame(fill(missing, (size(df,1), length(mnemonics)))) ## Backward compat w/ old DataFrames.jl
+            end
             if isdefined(DataFrames, :rename!)
                 rename!(addl_data, mnemonics)
             else
@@ -486,7 +540,7 @@ function df_to_matrix(m::Union{AbstractDSGEModel,AbstractVARModel}, df::DataFram
     sort!(cols, by = x -> get_observables(m)[x])
     df1 = df1[!,cols]
 
-    return permutedims(Float64.(collect(Missings.replace(convert(Matrix{Union{Missing, Float64}}, df1), NaN))))
+    return permutedims(Float64.(collect(Missings.replace(Matrix{Union{Missing, Float64}}(df1), NaN))))
 end
 
 """

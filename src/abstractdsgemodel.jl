@@ -27,7 +27,8 @@ n_mon_anticipated_shocks_padding(m::AbstractDSGEModel) = get_setting(m, :n_mon_a
 n_anticipated_shocks_padding(m::AbstractDSGEModel) = get_setting(m, :n_mon_anticipated_shocks_padding)
 n_z_anticipated_shocks(m::AbstractDSGEModel) = get_setting(m, :n_z_anticipated_shocks)
 n_z_anticipated_shocks_padding(m::AbstractDSGEModel) = get_setting(m, :n_z_anticipated_shocks_padding)
-
+mon_anticipated_ait_shocks(m::AbstractDSGEModel) = haskey(m.settings, :mon_anticipated_ait_shocks) && get_setting(m, :mon_anticipated_ait_shocks)
+expected_ffr(m::AbstractDSGEModel) = get_setting(m, :expected_ffr)
 
 # Dates, indices, number of periods for each regime
 date_presample_start(m::AbstractDSGEModel) = get_setting(m, :date_presample_start)
@@ -281,7 +282,8 @@ n_shockdec_periods(m::AbstractDSGEModel)    = index_shockdec_end(m) - index_shoc
 alternative_policy(m::AbstractDSGEModel) = haskey(get_settings(m), :regime_eqcond_info) && # no check for n_regimes b/c if it is not there, then
     haskey(get_setting(m, :regime_eqcond_info), get_setting(m, :n_regimes)) ?              # it is better to throw an error since regime_eqcond_info
     get_setting(m, :regime_eqcond_info)[get_setting(m, :n_regimes)].alternative_policy :   # will not work in general anyway.
-    (haskey(get_settings(m), :alternative_policy) ? get_setting(m, :alternative_policy) : AltPolicy(:historical, eqcond, solve))
+    (haskey(get_settings(m), :regime_eqcond_info) ? get_setting(m, :regime_eqcond_info)[sort(collect(keys(get_setting(m, :regime_eqcond_info))))[end]].alternative_policy :
+    (haskey(get_settings(m), :alternative_policy) ? get_setting(m, :alternative_policy) : AltPolicy(:historical, eqcond, solve)))
 
 # Some additional date settings related to forecasts
 function date_forecast_end(m::AbstractDSGEModel)

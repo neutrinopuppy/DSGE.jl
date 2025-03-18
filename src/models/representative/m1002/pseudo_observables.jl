@@ -1,10 +1,11 @@
 function init_pseudo_observable_mappings!(m::Model1002)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
 
     pseudo_names = [:y_t, :y_f_t, :NaturalRate, :π_t, :OutputGap, :ExAnteRealRate, :LongRunInflation,
                     :MarginalCost, :Wages, :FlexibleWages, :Hours, :FlexibleHours, :z_t,
-                    :Expected10YearRateGap, :NominalFFR, :Expected10YearRate,
-                    :Expected10YearNaturalRate,
-                    :ExpectedNominalNaturalRate, :NominalRateGap, :LaborProductivityGrowth, :u_t]
+                    :Expected10YearRateGap, :Econometricians10YearRateGap, :NominalFFR, :Expected10YearRate,
+                    :Expected10YearNaturalRate, :ExpectedNominalNaturalRate, :NominalRateGap, :LaborProductivityGrowth, :u_t]
                     # :i_f_t, :R_t, :c_f_t, :qk_f_t, :k_f_t, :kbar_f_t, :u_f_t, :rk_f_t, :w_f_t, :L_f_t, :rktil_f_t, :n_f_t, :c_t,
                     # :b_t, :r_f_t]
 
@@ -22,19 +23,19 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     if haskey(get_settings(m), :add_covid_pseudoobs)
-        if get_setting(m, :add_covid_pseudoobs) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_covid_pseudoobs) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             push!(pseudo_names, :ziid, :varphiiid, :biidc)
         end
     end
 
     if haskey(get_settings(m), :add_pseudo_gdp)
-        if get_setting(m, :add_pseudo_gdp) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_pseudo_gdp) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             push!(pseudo_names, :PseudoGDP)
         end
     end
 
     if haskey(get_settings(m), :add_pseudo_corepce)
-        if get_setting(m, :add_pseudo_corepce) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_pseudo_corepce) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             push!(pseudo_names, :PseudoCorePCE)
         end
     end
@@ -139,6 +140,18 @@ function init_pseudo_observable_mappings!(m::Model1002)
         end
     end
 
+    if haskey(get_settings(m), :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
+        push!(pseudo_names, :Expected5YearNaturalRate)
+        push!(pseudo_names, :Expected10YearRealNaturalRate)
+        push!(pseudo_names, :Expected5YearRealNaturalRate)
+    end
+
+    if haskey(get_settings(m), :add_expected_FFR_pseudo)
+        for i in 1:get_setting(m, :add_expected_FFR_pseudo)
+            push!(pseudo_names, Symbol("ExpectedFFR$(i)"))
+        end
+    end
+
     # Create PseudoObservable objects
     pseudo = OrderedDict{Symbol,PseudoObservable}()
     for k in pseudo_names
@@ -193,6 +206,10 @@ function init_pseudo_observable_mappings!(m::Model1002)
     pseudo[:Expected10YearRateGap].longname = "Expected 10-Year Rate Gap"
     pseudo[:Expected10YearRateGap].rev_transform = quartertoannual
 
+    pseudo[:Econometricians10YearRateGap].name     = "Econometrician's 10-Year Rate Gap"
+    pseudo[:Econometricians10YearRateGap].longname = "Expected 10-Year Rate Gap from the perspective of the econometrician who has no forward looking uncertainty"
+    pseudo[:Econometricians10YearRateGap].rev_transform = quartertoannual
+
     pseudo[:NominalFFR].name     = "Nominal FFR"
     pseudo[:NominalFFR].longname = "Nominal FFR at an annual rate"
     pseudo[:NominalFFR].rev_transform = quartertoannual
@@ -201,9 +218,31 @@ function init_pseudo_observable_mappings!(m::Model1002)
     pseudo[:Expected10YearRate].longname = "Expected 10-Year Interest Rate"
     pseudo[:Expected10YearRate].rev_transform = quartertoannual
 
-    pseudo[:Expected10YearNaturalRate].name     = "Expected 10-Year Natural Rate"
-    pseudo[:Expected10YearNaturalRate].longname = "Expected 10-Year Natural Rate of Interest"
-    pseudo[:Expected10YearNaturalRate].rev_transform = quartertoannual
+pseudo[:Expected10YearNaturalRate].name     = "Expected 10-Year Natural Rate"
+pseudo[:Expected10YearNaturalRate].longname = "Expected 10-Year Natural Rate of Interest"
+pseudo[:Expected10YearNaturalRate].rev_transform = quartertoannual
+
+    if haskey(m.settings, :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
+        pseudo[:Expected5YearNaturalRate].name     = "Expected 5-Year Natural Rate"
+        pseudo[:Expected5YearNaturalRate].longname = "Expected 5-Year Natural Rate of Interest"
+        pseudo[:Expected5YearNaturalRate].rev_transform = quartertoannual
+
+        pseudo[:Expected10YearRealNaturalRate].name     = "Expected 10-Year Real Natural Rate"
+        pseudo[:Expected10YearRealNaturalRate].longname = "Expected 10-Year Real Natural Rate of Interest"
+        pseudo[:Expected10YearRealNaturalRate].rev_transform = quartertoannual
+
+        pseudo[:Expected5YearRealNaturalRate].name     = "Expected 5-Year Real Natural Rate"
+        pseudo[:Expected5YearRealNaturalRate].longname = "Expected 5-Year Real Natural Rate of Interest"
+        pseudo[:Expected5YearRealNaturalRate].rev_transform = quartertoannual
+    end
+
+    if haskey(get_settings(m), :add_expected_FFR_pseudo)
+        for i in 1:get_setting(m, :add_expected_FFR_pseudo)
+            pseudo[Symbol("ExpectedFFR$(i)")].name = "Expected FFR $(i) quarters ahead"
+            pseudo[Symbol("ExpectedFFR$(i)")].longname = "Expected FFR $(i) quarters ahead at an annual rate"
+            pseudo[Symbol("ExpectedFFR$(i)")].rev_transform = quartertoannual
+        end
+    end
 
     pseudo[:ExpectedNominalNaturalRate].name     = "Expected Nominal Natural Rate"
     pseudo[:ExpectedNominalNaturalRate].longname = "Natural Rate + Expected Inflation"
@@ -395,7 +434,7 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     if haskey(get_settings(m), :add_covid_pseudoobs)
-        if get_setting(m, :add_covid_pseudoobs) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_covid_pseudoobs) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             pseudo[:ziid].name     = "ziid"
             pseudo[:ziid].longname = "ziid"
             pseudo[:biidc].name     = "biidc"
@@ -406,7 +445,7 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     if haskey(get_settings(m), :add_pseudo_gdp)
-        if get_setting(m, :add_pseudo_gdp) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_pseudo_gdp) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             pseudo[:PseudoGDP].name     = "GDP Growth Pseudo-observable"
             pseudo[:PseudoGDP].longname = "GDP Growth Pseudo-observable"
             pseudo[:PseudoGDP].rev_transform = loggrowthtopct_annualized_percapita
@@ -414,7 +453,7 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     if haskey(get_settings(m), :add_pseudo_corepce)
-        if get_setting(m, :add_pseudo_corepce) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_pseudo_corepce) && parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
             pseudo[:PseudoCorePCE].name     = "Core PCE Pseudo-observable"
             pseudo[:PseudoCorePCE].longname = "Core PCE Pseudo-observable"
             pseudo[:PseudoCorePCE].rev_transform = loggrowthtopct_annualized
@@ -443,7 +482,22 @@ function init_pseudo_observable_mappings!(m::Model1002)
     end
 
     # Needed to implement pseudo-measurement equation correctly
-    m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate])
+    if haskey(get_settings(m), :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
+        m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate, :Expected5YearNaturalRate, :Expected10YearRealNaturalRate, :Expected5YearRealNaturalRate])
+    else
+        m <= Setting(:forward_looking_pseudo_observables, [:Expected10YearRateGap, :Expected10YearRate, :Expected10YearNaturalRate])
+    end
+
+    if haskey(get_settings(m), :add_expected_FFR_pseudo) && get_setting(m, :add_expected_FFR_pseudo) >= 1
+        if haskey(m.settings, :forward_looking_pseudo_observables)
+            append!(get_setting(m, :forward_looking_pseudo_observables), [Symbol("ExpectedFFR1")])
+        else
+            m <= Setting(:forward_looking_pseudo_observables, [Symbol("ExpectedFFR1")])
+        end
+        for i in 2:get_setting(m, :add_expected_FFR_pseudo)
+            append!(get_setting(m, :forward_looking_pseudo_observables), [Symbol("ExpectedFFR$(i)")])
+        end
+    end
 
     # Add to model object
     m.pseudo_observable_mappings = pseudo

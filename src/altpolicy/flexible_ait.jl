@@ -21,11 +21,19 @@ function flexible_ait_replace_eq_entries(m::AbstractDSGEModel,
 
     ait_Thalf = haskey(get_settings(m), :ait_Thalf) ? get_setting(m, :ait_Thalf) : 10.
     gdp_Thalf = haskey(get_settings(m), :gdp_Thalf) ? get_setting(m, :gdp_Thalf) : 10.
+
     ρ_pgap    = exp(log(0.5) / ait_Thalf)
     ρ_ygap    = exp(log(0.5) / gdp_Thalf)
-    ρ_smooth  = haskey(get_settings(m), :flexible_ait_ρ_smooth) ? get_setting(m, :flexible_ait_ρ_smooth) : 0.656 # m[:ρ]
-    φ_π       = haskey(get_settings(m), :flexible_ait_φ_π) ? get_setting(m, :flexible_ait_φ_π) : 11.13
-    φ_y       = haskey(get_settings(m), :flexible_ait_φ_y) ? get_setting(m, :flexible_ait_φ_y) : 11.13
+
+    if subspec(m) == "ss100"
+        φ_π       = m[:φ_π]
+        φ_y       = m[:φ_y]
+        ρ_smooth  = m[:ρ_smooth]
+    else
+        ρ_smooth  = haskey(get_settings(m), :flexible_ait_ρ_smooth) ? get_setting(m, :flexible_ait_ρ_smooth) : 0.656
+        φ_π       = haskey(get_settings(m), :flexible_ait_φ_π) ? get_setting(m, :flexible_ait_φ_π) : 11.13
+        φ_y       = haskey(get_settings(m), :flexible_ait_φ_y) ? get_setting(m, :flexible_ait_φ_y) : 11.13
+    end
 
     # This assumes that the inflation target is the model's steady state
     Γ0[eq[:eq_pgap], endo[:pgap_t]] = 1.
@@ -54,8 +62,17 @@ function flexible_ait_replace_eq_entries(m::AbstractDSGEModel,
     Γ0[eq[:eq_mp], endo[:pgap_t]]   = -φ_π * (1. - ρ_pgap) * (1. - ρ_smooth) # (1 - m[:ρ]) # This is the AIT part
     Γ0[eq[:eq_mp], endo[:ygap_t]]   = -φ_y * (1. - ρ_ygap) * (1. - ρ_smooth) # (1. - m[:ρ]) # This is the GDP part
 
-    # Add MP shocks
-    Γ0[eq[:eq_mp], endo[:rm_t]]     = -1.
+    if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+        # Add MP shocks
+        Γ0[eq[:eq_mp], endo[:ait_rm_t]]     = -1.
+
+        # MP shock process
+        Γ0[eq[:eq_ait_rm], endo[:ait_rm_t]] = 1.0
+        Γ1[eq[:eq_ait_rm], endo[:ait_rm_t]] = m[:ρ_ait_rm]
+        Ψ[eq[:eq_ait_rm], m.exogenous_shocks[:rm_ait_sh]]  = 1.0
+    else
+        Γ0[eq[:eq_mp], endo[:rm_t]]     = -1.
+    end
 
     return Γ0, Γ1, C, Ψ, Π
 end
@@ -130,6 +147,15 @@ function flexible_ait_eqcond(m::AbstractDSGEModel, reg::Int = 1)
     end
 
     Γ0, Γ1, C, Ψ, Π = flexible_ait_replace_eq_entries(m, Γ0, Γ1, C, Ψ, Π)
+
+    # Set pgap_{t-1} to desired value
+    if haskey(get_settings(m), :set_pgap1) && reg in get_setting(m, :set_pgap1)[1]
+        ait_Thalf = haskey(get_settings(m), :ait_Thalf) ? get_setting(m, :ait_Thalf) : 10.
+        ρ_pgap    = exp(log(0.5) / ait_Thalf)
+
+        C[m.equilibrium_conditions[:eq_pgap]] = ρ_pgap * get_setting(m, :set_pgap1)[2]
+        Γ1[m.equilibrium_conditions[:eq_pgap], m.endogenous_states[:pgap_t]] = 0.0
+    end
 
     for para in m.parameters
         if !isempty(para.regimes)

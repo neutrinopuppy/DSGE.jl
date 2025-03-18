@@ -234,7 +234,8 @@ end
 
 function read_scenario_output(m::AbstractDSGEModel, m904::AbstractDSGEModel, m_cov::AbstractDSGEModel,
                               agg::ScenarioAggregate, class::Symbol,
-                              product::Symbol, var_name::Symbol)
+                              product::Symbol, var_name::Symbol; m97::Union{AbstractDSGEModel, Nothing} = nothing)
+
     # Aggregate scenarios
     nscens = length(agg.scenarios)
     agg_draws = Vector{Matrix{Float64}}(undef, nscens)
@@ -255,7 +256,8 @@ function read_scenario_output(m::AbstractDSGEModel, m904::AbstractDSGEModel, m_c
 
     for (i, scen) in enumerate(agg.scenarios)
         if in(:scenarios, fieldnames(typeof(scen))) #length(scen.scenarios)>1
-            scen_draws, transform, scen_dates = read_scenario_output(m, m904, m_cov, scen, class, product, var_name)
+            scen_draws, transform, scen_dates = read_scenario_output(m, m904, m_cov, scen, class, product, var_name,
+                                                                     m97=m97)
         else
             if scen.key==:bor8 || scen.key==:bor9 || scen.key==:bor8_02 || scen.key==:bor9_02
                 if var_name==:obs_corepce
@@ -267,6 +269,9 @@ function read_scenario_output(m::AbstractDSGEModel, m904::AbstractDSGEModel, m_c
             elseif scen.key==:bor10 || scen.key == :bor11
                 @show m_cov
                 scen_draws, transform, scen_dates = read_scenario_output(m_cov, scen, class, product, var_name)
+            elseif scen.key==:bor12 && !isnothing(m97)
+                @show m97
+                scen_draws, transform, scen_dates = read_scenario_output(m97, scen, class, product, var_name)
             else
                 @show m
                 # Recursively read in scenario draws

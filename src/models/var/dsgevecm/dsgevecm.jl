@@ -98,7 +98,7 @@ function Base.show(io::IO, m::DSGEVECM)
 end
 
 function DSGEVECM(dsge::AbstractDSGEModel{T}, shocks::Vector{Symbol}, subspec::String = "ss0";
-                 custom_settings::Dict{Symbol, Setting} = Dict{Symbol, Setting}(),
+                 custom_settings::Array{Setting} = Array{Setting}(undef, 0),
                  copy_dsge::Bool = false, testing = false) where {T<:Real}
 
     # Initialize specs
@@ -127,8 +127,8 @@ end
 
 # Empty constructor
 function DSGEVECM(dsge::AbstractDSGEModel{T}, subspec::String = "ss0";
-                 custom_settings::Dict{Symbol, Setting} = Dict{Symbol, Setting}(),
-                 copy_dsge::Bool = false, testing = false) where {T<:Real}
+                  custom_settings::Array{S} = Array{Setting{Bool}}(undef, 0),
+                 copy_dsge::Bool = false, testing = false) where {T<:Real, S<:Setting}
 
     # Initialize specs
     spec     = "dsgevar_" * ModelConstructors.spec(dsge)

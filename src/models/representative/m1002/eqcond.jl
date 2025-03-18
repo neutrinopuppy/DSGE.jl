@@ -20,6 +20,9 @@ function eqcond(m::Model1002)
 end
 
 function eqcond(m::Model1002, reg::Int)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+
     endo = m.endogenous_states
     exo  = m.exogenous_shocks
     ex   = m.expected_shocks
@@ -57,7 +60,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_euler], endo[:EL_t]] = (m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
     Γ1[eq[:eq_euler], endo[:c_t]]  = (m[:h]*exp(-m[:z_star]))/(1 + m[:h]*exp(-m[:z_star]))
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_euler], endo[:φ_t]]  = -(m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
         Γ0[eq[:eq_euler], endo[:Eφ_t]] = (m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
     end
@@ -73,7 +76,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_euler_f], endo[:EL_f_t]] = (m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
     Γ1[eq[:eq_euler_f], endo[:c_f_t]]  = (m[:h]*exp(-m[:z_star]))/(1 + m[:h]*exp(-m[:z_star]))
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_euler_f], endo[:φ_t]]  = -(m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
         Γ0[eq[:eq_euler_f], endo[:Eφ_t]] = (m[:σ_c] - 1)*m[:wl_c]/(m[:σ_c]*(1 + m[:h]*exp(-m[:z_star])))
     end
@@ -266,7 +269,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_msub], endo[:z_t]]   = m[:h]*exp(-m[:z_star]) /(1 - m[:h]*exp(-m[:z_star]))
     Γ0[eq[:eq_msub], endo[:w_t]]   = -1.
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_msub], endo[:φ_t]] = m[:ν_l]
     end
 
@@ -277,7 +280,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ1[eq[:eq_msub_f], endo[:c_f_t]] = m[:h]*exp(-m[:z_star])/(1 - m[:h]*exp(-m[:z_star]))
     Γ0[eq[:eq_msub_f], endo[:z_t]]   = m[:h]*exp(-m[:z_star])/(1 - m[:h]*exp(-m[:z_star]))
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_msub_f], endo[:φ_t]] = m[:ν_l]
     end
 
@@ -356,7 +359,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ0[eq[:eq_Ez], endo[:zp_t]]   = -m[:ρ_z_p]
 
     # Eφ_t
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         Γ0[eq[:eq_Eφ], endo[:Eφ_t]] = 1.
         Γ0[eq[:eq_Eφ], endo[:φ_t]]  = -m[:ρ_φ]
     end
@@ -373,7 +376,7 @@ function eqcond(m::Model1002, reg::Int)
     Γ1[eq[:eq_ztil], endo[:ztil_t]] = m[:ρ_ztil]
     Ψ[eq[:eq_ztil], exo[:ztil_sh]]     = 1.
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         # Ez_t
         Γ0[eq[:eq_Ez], endo[:ziid_t]] = -(m[:ρ_ziid]-1)/(1-m[:α])
 
@@ -403,11 +406,17 @@ function eqcond(m::Model1002, reg::Int)
     Γ1[eq[:eq_b], endo[:b_t]] = m[:ρ_b]
     Ψ[eq[:eq_b], exo[:b_sh]]  = 1.
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         # iid shock to Euler equation
         Γ0[eq[:eq_biidc], endo[:biidc_t]] = 1.
         Γ1[eq[:eq_biidc], endo[:biidc_t]] = m[:ρ_biidc] # c b/c will only affect consumption
         Ψ[eq[:eq_biidc], exo[:biidc_sh]]  = 1.
+
+        if subspec(m) in ["ss98"]
+            Γ0[eq[:eq_biidc_sh], endo[:biidc_sh1]] = 1.
+            Ψ[eq[:eq_biidc_sh], exo[:biidc_sh]] = 1.
+            Γ1[eq[:eq_biidc], endo[:biidc_sh1]] = m[:ρ_biidc_sh] - 1.0
+        end
 
         Γ0[eq[:eq_euler], endo[:biidc_t]]   = -1.
         Γ0[eq[:eq_euler_f], endo[:biidc_t]] = -1.
@@ -419,17 +428,35 @@ function eqcond(m::Model1002, reg::Int)
     Ψ[eq[:eq_μ], exo[:μ_sh]]  = 1.
 
     # Price mark-up shock
-    Γ0[eq[:eq_λ_f], endo[:λ_f_t]]  = 1.
-    Γ1[eq[:eq_λ_f], endo[:λ_f_t]]  = m[:ρ_λ_f]
-    Γ1[eq[:eq_λ_f], endo[:λ_f_t1]] = -m[:η_λ_f]
-    Ψ[eq[:eq_λ_f], exo[:λ_f_sh]]   = 1.
+    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
+        Γ0[eq[:eq_λ_f_persist], endo[:λ_f_t_persist]]  = 1.
+        Γ1[eq[:eq_λ_f_persist], endo[:λ_f_t_persist]]  = m[:ρ_λ_f]
+        Γ1[eq[:eq_λ_f_persist], endo[:λ_f_t1]] = -m[:η_λ_f]
+        Ψ[eq[:eq_λ_f_persist], exo[:λ_f_sh]]   = 1.
+
+        Γ0[eq[:eq_λ_f], endo[:λ_f_t]]  = 1.
+        Γ0[eq[:eq_λ_f], endo[:λ_f_t_persist]]  = -1.
+        Ψ[eq[:eq_λ_f], exo[:λ_f_iid_sh]] = 1.0
+
+        if subspec(m) in ["ss88", "ss90", "ss92", "ss94", "ss95", "ss96"]
+            Γ0[eq[:eq_λ_f_mr], endo[:λ_f_mr]] = 1.0
+            Γ1[eq[:eq_λ_f_mr], endo[:λ_f_mr]] = m[:ρ_λ_f_iid]
+
+            Ψ[eq[:eq_λ_f_mr], exo[:λ_f_iid_sh]] = 1.0
+            Ψ[eq[:eq_λ_f], exo[:λ_f_iid_sh]] = 0.0
+
+            Γ0[eq[:eq_λ_f], endo[:λ_f_mr]] = -1.0
+            Γ1[eq[:eq_λ_f], endo[:λ_f_mr]] = -1.0
+        end
+    else
+        Γ0[eq[:eq_λ_f], endo[:λ_f_t]]  = 1.
+        Γ1[eq[:eq_λ_f], endo[:λ_f_t]]  = m[:ρ_λ_f]
+        Γ1[eq[:eq_λ_f], endo[:λ_f_t1]] = -m[:η_λ_f]
+        Ψ[eq[:eq_λ_f], exo[:λ_f_sh]]   = 1.
+    end
 
     Γ0[eq[:eq_λ_f1], endo[:λ_f_t1]] = 1.
     Ψ[eq[:eq_λ_f1], exo[:λ_f_sh]]   = 1.
-
-    if subspec(m) in ["ss86"]
-        Ψ[eq[:eq_λ_f], exo[:λ_f_iid_sh]] = 1.0
-    end
 
     # Wage mark-up shock
     Γ0[eq[:eq_λ_w], endo[:λ_w_t]]  = 1.
@@ -445,11 +472,11 @@ function eqcond(m::Model1002, reg::Int)
             reg >= get_setting(m, :remove_rm_t_shocks) ? 0.0 : 1.0
 
     Γ0[eq[:eq_rm], endo[:rm_t]] = 1.
-    Γ1[eq[:eq_rm], endo[:rm_t]] = noant * m[:ρ_rm]
+    Γ1[eq[:eq_rm], endo[:rm_t]] = m[:ρ_rm]
     Ψ[eq[:eq_rm], exo[:rm_sh]]  = noant
 
     # Labor preference shock
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int,SubString(subspec(m),3,subspec_ind)) >= 59
         # Eφ_t
         Γ0[eq[:eq_Eφ], endo[:φ_t]] = -m[:ρ_φ]
 
@@ -509,9 +536,12 @@ function eqcond(m::Model1002, reg::Int)
     Ψ[eq[:eq_γ], exo[:γ_sh]]  = 1.
 
     # Long-term inflation expectations
+    nopish = haskey(m.settings, :remove_pistar_shocks) &&
+        reg >= get_setting(m, :remove_pistar_shocks) ? 0.0 : 1.0
+
     Γ0[eq[:eq_π_star], endo[:π_star_t]] = 1.
     Γ1[eq[:eq_π_star], endo[:π_star_t]] = m[:ρ_π_star]
-    Ψ[eq[:eq_π_star], exo[:π_star_sh]]  = 1.
+    Ψ[eq[:eq_π_star], exo[:π_star_sh]]  = nopish
 
     # Anticipated policy shocks
     if n_mon_anticipated_shocks(m) > 0
@@ -528,20 +558,38 @@ function eqcond(m::Model1002, reg::Int)
         Γ0[eq[:eq_rml1], endo[:rm_tl1]] = 1.
         Ψ[eq[:eq_rml1], exo[:rm_shl1]]  = noant
 
+
+
         if n_mon_anticipated_shocks(m) > 1
             for i = 2:n_mon_anticipated_shocks(m)
                 Γ1[eq[Symbol("eq_rml$(i-1)")], endo[Symbol("rm_tl$i")]] = noant
                 Γ0[eq[Symbol("eq_rml$i")], endo[Symbol("rm_tl$i")]]     = 1.
                 Ψ[eq[Symbol("eq_rml$i")], exo[Symbol("rm_shl$i")]]      = noant
             end
+        end
+    end
 
-            #=if (haskey(m.settings, :flexible_ait_policy_change) ? get_setting(m, :flexible_ait_policy_change) : false)
-                if get_setting(m, :regime_dates)[reg] >= get_setting(m, :flexible_ait_policy_change_date)
-                    Γ1[eq[:eq_rml1], endo[:rm_tl2]] = 0.
-                    Γ0[eq[:eq_rml2], endo[:rm_tl2]] = 1.
-                    Ψ[eq[:eq_rml2],  exo[:rm_shl2]] = 1.
+    if !isempty(mon_anticipated_ait_shocks(m))
+        ## remove this if conditional
+        if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+            Γ1[eq[:eq_ait_rm], endo[Symbol("rm_ait_tl1")]] = 1.0
+            Γ0[eq[Symbol("eq_ait_rml1")], endo[Symbol("rm_ait_tl1")]]     = 1.
+            if 1 in mon_anticipated_ait_shocks(m)
+                Ψ[eq[Symbol("eq_ait_rml1")], exo[Symbol("rm_ait_shl1")]]      = 1.0
+            end
+        end
+
+        for i in 2:maximum(mon_anticipated_ait_shocks(m))
+            # we can get rid of these if statements once n_mon... fully implemented for ait
+            if  haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+                Γ1[eq[Symbol("eq_ait_rml$(i-1)")], endo[Symbol("rm_ait_tl$i")]] = 1.0
+                Γ0[eq[Symbol("eq_ait_rml$i")], endo[Symbol("rm_ait_tl$i")]]     = 1.
+                if i in mon_anticipated_ait_shocks(m)
+                    Ψ[eq[Symbol("eq_ait_rml$i")], exo[Symbol("rm_ait_shl$i")]]      = 1.0
                 end
-            end=#
+
+            end
+
         end
     end
 
@@ -713,7 +761,13 @@ function eqcond(m::Model1002, reg::Int)
                    Γ0[eq[:eq_pgap], endo[:pgap_t]] = 1.
                    Γ0[eq[:eq_pgap], endo[:π_t]]    = -1.
                    Γ1[eq[:eq_pgap], endo[:pgap_t]] = ρ_pgap
+
+                   if haskey(get_settings(m), :set_pgap1) && reg in get_setting(m, :set_pgap1)[1]
+                       C[eq[:eq_pgap]] = ρ_pgap * get_setting(m, :set_pgap1)[2]
+                       Γ1[eq[:eq_pgap], endo[:pgap_t]] = 0.0
+                   end
                end
+
                if (haskey(get_settings(m), :add_initialize_pgap_ygap_pseudoobs) ?
                    get_setting(m, :add_initialize_pgap_ygap_pseudoobs) : false)
                    Ψ[eq[:eq_pgap], exo[:pgap_sh]] = 1.
@@ -836,6 +890,33 @@ function eqcond(m::Model1002, reg::Int)
                end
            end
        end
+   end
+
+   if haskey(m.settings, :add_ait_rm) && get_setting(m, :add_ait_rm)
+       Γ0[eq[:eq_ait_rm], endo[:ait_rm_t]] = 1.0
+       Γ1[eq[:eq_ait_rm], endo[:ait_rm_t]] = m[:ρ_ait_rm]
+       Ψ[eq[:eq_ait_rm], exo[:rm_ait_sh]] = 1.0
+       if haskey(m.settings, :add_taylor_rm) && get_setting(m, :add_taylor_rm)
+            # Add AIT shocks
+            Γ0[eq[:eq_mp], endo[:ait_rm_t]]     = -1.
+       end
+   end
+
+   if subspec(m) == "ss103"
+       Ψ[eq[:eq_ziid], exo[:ziid_sh]] = m[:κ_covid]
+       Ψ[eq[:eq_biidc], exo[:biidc_sh]] = m[:κ_covid]
+       Ψ[eq[:eq_φ], exo[:φ_sh]] = m[:κ_covid]
+
+       Ψ[eq[:eq_ztil], exo[:ztil_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_g], exo[:g_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_b], exo[:b_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_μ], exo[:μ_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_λ_f], exo[:λ_f_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_λ_w], exo[:λ_w_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_σ_ω], exo[:σ_ω_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_μ_e], exo[:μ_e_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_γ], exo[:γ_sh]] = m[:κ_std_bcshocks]
+       Ψ[eq[:eq_π_star], exo[:π_star_sh]] = (nopish * m[:κ_std_bcshocks])
    end
 
    for para in m.parameters

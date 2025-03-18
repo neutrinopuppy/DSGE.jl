@@ -21,32 +21,24 @@ start_zlb_date         = Date(2021, 3, 31)
 end_zlb_date           = Date(2022, 12, 31)
 
 # additional settings to implement Flexible AIT rule
-flexait_custom = Dict{Symbol, Setting}(:add_initialize_pgap_ygap_pseudoobs => Setting(:add_initialize_pgap_ygap_pseudoobs, true),
-                                       :add_pgap => Setting(:add_pgap, true), :add_ygap => Setting(:add_ygap, true),
-                                       :add_altpolicy_pgap => Setting(:add_altpolicy_pgap, true),
-                                       :add_altpolicy_ygap => Setting(:add_altpolicy_ygap, true),
-                                       :forecast_horizons => Setting(:forecast_horizons,
-                                                                     subtract_quarters(date_fcast_end, fcast_date)),
-                                       :forecast_smoother => Setting(:forecast_smoother, :durbin_koopman),
-                                       :contemporaneous_and_proportional_antshocks =>
-                                       Setting(:contemporaneous_and_proportional_antshocks, Symbol[:biidc]),
-                                       :antshocks =>
-                                       Setting(:antshocks, Dict{Symbol, Int}(:biidc => 1,
-                                                                             :φ => 1, :ziid => 1)),
-                                       :ant_eq_mapping =>
-                                       Setting(:ant_eq_mapping, Dict{Symbol, Symbol}(:biidc => :biidc,
-                                                                                     :φ => :φ,
-                                                                                     :ziid => :ziid)),
-                                       :ant_eq_E_mapping =>
-                                       Setting(:ant_eq_E_mapping, Dict{Symbol, Symbol}(:φ => :Eφ)),
-                                       :proportional_antshocks =>
-                                       Setting(:proportional_antshocks, [:biidc, :φ, :ziid]),
-                                       :n_anticipated_obs_gdp => Setting(:n_anticipated_obs_gdp, 1),
-                                       :add_anticipated_obs_gdp => Setting(:add_anticipated_obs_gdp, true),
-                                        :meas_err_anticipated_obs_gdp =>
-                                        Setting(:meas_err_anticipated_obs_gdp, 1.),
-                                       :flexible_ait_policy_change =>
-                                       Setting(:flexible_ait_policy_change, false))
+flexait_custom = [Setting(:add_initialize_pgap_ygap_pseudoobs, true),
+                  Setting(:add_pgap, true), Setting(:add_ygap, true),
+                  Setting(:add_altpolicy_pgap, true),
+                  Setting(:add_altpolicy_ygap, true),
+                  Setting(:forecast_horizons, subtract_quarters(date_fcast_end, fcast_date)),
+                  Setting(:forecast_smoother, :durbin_koopman),
+                  Setting(:contemporaneous_and_proportional_antshocks, Symbol[:biidc]),
+                  Setting(:antshocks, Dict{Symbol, Int}(:biidc => 1,
+                                                        :φ => 1, :ziid => 1)),
+                  Setting(:ant_eq_mapping, Dict{Symbol, Symbol}(:biidc => :biidc,
+                                                                :φ => :φ,
+                                                                :ziid => :ziid)),
+                  Setting(:ant_eq_E_mapping, Dict{Symbol, Symbol}(:φ => :Eφ)),
+                  Setting(:proportional_antshocks, [:biidc, :φ, :ziid]),
+                  Setting(:n_anticipated_obs_gdp, 1),
+                  Setting(:add_anticipated_obs_gdp, true),
+                  Setting(:meas_err_anticipated_obs_gdp, 1.),
+                  Setting(:flexible_ait_policy_change, false)]
 
 # Initialize model object
 m = Model1002("ss59"; custom_settings = flexait_custom)
@@ -151,8 +143,8 @@ temp_taylor_regime_eqcond_info = deepcopy(get_setting(m, :regime_eqcond_info))
 temp_default_regime_eqcond_info = deepcopy(get_setting(m, :regime_eqcond_info))
 for k in keys(temp_taylor_regime_eqcond_info)
     get_setting(m, :regime_eqcond_info)[k].weights =
-        [get_setting(m, :regime_eqcond_info)[k].weights[1], get_setting(m, :regime_eqcond_info)[k].weights[2] / 2.,
-         get_setting(m, :regime_eqcond_info)[k].weights[2] / 2.] # update the weights vector length
+    [get_setting(m, :regime_eqcond_info)[k].weights[1], get_setting(m, :regime_eqcond_info)[k].weights[2] / 2.,
+     get_setting(m, :regime_eqcond_info)[k].weights[2] / 2.] # update the weights vector length
     temp_taylor_regime_eqcond_info[k] = DSGE.EqcondEntry(taylor_rule())
     temp_default_regime_eqcond_info[k] = DSGE.EqcondEntry(default_policy())
 end
@@ -177,8 +169,8 @@ out_default_temp_default = DSGE.forecast_one_draw(m, :mode, :full, output_vars, 
 temp_flexait_zlb_regime_eqcond_info = deepcopy(get_setting(m, :regime_eqcond_info))
 for k in keys(temp_taylor_regime_eqcond_info)
     get_setting(m, :regime_eqcond_info)[k].weights =
-        [get_setting(m, :regime_eqcond_info)[k].weights[1] / 2., 2 * get_setting(m, :regime_eqcond_info)[k].weights[2],
-         get_setting(m, :regime_eqcond_info)[k].weights[1] / 2.] # need to multiply by 2 b/c of how weights are set previously
+    [get_setting(m, :regime_eqcond_info)[k].weights[1] / 2., 2 * get_setting(m, :regime_eqcond_info)[k].weights[2],
+     get_setting(m, :regime_eqcond_info)[k].weights[1] / 2.] # need to multiply by 2 b/c of how weights are set previously
     if get_setting(m, :regime_eqcond_info)[k].alternative_policy.key == :zero_rate
         temp_flexait_zlb_regime_eqcond_info[k] = EqcondEntry(zero_rate())
     else
@@ -225,8 +217,8 @@ end
         @test out_taylor_temp_taylor[k] ≈ out1[k] # with 2 alternative policies and imperfect awareness
         @test out_default_temp_default[k] ≈ out1[k]
         @test out_flexait_zlb_temp_flexait_zlb[k] ≈ out1[k]
-        @test maximum(abs.(out_temp_flexible_ait[k] -
-                          h5read(joinpath(dirname(@__FILE__), "../reference/multiple_altpol_imperfect_awareness_output.h5"), string(k)))) < 1e-3
+        @test out_temp_flexible_ait[k] ≈
+        h5read(joinpath(dirname(@__FILE__), "../reference/multiple_altpol_imperfect_awareness_output_version=$(ver).h5"), string(k))
     end
 end
 nothing

@@ -3,11 +3,10 @@ path = dirname(@__FILE__)
 fred = CSV.read("$path/../reference/fred_160812.csv", DataFrame)
 
 # Specify vintage and dates
-custom_settings = Dict{Symbol, Setting}(
-    :cond_id                  => Setting(:cond_id, 0),
-    :use_population_forecast  => Setting(:use_population_forecast, true),
-    :n_anticipated_shocks     => Setting(:n_anticipated_shocks, 6),
-    :population_forecast      => Setting(:population_forecast, false))
+custom_settings = [Setting(:cond_id, 0),
+                   Setting(:use_population_forecast, true),
+                   Setting(:n_anticipated_shocks, 6),
+                   Setting(:population_forecast, false)]
 m = AnSchorfheide(testing = true, custom_settings = custom_settings)
 m <= Setting(:saveroot, "$path/../reference/")
 m <= Setting(:rate_expectations_source, :ois)
@@ -31,7 +30,7 @@ revpseudo1 = Matrix{Float64}(reverse_transform(m, mb_means[:histpseudo], start_d
                                                verbose = :none)[:,2:end])
 revpseudo2 = Matrix{Float64}(reverse_transform(m, histpseudo_df, :pseudo, verbose = :none)[!,2:end])
 q4revobs1 = Matrix{Float64}(reverse_transform(m, mb_means[:histobs], start_date,
-                                            collect(keys(m.observables)), :obs, verbose = :none,
+                                              collect(keys(m.observables)), :obs, verbose = :none,
                                               fourquarter = true)[4:end,2:end])
 q4revobs2 = Matrix{Float64}(reverse_transform(m, histobs_df, :obs, verbose = :none,
                                               fourquarter = true)[4:end,2:end])
@@ -43,7 +42,7 @@ q4revpseudo2 = Matrix{Float64}(reverse_transform(m, histpseudo_df, :pseudo, verb
                                                  fourquarter = true)[4:end,2:end])
 
 exp_revobs, exp_revpseudo, exp_q4revobs, exp_q4revpseudo =
-    JLD2.jldopen("$path/../reference/reverse_transform_out.jld2", "r") do file
+JLD2.jldopen("$path/../reference/reverse_transform_out.jld2", "r") do file
     read(file, "exp_revobs"), read(file, "exp_revpseudo"),
     read(file, "exp_q4revobs"), read(file, "exp_q4revpseudo")
 end

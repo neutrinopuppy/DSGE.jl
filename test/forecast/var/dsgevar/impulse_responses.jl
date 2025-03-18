@@ -14,7 +14,7 @@ fp = dirname(@__FILE__)
     nobs = size(matdata["zz"], 1)
     for i = 1:nobs
         @test vec(matdata["aairf"][:, nobs * (i - 1) + 1:nobs * i]) ≈
-            vec(irfout[:, :, i])
+        vec(irfout[:, :, i])
     end
 
     irfout_accum1 = impulse_responses(matdata["TTT"], matdata["RRR"], matdata["zz"],
@@ -96,11 +96,8 @@ if VERSION < v"1.5"
 
     @testset "Impulse responses of a VAR using a DSGE as a prior" begin
         jlddata = load(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs.jld2"))
-        m = Model1002("ss10", custom_settings =
-                      Dict{Symbol,Setting}(:add_laborshare_measurement =>
-                                           Setting(:add_laborshare_measurement, true),
-                                           :add_NominalWageGrowth =>
-                                           Setting(:add_NominalWageGrowth, true)))
+        m = Model1002("ss10", custom_settings = [Setting(:add_laborshare_measurement, true),
+                                                 Setting(:add_NominalWageGrowth, true)])
         m <= Setting(:impulse_response_horizons, 10)
         dsgevar = DSGEVAR(m, collect(keys(m.exogenous_shocks)), "ss11")
         DSGE.update!(dsgevar, λ = 1.)
@@ -136,46 +133,43 @@ if VERSION < v"1.5"
         if writing_output
             jldopen(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs_output_version=" * ver * ".jld2"),
                     true, true, true, IOStream) do file
-                        write(file, "exp_modal_cholesky_irf", out)
-                        write(file, "exp_modal_choleskyLR_irf", out_lr)
-                        write(file, "exp_modal_maxBC_irf", out_maxbc)
-                    end
-        end
-        jlddata = load(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs_output_version=" * ver * ".jld2"))
-
-        @test @test_matrix_approx_eq jlddata["exp_modal_cholesky_irf"] out
-        @test @test_matrix_approx_eq jlddata["exp_modal_choleskyLR_irf"] out_lr
-
-        @test @test_matrix_approx_eq jlddata["exp_modal_choleskyLR_irf"] out_lr2
-
-        @test @test_matrix_approx_eq jlddata["exp_modal_cholesky_irf"] -out_flip
-        @test @test_matrix_approx_eq jlddata["exp_modal_choleskyLR_irf"] -out_lr_flip
-
-        @test @test_matrix_approx_eq jlddata["exp_modal_cholesky_irf"] out_h
-        @test @test_matrix_approx_eq jlddata["exp_modal_choleskyLR_irf"] out_lr_h
-
-        # Test maxBC separately b/c these have a slightly different error bound that leads to errors on Julia 1.0 but not Julia 1.1
-
-        if VERSION >= v"1.1"
-            @test @test_matrix_approx_eq jlddata["exp_modal_maxBC_irf"] out_maxbc
-            @test @test_matrix_approx_eq jlddata["exp_modal_maxBC_irf"] out_maxbc2
-            @test @test_matrix_approx_eq jlddata["exp_modal_maxBC_irf"] out_maxbc_h
-            @test @test_matrix_approx_eq jlddata["exp_modal_maxBC_irf"] -out_maxbc_flip
-        else
-            @test maximum(abs.(jlddata["exp_modal_maxBC_irf"] - out_maxbc)) < 6e-6
-            @test maximum(abs.(jlddata["exp_modal_maxBC_irf"] - out_maxbc2)) < 6e-6
-            @test maximum(abs.(jlddata["exp_modal_maxBC_irf"] - out_maxbc_h)) < 6e-6
-            @test maximum(abs.(jlddata["exp_modal_maxBC_irf"] + out_maxbc_flip)) < 6e-6
+            write(file, "exp_modal_cholesky_irf", out)
+            write(file, "exp_modal_choleskyLR_irf", out_lr)
+            write(file, "exp_modal_maxBC_irf", out_maxbc)
         end
     end
+    jlddata = load(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs_output_version=" * ver * ".jld2"))
+
+    @test @test_matrix_approx_eq jlddata["exp_modal_cholesky_irf"] out
+    @test @test_matrix_approx_eq jlddata["exp_modal_choleskyLR_irf"] out_lr
+
+    @test @test_matrix_approx_eq jlddata["exp_modal_choleskyLR_irf"] out_lr2
+
+    @test @test_matrix_approx_eq jlddata["exp_modal_cholesky_irf"] -out_flip
+    @test @test_matrix_approx_eq jlddata["exp_modal_choleskyLR_irf"] -out_lr_flip
+
+    @test @test_matrix_approx_eq jlddata["exp_modal_cholesky_irf"] out_h
+    @test @test_matrix_approx_eq jlddata["exp_modal_choleskyLR_irf"] out_lr_h
+
+    # Test maxBC separately b/c these have a slightly different error bound that leads to errors on Julia 1.0 but not Julia 1.1
+
+    if VERSION >= v"1.1"
+        @test @test_matrix_approx_eq jlddata["exp_modal_maxBC_irf"] out_maxbc
+        @test @test_matrix_approx_eq jlddata["exp_modal_maxBC_irf"] out_maxbc2
+        @test @test_matrix_approx_eq jlddata["exp_modal_maxBC_irf"] out_maxbc_h
+        @test @test_matrix_approx_eq jlddata["exp_modal_maxBC_irf"] -out_maxbc_flip
+    else
+        @test maximum(abs.(jlddata["exp_modal_maxBC_irf"] - out_maxbc)) < 6e-6
+        @test maximum(abs.(jlddata["exp_modal_maxBC_irf"] - out_maxbc2)) < 6e-6
+        @test maximum(abs.(jlddata["exp_modal_maxBC_irf"] - out_maxbc_h)) < 6e-6
+        @test maximum(abs.(jlddata["exp_modal_maxBC_irf"] + out_maxbc_flip)) < 6e-6
+    end
+end
 
 @testset "Impulse responses of VAR by using a DSGE as prior and to identify the rotation matrix" begin
     jlddata = load(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs.jld2"))
-    m = Model1002("ss10", custom_settings =
-                  Dict{Symbol,Setting}(:add_laborshare_measurement =>
-                                       Setting(:add_laborshare_measurement, true),
-                                       :add_NominalWageGrowth =>
-                                       Setting(:add_NominalWageGrowth, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_laborshare_measurement, true),
+                                             Setting(:add_NominalWageGrowth, true)])
     m <= Setting(:impulse_response_horizons, 10)
     dsgevar = DSGEVAR(m, collect(keys(m.exogenous_shocks)), "ss11")
     DSGE.update!(dsgevar, λ = 1.)
@@ -215,25 +209,25 @@ if VERSION < v"1.5"
     if writing_output
         jldopen(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs_output_rotation_version=" * ver * ".jld2"),
                 true, true, true, IOStream) do file
-            write(file, "rotation_irf_by_shock", out)
-            write(file, "flip_rotation_irf_by_shock", out_flip)
-            write(file, "rotation_irf_draw_shock", out_draw)
-            write(file, "deviations_rotation_irf_by_shock", out_dev)
-            write(file, "deviations_rotation_irf_draw_shock", out_dev_draw)
-        end
+        write(file, "rotation_irf_by_shock", out)
+        write(file, "flip_rotation_irf_by_shock", out_flip)
+        write(file, "rotation_irf_draw_shock", out_draw)
+        write(file, "deviations_rotation_irf_by_shock", out_dev)
+        write(file, "deviations_rotation_irf_draw_shock", out_dev_draw)
     end
+end
 
-    jlddata = load(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs_output_rotation_version=" * ver * ".jld2"))
+jlddata = load(joinpath(fp, "../../../reference/test_dsgevar_lambda_irfs_output_rotation_version=" * ver * ".jld2"))
 
-    @test @test_matrix_approx_eq jlddata["rotation_irf_by_shock"] out
-    @test @test_matrix_approx_eq jlddata["flip_rotation_irf_by_shock"] out_flip
-    @test @test_matrix_approx_eq out out_MM1
-    @test !(out ≈ out_MM2)
-    @test @test_matrix_approx_eq out out_X̂
-    @test @test_matrix_approx_eq jlddata["rotation_irf_draw_shock"] out_draw
-    @test @test_matrix_approx_eq out_dev jlddata["deviations_rotation_irf_by_shock"]
-    @test @test_matrix_approx_eq out_dev_draw jlddata["deviations_rotation_irf_draw_shock"]
-    @test @test_matrix_approx_eq out_dev -out_dev_flip
+@test @test_matrix_approx_eq jlddata["rotation_irf_by_shock"] out
+@test @test_matrix_approx_eq jlddata["flip_rotation_irf_by_shock"] out_flip
+@test @test_matrix_approx_eq out out_MM1
+@test !(out ≈ out_MM2)
+@test @test_matrix_approx_eq out out_X̂
+@test @test_matrix_approx_eq jlddata["rotation_irf_draw_shock"] out_draw
+@test @test_matrix_approx_eq out_dev jlddata["deviations_rotation_irf_by_shock"]
+@test @test_matrix_approx_eq out_dev_draw jlddata["deviations_rotation_irf_draw_shock"]
+@test @test_matrix_approx_eq out_dev -out_dev_flip
 end
 
 @testset "Impulse responses of a VAR approximation to a DSGE (or λ = ∞)" begin

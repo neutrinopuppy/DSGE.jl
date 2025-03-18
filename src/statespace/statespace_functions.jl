@@ -428,6 +428,7 @@ function compute_uncertain_altpolicy_system_helper(m::AbstractDSGEModel{T}; tvis
 
     # First calculate the perfectly credible transition matrices for the policy actually being implemented
     is_altpol = [isa(x, AltPolicy) for x in get_setting(m, :alternative_policies)]
+
     if all(is_altpol)
         system_perfect_cred_totpolicies = perfect_cred_altpolicy_systems(m; verbose = verbose)
     else
@@ -447,6 +448,7 @@ function compute_uncertain_altpolicy_system_helper(m::AbstractDSGEModel{T}; tvis
 
     # Form measurement and pseudo-measurement equations for imperfect awareness state space system
     gensys_regimes, gensys2_regimes = compute_gensys_gensys2_regimes(m)
+
     TTTs, RRRs, CCCs = solve_uncertain_altpolicy(m, system_perfect_cred_totpolicies, is_altpol;
                                                  gensys_regimes = gensys_regimes, gensys2_regimes = gensys2_regimes,
                                                  regimes = collect(1:n_regimes), verbose = verbose)
@@ -610,6 +612,47 @@ function perfect_cred_multiperiod_altpolicy_systems(m::AbstractDSGEModel{T}, is_
     orig_iden_eqcond_reg    = haskey(get_settings(m), :identical_eqcond_regimes) ? get_setting(m, :identical_eqcond_regimes) : nothing
     is_gensys2              = haskey(get_settings(m), :gensys2) && get_setting(m, :gensys2)
 
+    ## If set_pgap1, change identical_eqcond_regimes & perfect_credibility_identical_transitions to adjust
+    ### For safety, just removing all references to a set_pgap1 regime
+    if haskey(get_settings(m), :set_pgap1)
+        for i in get_setting(m, :set_pgap1)[1]
+            if haskey(get_settings(m), :identical_eqcond_regimes)
+                delete!(get_setting(m, :identical_eqcond_regimes), i)
+                dels = findall(x -> get_setting(m, :identical_eqcond_regimes)[x] == i, collect(keys(get_setting(m, :identical_eqcond_regimes))))
+                delete!(get_setting(m, :identical_eqcond_regimes), dels)
+            end
+            if haskey(get_settings(m), :perfect_credibility_identical_transitions)
+                delete!(get_setting(m, :perfect_credibility_identical_transitions), i)
+                dels2 = findall(x -> get_setting(m, :perfect_credibility_identical_transitions)[x] == i, collect(keys(get_setting(m, :perfect_credibility_identical_transitions))))
+                delete!(get_setting(m, :perfect_credibility_identical_transitions), dels2)
+            end
+        end
+        # Use these new revised settings
+        orig_perf_cred_same_reg2 = haskey(get_settings(m), :perfect_credibility_identical_transitions) ? get_setting(m, :perfect_credibility_identical_transitions) : nothing
+        orig_iden_eqcond_reg2    = haskey(get_settings(m), :identical_eqcond_regimes) ? get_setting(m, :identical_eqcond_regimes) : nothing
+
+        if haskey(get_settings(m), :set_pgap1_expected) && get_setting(m, :set_pgap1_expected)
+            ## If pgap1 set for all alt policies, identical regimes must be redone for them.
+            orig_perf_cred_same_reg = haskey(get_settings(m), :perfect_credibility_identical_transitions) ? get_setting(m, :perfect_credibility_identical_transitions) : nothing
+            orig_iden_eqcond_reg    = haskey(get_settings(m), :identical_eqcond_regimes) ? get_setting(m, :identical_eqcond_regimes) : nothing
+
+            for altpol in get_setting(m, :alternative_policies)
+                for i in get_setting(m, :set_pgap1)[1]
+                    if !isnothing(altpol.identical_eqcond_regimes)
+                        delete!(altpol.identical_eqcond_regimes, i)
+                        dels = findall(x -> altpol.identical_eqcond_regimes[x] == i, collect(keys(altpol.identical_eqcond_regimes)))
+                        delete!(altpol.identical_eqcond_regimes, dels)
+                    end
+                    if !isnothing(altpol.perfect_credibility_identical_transitions)
+                        delete!(altpol.perfect_credibility_identical_transitions, i)
+                        dels2 = findall(x -> altpol.perfect_credibility_identical_transitions[x] == i, collect(keys(altpol.perfect_credibility_identical_transitions)))
+                        delete!(altpol.perfect_credibility_identical_transitions, dels2)
+                    end
+                end
+            end
+        end
+    end
+
     ## Now calculate the perfectly credible transition matrices for all alternative policies
     sys_totpolicies[1] = compute_system(m; tvis = haskey(get_settings(m), :tvis_information_set), verbose = verbose)
 
@@ -620,6 +663,31 @@ function perfect_cred_multiperiod_altpolicy_systems(m::AbstractDSGEModel{T}, is_
     delete!(get_settings(m), :temporary_altpolicy_names) # does nothing if temporary_altpolicy_names is not a key in get_settings(m)
     delete!(get_settings(m), :perfect_credibility_identical_transitions) # does nothing if temporary_altpolicy_names is not a key in get_settings(m)
     delete!(get_settings(m), :identical_eqcond_regimes) # does nothing if temporary_altpolicy_names is not a key in get_settings(m)
+
+    set_pgap1_check = false
+    set_pgap1 = ([1], 0.0)
+    if haskey(get_settings(m), :set_pgap1) && (!haskey(get_settings(m), :set_pgap1_expected) || !get_setting(m, :set_pgap1_expected))
+        ## set_pgap1_expected notes whether pgap change is expected across policies
+        set_pgap1 = get_setting(m, :set_pgap1)
+        set_pgap1_check = true
+        delete!(get_settings(m), :set_pgap1)
+
+        # Create a new alternative policy equivalent to the true policy but without setting pgap1
+        ## if weight on true policy > 0 before pgap1 set.
+        ## This ensures that the new pgap is unexpected.
+        if any([orig_regime_eqcond_info[i].weights[1] > 0.0 for i in 1:maximum(set_pgap1[1])])
+            orig_regime_eqcond_info2 = copy(orig_regime_eqcond_info)
+            for i in collect(keys(orig_regime_eqcond_info2))
+                orig_regime_eqcond_info2[i].weights = [1.0]
+                orig_regime_eqcond_info[i].weights = [0.0, orig_regime_eqcond_info[i].weights[2:end], orig_regime_eqcond_info[i][1]]
+            end
+            true_pol = MultiPeriodAltPolicy(:true_rule, get_setting(m, :n_regimes), orig_regime_eqcond_info2, gensys2 = is_gensys2,
+                                 temporary_altpolicy_names = orig_temp_altpol_names,
+                                 temporary_altpolicy_length = !isnothing(orig_temp_altpol_len) ? orig_temp_altpol_len : length(orig_regime_eqcond_info) - 1,
+                                 infoset = orig_tvis_infoset)
+            m <= Setting(:alternative_policies, vcat(get_setting(m, :alternative_policies), true_pol))
+        end
+    end
 
     for i in 2:n_totpol # want to populate TTTs, RRRs, and CCCs, and there are n_totpol total policies
         new_altpol = get_setting(m, :alternative_policies)[i - 1] # decrement by 1 b/c :alternative_policies only includes
@@ -692,6 +760,10 @@ function perfect_cred_multiperiod_altpolicy_systems(m::AbstractDSGEModel{T}, is_
     end
     m <= Setting(:uncertain_altpolicy,           true)
     m <= Setting(:uncertain_temporary_altpolicy, true)
+
+    if set_pgap1_check && (!haskey(get_settings(m), :set_pgap1_expected) || !get_setting(m, :set_pgap1_expected))
+        m <= Setting(:set_pgap1, set_pgap1)
+    end
 
     return sys_totpolicies
 end

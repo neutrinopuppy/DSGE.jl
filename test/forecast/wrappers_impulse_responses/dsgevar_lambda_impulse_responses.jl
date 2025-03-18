@@ -1,9 +1,7 @@
 fp = dirname(@__FILE__)
 @testset "Impulse responses of a VAR using a DSGE as a prior (wrapper function)" begin
     jlddata = load(joinpath(fp, "../../reference/test_dsgevar_lambda_irfs.jld2"))
-    m = Model1002("ss10", custom_settings =
-                  Dict{Symbol,Setting}(:add_laborshare_measurement =>
-                                       Setting(:add_laborshare_measurement, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_laborshare_measurement, true)])
     m <= Setting(:impulse_response_horizons, 10)
     dsgevar = DSGEVAR(m, collect(keys(m.exogenous_shocks)), "ss11")
     DSGE.update!(dsgevar, λ = 1.)
@@ -86,9 +84,7 @@ end
 
 @testset "Impulse responses of a VAR using parallel (1 worker) and using a DSGE as a prior (wrapper function)" begin
     jlddata = load(joinpath(fp, "../../reference/test_dsgevar_lambda_irfs.jld2"))
-    m = Model1002("ss10", custom_settings =
-                  Dict{Symbol,Setting}(:add_laborshare_measurement =>
-                                       Setting(:add_laborshare_measurement, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_laborshare_measurement, true)])
     m <= Setting(:impulse_response_horizons, 10)
     dsgevar = DSGEVAR(m, collect(keys(m.exogenous_shocks)), "ss11")
     DSGE.update!(dsgevar, λ = 1.)
@@ -133,9 +129,7 @@ end
 
 @testset "Impulse responses of a VAR using a DSGE as a prior (wrapper function)" begin
     jlddata = load(joinpath(fp, "../../reference/test_dsgevar_lambda_irfs.jld2"))
-    m = Model1002("ss10", custom_settings =
-                  Dict{Symbol,Setting}(:add_laborshare_measurement =>
-                                       Setting(:add_laborshare_measurement, true)))
+    m = Model1002("ss10", custom_settings = [Setting(:add_laborshare_measurement, true)])
     m <= Setting(:impulse_response_horizons, 10)
     dsgevar = DSGEVAR(m, collect(keys(m.exogenous_shocks)), "ss11")
     DSGE.update!(dsgevar, λ = 1.)

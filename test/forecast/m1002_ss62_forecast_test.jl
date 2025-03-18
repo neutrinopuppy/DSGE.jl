@@ -30,13 +30,10 @@ start_zlb_date         = Date(2020, 12, 31) # start and end dates should be incl
 end_zlb_date           = Date(2023, 9, 30)  # is start_zlb_date, and the last period is end_zlb_date
 
 # additional settings to implement Flexible AIT rule
-flexait_custom = Dict{Symbol, Setting}(:forecast_horizons => Setting(:forecast_horizons,
-                                                                     subtract_quarters(date_fcast_end, fcast_date)),
-                                       :add_iid_cond_obs_gdp_meas_err =>
-                                       Setting(:add_iid_cond_obs_gdp_meas_err, true),
-                                       :add_iid_cond_obs_corepce_meas_err =>
-                                       Setting(:add_iid_cond_obs_corepce_meas_err, true),
-                                       :add_pseudo_corepce => Setting(:add_pseudo_corepce, true))
+flexait_custom = [Setting(:forecast_horizons, subtract_quarters(date_fcast_end, fcast_date)),
+                  Setting(:add_iid_cond_obs_gdp_meas_err, true),
+                  Setting(:add_iid_cond_obs_corepce_meas_err, true),
+                  Setting(:add_pseudo_corepce, true)]
 
 # Initialize model objects
 m = Model1002("ss62", custom_settings = flexait_custom)
@@ -107,7 +104,7 @@ regime_eqcond_info = Dict{Int, DSGE.EqcondEntry}()
 weights = [end_tvcred_level, 1. - end_tvcred_level]
 for (regind, date) in zip(gensys2_first_regime:(n_zlb_reg - 1 + gensys2_first_regime), # See comments starting at line 75
                           DSGE.quarter_range(reg_dates[gensys2_first_regime],
-                                                iterate_quarters(reg_dates[gensys2_first_regime], n_zlb_reg - 1)))
+                                             iterate_quarters(reg_dates[gensys2_first_regime], n_zlb_reg - 1)))
     reg_dates[regind] = date
     regime_eqcond_info[regind] = DSGE.EqcondEntry(DSGE.zlb_rule(), weights) # weights are justdummy weights for now
 end

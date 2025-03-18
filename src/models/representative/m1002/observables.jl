@@ -40,7 +40,7 @@ function init_observable_mappings!(m::Model1002)
         100*log.(3 * weeklyhours / 100)
     end
 
-    hrs_rev_transform = logleveltopct_annualized_percapita
+    hrs_rev_transform = identity#logleveltopct_annualized_percapita
 
     if haskey(m.settings, :hours_first_observable)
         if get_setting(m, :hours_first_observable)
@@ -118,7 +118,7 @@ function init_observable_mappings!(m::Model1002)
 
         observables[:obs_wages] = Observable(:obs_wages, [:COMPNFB__FRED, :GDPDEF__FRED],
                                              wages_fwd_transform, wages_rev_transform,
-                                             "Percent Change in Wages",
+                                             "Real Wage Growth",
                                              "Q-to-Q Percent Change of Real Compensation (using GDP deflator)")
     end
     ############################################################################
@@ -198,7 +198,7 @@ function init_observable_mappings!(m::Model1002)
 
     observables[:obs_consumption] = Observable(:obs_consumption, [:PCE__FRED, population_mnemonic],
                                                consumption_fwd_transform, consumption_rev_transform,
-                                               "Consumption growth per capita",
+                                               "Consumption Growth",
                                                "Consumption growth adjusted for population filtering")
 
 
@@ -220,7 +220,7 @@ function init_observable_mappings!(m::Model1002)
 
     observables[:obs_investment] = Observable(:obs_investment, [:FPI__FRED, population_mnemonic],
                                               investment_fwd_transform, investment_rev_transform,
-                                              "Real Investment per capita",
+                                              "Investment Growth",
                                               "Real investment per capita, adjusted for population filtering")
 
 
@@ -264,16 +264,27 @@ function init_observable_mappings!(m::Model1002)
         # Note: We subtract 0.5 because 0.5% inflation corresponds to
         #       the assumed long-term rate of 2 percent inflation, but the
         #       data are measuring expectations of actual inflation.
-
-        annualtoquarter(levels[!,:ASACX10]  .- 0.5)
+        if subspec(m) == "ss102"
+            annualtoquarter(levels[!, :PCE10])
+        else
+            annualtoquarter(levels[!,:ASACX10]  .- 0.5)
+        end
     end
 
     longinflation_rev_transform = loggrowthtopct_annualized
 
-    observables[:obs_longinflation] = Observable(:obs_longinflation, [:ASACX10__DLX],
+    if subspec(m) == "ss102"
+         observables[:obs_longinflation] = Observable(:obs_longinflation, [:PCE10__DLX],
                                                  longinflation_fwd_transform, longinflation_rev_transform,
-                                                 "Long term inflation expectations",
+                                                 "10-year average inflation expectations",
                                                  "10-year average yr/yr CPI inflation expectations")
+
+    else
+        observables[:obs_longinflation] = Observable(:obs_longinflation, [:ASACX10__DLX],
+                                                 longinflation_fwd_transform, longinflation_rev_transform,
+                                                 "10-year average inflation expectations",
+                                                 "10-year average yr/yr CPI inflation expectations")
+    end
 
 
     ############################################################################
@@ -290,7 +301,7 @@ function init_observable_mappings!(m::Model1002)
 
     observables[:obs_longrate] = Observable(:obs_longrate, [:FYCCZA__DLX],
                                             longrate_fwd_transform, longrate_rev_transform,
-                                            "Long term interest rate expectations",
+                                            "10-year average interest rate expectations",
                                             "10T yield")
 
 
@@ -472,4 +483,24 @@ function init_observable_mappings!(m::Model1002)
                       [Symbol("obs_gdp$i") for i in 1:get_setting(m, :n_anticipated_obs_gdp)] : []))
 
     m.observable_mappings = observables
+
+
+    ############################################################################
+    ## Expected FFR from SPD
+    ############################################################################
+    for i = expected_ffr(m)
+        # FROM: SPD median expectations of $i-period-ahead interest rates at a quarterly rate
+        # TO:   Same
+
+        ant_fwd_transform = function (levels)
+            levels[:, Symbol("exp_ant$i")]
+        end
+
+        ant_rev_transform = quartertoannual
+
+        observables[Symbol("obs_exp_nominalrate$i")] = Observable(Symbol("obs_exp_ant$i"), [Symbol("exp_ant$(i)__SPD")],
+                                                                  ant_fwd_transform, ant_rev_transform,
+                                                                  "Anticipated FFR $i",
+                                                                  "$i-period ahead anticipated federal funds rate")
+    end
 end

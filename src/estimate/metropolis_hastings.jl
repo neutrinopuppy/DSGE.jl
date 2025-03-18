@@ -45,8 +45,8 @@ distribution of the parameters.
 - `mhthin::Int   = 1`: Thinning parameter (for mhthin = d, keep only every dth draw)
 - `adaptive_accept::Bool = false`: Whether or not to adaptively adjust acceptance prob. after every memory block.
 - `target_accept::T = 0.25`: target accept rate when adaptively adjusting acceptance prob.
-- `α::T = 1.0`: Tuning parameter (step size) for proposal density computation in adaptive case
-- `c::T = 0.5`: Tuning parameter (mixture proportion) for proposal density computation in
+- `α::T = 1.0`: Tuning parameter (mixture proportion) for proposal density computation in adaptive case
+- `c::T = 0.5`: Tuning parameter (step size) for proposal density computation in
     adaptive case
 - `regime_switching::Bool = false`: do the parameters involve regime-switching?
 - `toggle`: if true, toggle the fields of any regime-switching parameters to regime 1.
@@ -178,14 +178,14 @@ function metropolis_hastings(proposal_dist::Distribution,
         for j = 1:(n_sim * mhthin)
 
             if reblock # Parameter blocking by randomly drawing blocks every MH draw
-                blocks_free = SMC.generate_free_blocks(n_free_para, n_param_blocks)
+                free_para_inds = ModelConstructors.get_free_para_inds(parameters)
+                blocks_free = SMC.generate_free_blocks(free_para_inds, n_param_blocks)
                 for block_f in blocks_free
                     sort!(block_f)
                 end
             end
 
             for (k, block_a) in enumerate(blocks_free)
-
                 # Draw para_new from the proposal distribution
                 para_subset = para_old[block_a]
                 "d_subset    = DegenerateMvNormal(propdist.μ[block_a],
@@ -193,11 +193,10 @@ function metropolis_hastings(proposal_dist::Distribution,
                                        propdist.σ[block_a, block_a]') / 2.,
                                        inv((propdist.σ[block_a, block_a] +
                                        propdist.σ[block_a, block_a]') / 2.),
-                                       propdist.λ_vals[block_a])" #Get rid of this
-                #Current-Code
-                sample_mean = mean(state_tracker)#New
-                "para_draw   = rand(d_subset, rng; cc = cc)" #Get rid of this
-                para_draw = mvnormal_mixture_draw(para_subset, sample_mean, propdist.σ[block_a, block_a]) #New
+                                       propdist.λ_vals[block_a])
+
+                para_draw         = mvnormal_mixture_draw(para_subset, d_subset;
+                                                          α = α, c = cc)
                 para_new          = deepcopy(para_old)
                 "para_new[block_a] = para_draw" #Get rid of this
                 para_new[block_a] = para_draw #New
@@ -318,7 +317,7 @@ sampling from the posterior distribution of the parameters.
 
 ### Estimation Settings
 Please see the section on 'Metropolis-Hastings Settings' on the
-'Advaned Usage' page of the online documentation or src/defaults.jl
+'Advanced Usage' page of the online documentation or src/defaults.jl
 for a full description of all the estimation settings for MH.
 Most of the settings for MH are stored in the model object.
 The keyword arguments described below are not directly related

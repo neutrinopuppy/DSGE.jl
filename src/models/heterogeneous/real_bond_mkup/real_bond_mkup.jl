@@ -188,7 +188,7 @@ function init_model_indices!(m::RealBondMkup)
 end
 
 function RealBondMkup(subspec::String="ss0";
-                   custom_settings::Dict{Symbol, Setting} = Dict{Symbol, Setting}(),
+                   custom_settings::Array{Setting} = Array{Setting{Bool}}(undef, 0),
                    testing = false)
 
     # Model-specific specifications
@@ -225,7 +225,7 @@ function RealBondMkup(subspec::String="ss0";
     model_settings!(m)
 
     # default_test_settings!(m)
-    for custom_setting in values(custom_settings)
+    for custom_setting in custom_settings
         m <= custom_setting
     end
 

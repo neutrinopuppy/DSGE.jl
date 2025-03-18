@@ -39,8 +39,8 @@ function init_subspec!(m::Model1002)
         return ss20!(m)
     elseif subspec(m) == "ss30"
         return ss30!(m)
-    elseif subspec(m) == "ss51v"
-        return ss51v!(m)
+    elseif subspec(m) == "ss51"
+        return ss51!(m)
     elseif subspec(m) == "ss59"
         return ss59!(m)
     elseif subspec(m) == "ss60"
@@ -97,6 +97,42 @@ function init_subspec!(m::Model1002)
         return ss85!(m)
     elseif subspec(m) == "ss86"
         return ss86!(m)
+    elseif subspec(m) == "ss87"
+        return ss87!(m)
+    elseif subspec(m) == "ss88"
+        return ss88!(m)
+    elseif subspec(m) == "ss89"
+        return ss89!(m)
+    elseif subspec(m) == "ss90"
+        return ss90!(m)
+    elseif subspec(m) == "ss91"
+        return ss91!(m)
+    elseif subspec(m) == "ss92"
+        return ss92!(m)
+    elseif subspec(m) == "ss93"
+        return ss93!(m)
+    elseif subspec(m) == "ss94"
+        return ss94!(m)
+    elseif subspec(m) == "ss95"
+        return ss95!(m)
+    elseif subspec(m) == "ss96"
+        return ss96!(m)
+    elseif subspec(m) == "ss97"
+        return ss97!(m)
+    elseif subspec(m) == "ss98"
+        return ss98!(m)
+    elseif subspec(m) == "ss99"
+        return ss99!(m)
+    elseif subspec(m) == "ss100"
+        return ss100!(m)
+    elseif subspec(m) == "ss101"
+        return ss101!(m)
+    elseif subspec(m) == "ss102"
+        return ss102!(m)
+    elseif subspec(m) == "ss103"
+        return ss103!(m)
+    elseif subspec(m) == "ss104"
+        return ss104!(m)
     else
         error("This subspec is not defined.")
     end
@@ -772,12 +808,12 @@ end
 
 """
 ```
-ss51v!(m::Model1002)
+ss51!(m::Model1002)
 ```
 
 Second regime where b, mp, and anticipated shocks are ctive.
 """
-function ss51v!(m::Model1002)
+function ss51!(m::Model1002)
     ModelConstructors.set_regime_val!(m[:σ_g], 2, 0., override_bounds = true)
     ModelConstructors.set_regime_val!(m[:σ_b], 2, 0.0292)
     ModelConstructors.set_regime_val!(m[:σ_μ], 2, 0., override_bounds = true)
@@ -1842,10 +1878,12 @@ function ss64!(m::Model1002)
 
     ## Set up model regime-switching
     m <= Setting(:regime_switching, true)
-    m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
-                                                3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
-                                                5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30)))
+    regime_dates = Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31))
+    n_hist_regimes = DSGE.subtract_quarters(get_setting(m,:date_forecast_start), Date(2019,12,31))
+    for i in 2:n_hist_regimes
+        regime_dates[i+1] = DSGE.iterate_quarters(Date(2019,12,31), i)
+    end
+    m <= Setting(:regime_dates, regime_dates)
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6134,10 +6172,13 @@ function ss84!(m::Model1002)
 
     ## Set up model regime-switching
     m <= Setting(:regime_switching, true)
-    m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
-                                                3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
-                                                5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30)))
+    regime_dates = Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31))
+    n_hist_regimes = DSGE.subtract_quarters(get_setting(m,:date_forecast_start), Date(2019,12,31))
+    for i in 2:n_hist_regimes
+        regime_dates[i+1] = DSGE.iterate_quarters(Date(2019,12,31), i)
+    end
+    m <= Setting(:regime_dates, regime_dates)
+
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6342,10 +6383,12 @@ function ss85!(m::Model1002)
 
     ## Set up model regime-switching
     m <= Setting(:regime_switching, true)
-    m <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31),
-                                                3 => Date(2020, 6, 30), 4 => Date(2020, 9, 30),
-                                                5 => Date(2020, 12, 31), 6 => Date(2021, 3, 31),
-                                                7 => Date(2021, 6, 30)))
+    regime_dates = Dict{Int, Date}(1 => date_presample_start(m), 2 => Date(2020, 3, 31))
+    n_hist_regimes = DSGE.subtract_quarters(get_setting(m,:date_forecast_start), Date(2019,12,31))
+    for i in 2:n_hist_regimes
+        regime_dates[i+1] = DSGE.iterate_quarters(Date(2019,12,31), i)
+    end
+    m <= Setting(:regime_dates, regime_dates)
     m <= Setting(:time_varying_trends, true)
     setup_regime_switching_inds!(m)
 
@@ -6403,6 +6446,7 @@ function ss85!(m::Model1002)
                 set_regime_val!(m[:σ_z_p], 2, 0.)
 
                 # Fix σ_z_p = 0 in para regime 2
+                m[:σ_z_p].fixed = false
                 set_regime_fixed!(m[:σ_z_p], 1, false)
                 set_regime_fixed!(m[:σ_z_p], 2, true)
             else
@@ -6464,6 +6508,7 @@ function ss85!(m::Model1002)
             end
 
             # Fix shocks to 0 in para regime 1
+            m[pk].fixed = true
             set_regime_fixed!(m[pk], 1, true)
             set_regime_fixed!(m[pk], 2, false)
             set_regime_fixed!(m[pk], 3, false)
@@ -6506,6 +6551,7 @@ function ss85!(m::Model1002)
             set_regime_val!(m[pk], 2, 4.)
 
             # Fix shocks to 0 in para regime 1
+            m[pk].fixed = true
             set_regime_fixed!(m[pk], 1, true)
             set_regime_fixed!(m[pk], 2, false)
 
@@ -6528,6 +6574,7 @@ function ss85!(m::Model1002)
             set_regime_val!(m[pk], 2, 20.)
 
             # Fix shocks to their calibrated values
+            m[pk].fixed = true
             set_regime_fixed!(m[pk], 1, true)
             set_regime_fixed!(m[pk], 2, true)
         end
@@ -6545,32 +6592,449 @@ function ss85!(m::Model1002)
     ModelConstructors.toggle_regime!(m.parameters, 1) # ensure that regimes are toggled to regime 1
 end
 
+
 function ss86!(m)
     ss64!(m)
-#=
-    m <= parameter(:σ_λ_f_iid, 0.0, (0., 100.), (0., 100.), ModelConstructors.Exponential(), RootInverseGamma(10.0, sqrt(25.1)),
-                   fixed=false,
-                   description="σ_λ_f_iid: The standard deviation of the shock to the price markup.",
-                   tex_label="\\sigma_{\\lambda_f, iid}")
-=#
-    get_setting(m, :model2para_regime)[:σ_λ_f_iid] = Dict(1 => 1, 2 => 2, 3 => 2, 4 => 2, 5 => 3)
-    for i in 6:get_setting(m, :n_regimes)
-        get_setting(m, :model2para_regime)[:σ_λ_f_iid][i] = 1
-    end
+    add_sigma_mkup_iid!(m)
+end
+
+function ss87!(m)
+    ss64!(m)
+    add_meas_pi!(m)
+end
+
+function ss88!(m)
+    ss86!(m)
+    add_zero_meas_pi!(m)
+end
+
+function ss89!(m)
+    ss88!(m)
+    remove_persist_mkup!(m)
+end
+
+function ss90!(m)
+    ss89!(m)
+end
+
+function ss91!(m)
+    ss89!(m)
+
+    ######
+    # Add mean-reverting measurement error
+    ######
+    add_meas_pi!(m)
+
+    # Set regime value bounds
+    set_regime_valuebounds!(m[:ρ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:ρ_meas_π], 2, (1.0e-8, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 2, (1.0e-8, 5.0))
 
     # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
-    set_regime_val!(m[:σ_λ_f_iid], 1, 0.)
-    set_regime_val!(m[:σ_λ_f_iid], 2, 5.0)
-    set_regime_val!(m[:σ_λ_f_iid], 3, 0.05)
+    set_regime_val!(m[:ρ_meas_π], 1, 0.)
+    set_regime_val!(m[:ρ_meas_π], 2, 0.2320)
+    set_regime_val!(m[:σ_meas_π], 1, 0.)
+    set_regime_val!(m[:σ_meas_π], 2, 0.0999)
 
-    # Fix shocks to 0 in para regime 1
-    set_regime_fixed!(m[:σ_λ_f_iid], 1, true)
-    set_regime_fixed!(m[:σ_λ_f_iid], 2, false)
-    set_regime_fixed!(m[:σ_λ_f_iid], 3, false)
+    # Set prior for standard deviation to be large since we are removing other measurement error
+    set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:σ_meas_π], 2, m[:σ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 1, m[:ρ_meas_π].prior)
+    set_regime_prior!(m[:ρ_meas_π], 2, m[:ρ_meas_π].prior)
+    prior2 = get(m[:σ_meas_π].prior)
+    prior2.τ = 0.2
+    set_regime_prior!(m[:σ_meas_π], 2, prior2)
 
-    # Regime-switching priors for regime 3
-    for i in 1:2
-        set_regime_prior!(m[:σ_λ_f_iid], i, m[:σ_λ_f_iid].prior)
+    ######
+    # Remove iid inflation measurement error
+    ######
+    rm_iid_pce_meas_err!(m)
+end
+
+function ss92!(m)
+    ss91!(m)
+end
+
+function ss93!(m)
+    ss87!(m)
+
+    # Set regime value bounds
+    # set_regime_valuebounds!(m[:ρ_meas_π], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:σ_meas_π], 1, (0.0, 5.0))
+    # set_regime_valuebounds!(m[:ρ_meas_π], 2, (1.0e-8, 5.0))
+    m[:ρ_meas_π].valuebounds = (1.0e-8, 5.0)
+    set_regime_valuebounds!(m[:σ_meas_π], 2, (1.0e-8, 5.0))
+
+    # Set values (priors are set already unless regime-switching is desired in 2020:Q4)
+    # set_regime_val!(m[:ρ_meas_π], 1, 0.)
+    # set_regime_val!(m[:ρ_meas_π], 2, 0.2320)
+    m[:ρ_meas_π].value = 0.2320
+    set_regime_val!(m[:σ_meas_π], 1, 0.)
+    set_regime_val!(m[:σ_meas_π], 2, 0.0999)
+
+    # Set prior for standard deviation to be large since we are removing other measurement error
+    set_regime_prior!(m[:σ_meas_π], 1, m[:σ_meas_π].prior)
+    prior2 = get(m[:σ_meas_π].prior)
+    prior2.τ = 0.2
+    set_regime_prior!(m[:σ_meas_π], 2, prior2)
+
+    ######
+    # Remove iid inflation measurement error
+    ######
+    rm_iid_pce_meas_err!(m)
+end
+
+function ss94!(m)
+    ss88!(m)
+end
+
+function ss95!(m)
+    ss90!(m)
+end
+
+function ss96!(m)
+    ss92!(m)
+end
+
+# Model 93 with higher prior mean
+function ss97!(m)
+    ss93!(m)
+    prior2 = get(m[:σ_meas_π].prior)
+    prior2.τ = 0.4
+    set_regime_prior!(m[:σ_meas_π], 2, prior2)
+
+    expected_nominal_rates!(m)
+
+end
+
+# Model 97 with mean reversion in biidc shock
+function ss98!(m)
+    ss97!(m)
+
+    # Note that here in eqcond we liberate rho_biidc - the higher it is, the less negative the rho
+    ## Don't do multiple regimes because sigma_biidc is 0 outside Covid
+    ## so it will just persist the after effects of Covid which is fine.
+end
+
+# 97 but removes subtraction by e_{pi,t-1} in first post-MR period
+function ss99!(m)
+    ss97!(m)
+
+    # Create new parameter for coefficient of e_{pi,t-1}
+    get_setting(m, :model2para_regime)[:meas_π1] = copy(get_setting(m, :model2para_regime)[:ρ_meas_π])
+
+    set_regime_valuebounds!(m[:meas_π1], 1, (0.0, 5.0))
+    set_regime_valuebounds!(m[:meas_π1], 2, (0.0, 5.0))
+    set_regime_val!(m[:meas_π1], 1, 0.0)
+    set_regime_val!(m[:meas_π1], 2, 1.0)
+    set_regime_fixed!(m[:meas_π1], 1, true)
+    set_regime_fixed!(m[:meas_π1], 2, true)
+
+end
+
+# ss97 w/ estimated AIT parameters
+function ss100!(m)
+    ss97!(m)
+end
+
+# ss100 w/ estimated expected ZLB length in 2020Q4 ## not yet: estimated imperfect cred wts
+function ss101!(m)
+    ss100!(m)
+end
+
+function ss102!(m)
+    ss97!(m) #but with change to long run inflation series and no reduction of bps
+end
+
+
+
+"""
+'''
+ss103!(m::Model1002)
+'''
+
+ss103 builds on a combination of 100 and 97 in simplifying and estimating post covid, as of 05/24. Changes include introducing and estimating a κ_pce/business_cycle parameter, estimating AIT parameters (as in ss100), and simplifying other regime changes made during covid so that we are not estimating regimes on minimal quarters of data. This is only a preliminary test model and will not be used in production.
+
+Implementation by RAs Brian Pacula and Pranay Gundam
+"""
+
+function ss103!(m)
+    ss100!(m)
+
+    # Covid Shocks changed to turn off one period before they do in ss100
+
+    set_regime_val!(m[:κ_covid], 1, m[:κ_covid].value)
+    set_regime_val!(m[:κ_covid], 2, m[:κ_covid].value)
+
+    set_regime_fixed!(m[:κ_covid], 1, true)
+    set_regime_fixed!(m[:κ_covid], 2, false)
+
+    set_regime_prior!(m[:κ_covid], 1, m[:κ_covid].prior)
+    set_regime_prior!(m[:κ_covid], 2, m[:κ_covid].prior)
+
+    set_regime_valuebounds!(m[:κ_covid], 1, (0.0, 1.0))
+    set_regime_valuebounds!(m[:κ_covid], 2, (0.0, 1.0))
+
+    m2p_dict = Dict()
+    for i in vcat(1:4, 10:get_setting(m, :n_regimes))
+        m2p_dict[i] = 1
     end
-    set_regime_prior!(m[:σ_λ_f_iid], 3, RootInverseGamma(10.0, 0.0501))
+
+    for i in 5:9
+        m2p_dict[i] = 2
+    end
+
+    get_setting(m, :model2para_regime)[:κ_covid] = m2p_dict
+
+    toggle_regime!(m[:κ_covid], 1)
+
+    get_setting(m, :model2para_regime)[:κ_covid][10] = 1
+
+    # Remove 2020 Q2 and 2020 Q3 Anticipated Covid Shocks
+
+    for i = 4:5
+        get_setting(m, :model2para_regime)[:σ_biidc1][i] = 1
+    end
+
+    for i = 5:9
+        get_setting(m, :model2para_regime)[:σ_biidc][i] = 2
+        get_setting(m, :model2para_regime)[:σ_ziid][i] = 2
+        get_setting(m, :model2para_regime)[:σ_φ][i] = 2
+    end
+
+    # Measurement Error shocks (everything but core pce) go straight back to pre-covid regimes in 2020Q3
+
+    get_setting(m, :model2para_regime)[:σ_gdpdef][4] = 1
+
+    # Standard Shocks: still uncertain but potentially implement a κ_standardcovid (either estimated or fixed it tbd) during 2020Q1 and 2020Q2 rather than estimating a different regime
+
+    for para in [:σ_g, :σ_b, :σ_μ, :σ_ztil, :σ_λ_f, :σ_λ_w, :σ_σ_ω, :σ_μ_e, :σ_γ, :σ_π_star]
+        for i in 1:get_setting(m, :n_regimes)
+            get_setting(m, :model2para_regime)[para][i] = 1
+        end
+    end
+
+
+    set_regime_val!(m[:κ_std_bcshocks], 1, m[:κ_std_bcshocks].value)
+    set_regime_val!(m[:κ_std_bcshocks], 2, m[:κ_std_bcshocks].value)
+
+    set_regime_fixed!(m[:κ_std_bcshocks], 1, true)
+    set_regime_fixed!(m[:κ_std_bcshocks], 2, false)
+
+    set_regime_prior!(m[:κ_std_bcshocks], 1, m[:κ_std_bcshocks].prior)
+    set_regime_prior!(m[:κ_std_bcshocks], 2, m[:κ_std_bcshocks].prior)
+
+    set_regime_valuebounds!(m[:κ_std_bcshocks], 1, (0.0, 1.0))
+    set_regime_valuebounds!(m[:κ_std_bcshocks], 2, (0.0, 1.0))
+
+    m2p_dict = Dict(1 => 1, 2 => 2, 3 => 2)
+    for i in 4:get_setting(m, :n_regimes)
+        m2p_dict[i] = 1
+    end
+
+    get_setting(m, :model2para_regime)[:κ_std_bcshocks] = m2p_dict
+
+    toggle_regime!(m[:κ_std_bcshocks], 1)
+
+    # Add κ_pce, return model back to pre-covid regimes starting in 2022 Q1, IS THIS ESTIMATED?
+
+    set_regime_val!(m[:κ_pce], 1, m[:κ_pce].value)
+    set_regime_val!(m[:κ_pce], 2, m[:κ_pce].value)
+
+    set_regime_fixed!(m[:κ_pce], 1, true)
+    set_regime_fixed!(m[:κ_pce], 2, false)
+
+    set_regime_prior!(m[:κ_pce], 1, m[:κ_pce].prior)
+    set_regime_prior!(m[:κ_pce], 2, m[:κ_pce].prior)
+
+    set_regime_valuebounds!(m[:κ_pce], 1, (0.0, 1.0))
+    set_regime_valuebounds!(m[:κ_pce], 2, (0.0, 1.0))
+
+    m2p_dict = Dict()
+    for i in vcat(1:4, 10:get_setting(m, :n_regimes))
+        m2p_dict[i] = 1
+    end
+
+    for i in 5:9
+        m2p_dict[i] = 2
+    end
+
+    get_setting(m, :model2para_regime)[:κ_pce] = m2p_dict
+
+    #get_setting(m, :model2para_regime)[:ρ_meas_π][10] = 1
+    #get_setting(m, :model2para_regime)[:ρ_meas_π][11] = 1
+
+    for i = 2:9
+        get_setting(m, :model2para_regime)[:σ_meas_π][i] = 2
+        get_setting(m, :model2para_regime)[:σ_corepce][i] = 2
+    end
+
+    for i = 10:get_setting(m, :n_regimes)
+        get_setting(m, :model2para_regime)[:σ_meas_π][i] = 1
+        get_setting(m, :model2para_regime)[:σ_corepce][i] = 1
+    end
+
+    toggle_regime!(m[:κ_pce], 1)
+
+    # Inflation Target tbd
+
+
+    # Taylor Shocks both cont and ant are as is in either SS97 or SS100, one thing to clear up DO PEOPLE WITH IMPERFECT CRED BELIEFS ON TAYLOR STILL NEED TAYLOR SHOCKS IN THE MODEL TO STAY TRUE TO THEIR BELIEF EXPERIENCE
+
+
+end
+
+
+"""
+'''
+ss104!(m::Model1002)
+'''
+
+This subspecification was created in an effort to clean the forecasting process in the post-covid era (currently July 2024), and is based off of ss97.
+"""
+
+function ss104!(m)
+    ss97!(m)
+
+    m <= Setting(:cur_model_regime, Dict(map(reverse, collect(get_setting(m, :regime_dates))))[date_forecast_start(m)])
+
+    # Hardcoding these because they rarely (and I mean never) change now that we are past the covid era nad have determined the nessesary settings
+    sig_condgdp = 2.0
+    sig_condcorepce = 1.25
+    start_zlb_date = Date(2020, 12, 31)
+    end_zlb_date = Date(2021, 12, 31)
+    φ_π = 4.
+    φ_y = 3.
+    Thalf = 10.
+    pgap_init = 0.125
+    ygap_init = 12.
+    ρ_smooth = 0.9
+    end_tvcred_level = 1.0
+    start_tvcred_date = Date(2020, 12, 31)
+    end_tvcred_date = Date(2026, 12, 31)
+    tworule_zlb = true
+    adjusted_historical_expectations = true
+    spd_expect = true
+    cond_type = :full
+    pgap_ygap_init_date = Date(2020, 6, 30)
+    start_tvcred_level = 0.
+    endo_zlb = false
+    sig_meas_pi = true
+
+    θ = (φ_π = φ_π, φ_y = φ_y, Thalf = Thalf, pgap = pgap_init, ygap = ygap_init, ρ_smooth = ρ_smooth, cred = 1., historical_policy = default_policy())
+
+    qtrs_before_last = DSGE.subtract_quarters(date_forecast_start(m), Date(2019, 12, 31))
+
+    set_regime_vals_fnct = (x, n) -> model2para_covid_set_regime_vals(x, n; start_regime = qtrs_before_last + 1)
+
+
+    m2p = get_setting(m, :model2para_regime)
+    m <= Setting(:remove_rm_t_shocks, 8)
+    m <= Setting(:remove_pistar_shocks, 5)
+
+
+    m2p[:σ_condgdp] = Dict()
+    for i in 1:qtrs_before_last
+        m2p[:σ_condgdp][i] = 1
+    end
+
+
+    set_regime_val!(m[:σ_condgdp], 1, 0.)
+    set_regime_val!(m[:σ_condgdp], 2, sig_condgdp * m[:σ_gdp].value)
+    set_regime_fixed!(m[:σ_condgdp], 1, true)
+    set_regime_fixed!(m[:σ_condgdp], 2, false)
+
+    m2p[:σ_condcorepce] = Dict()
+    for i in vcat(1:qtrs_before_last, qtrs_before_last+2:get_setting(m, :n_regimes))
+        m2p[:σ_condcorepce][i] = 1
+    end
+
+    set_regime_val!(m[:σ_condcorepce], 1, 0.)
+    set_regime_val!(m[:σ_condcorepce], 2, sig_condcorepce * m[:σ_corepce].value)
+    set_regime_fixed!(m[:σ_condcorepce], 1, true)
+    set_regime_fixed!(m[:σ_condcorepce], 2, false)
+
+    # Setting changes relevant for setting up flexible ait and temporary zero lower bound policies
+    setup_flexait_tempzlb!(m, cond_type, start_zlb_date, end_zlb_date, θ; pgap_ygap_init_date = pgap_ygap_init_date,
+                           altpolicy = false, skip_altpolicy_state_init = true, uncertain_altpolicy = true,
+                           set_regime_vals_fnct = set_regime_vals_fnct,
+                           tvcred_dates = (start_tvcred_date, end_tvcred_date), start_tvcred_level = start_tvcred_level,
+                           end_tvcred_level = end_tvcred_level,
+                           adjusted_historical_expectations = true,
+                           spd_expect = true,
+                           tworule_zlb = true, endo_zlb = endo_zlb)
+
+    for i in 1:6
+
+        for mreg in 9:get_setting(m, :cur_model_regime)
+            get_setting(m, :model2para_regime)[Symbol("σ_ait_r_m$(i)")][mreg] = 2
+        end
+        for mreg in get_setting(m, :cur_model_regime)+1:29
+            get_setting(m, :model2para_regime)[Symbol("σ_ait_r_m$(i)")][mreg] = 1
+        end
+    end
+
+    m2p[:σ_condgdp][qtrs_before_last+1] = 2
+    m2p[:σ_condcorepce][qtrs_before_last+1] = 2
+
+    para_meas = [:ρ_meas_π, :σ_meas_π, :ρ_corepce, :σ_corepce]
+    for p in para_meas
+        end_ind = sig_meas_pi ? 10 : 9
+        for i in 2:end_ind
+            get_setting(m, :model2para_regime)[p][i] = 2
+        end
+        if p == :ρ_meas_π
+            for i in 2:get_setting(m, :n_regimes)
+                get_setting(m, :model2para_regime)[p][i] = 2
+            end
+        end
+        if p == :ρ_corepce
+            for i in 1:get_setting(m, :n_regimes)
+                get_setting(m, :model2para_regime)[p][i] = 1
+            end
+        end
+        if (p != :ρ_meas_π && p != :ρ_corepce)
+            for i in end_ind+1:get_setting(m, :n_regimes)
+                get_setting(m, :model2para_regime)[p][i] = 1
+            end
+        end
+    end
+
+
+
+    # Add settings to speed up computation for estimation
+    zlb_start_reg = minimum(collect(keys(get_setting(m, :regime_eqcond_info))))
+    altpol_names = [get_setting(m, :regime_eqcond_info)[reg].alternative_policy.key
+                    for reg in sort!(collect(keys(get_setting(m, :regime_eqcond_info))))]
+    flex_ait_start = findfirst(x -> x == :flexible_ait, altpol_names) + # minus 1 to correctly account for regimes that
+        minimum(collect(keys(get_setting(m, :regime_eqcond_info)))) - 1 # have passed since the ZLB started
+    m <= Setting(:tvis_information_set, vcat([i:i for i in 1:(zlb_start_reg - 1)],
+                                             [i:flex_ait_start for i in zlb_start_reg:flex_ait_start],
+                                             [i:i for i in (flex_ait_start + 1):get_setting(m, :n_regimes)]))
+
+    m <= Setting(:baseline_start_reg, [r for (r, d) in get_setting(m, :regime_dates) if d == date_forecast_start(m)][1] + 1)
+
+
+
+    #= Is this something to include?
+    get_setting(m, :model2para_regime)[:σ_meas_π][7] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][9] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][10] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][11] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][6] = 3
+    get_setting(m, :model2para_regime)[:σ_meas_π][8] = 3
+    =#
+
+end
+
+"""
+'''
+ss105!(m::Model1002)
+'''
+
+ss105 builds on a combination of subspecs 100 and 104 in simplifying and estimating post covid, as of 08/24. Changes include introducing and estimating a κ_pce/business_cycle parameter, estimating AIT parameters (as in ss100), and simplifying other regime changes made during covid so that we are not estimating regimes on minimal quarters of data.
+"""
+function ss105!(m)
+    ss97!(m)
 end

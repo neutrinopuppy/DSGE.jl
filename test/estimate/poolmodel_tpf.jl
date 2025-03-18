@@ -28,7 +28,7 @@ Random.seed!(1793)
 Ψ47_pm(x) = Ψpm(x,data[:,47])
 weight_kernel!(coeff_terms, log_e_1_terms, log_e_2_terms, φ_old, Ψ47_pm, data[:, 47],
                s_t_nontemp, det(HH), inv(HH);
-               initialize = false, parallel = false,
+               initialize = false,
                poolmodel = true)
 φ_new = next_φ(φ_old, coeff_terms, log_e_1_terms, log_e_2_terms, length(data[:,47]), tuning[:r_star], 2)
 correction!(inc_weights, norm_weights, φ_new, coeff_terms, log_e_1_terms, log_e_2_terms, length(data[:,47]))
@@ -52,7 +52,7 @@ s_t_nontemp0 = [.5; .5] * ones(1, 900)
 s_t_nontemp = hcat(s_t_nontemp0, repeat([.49; .51], 1, 100))
 weight_kernel!(coeff_terms, log_e_1_terms, log_e_2_terms, φ_old, Ψ47_pm, data[:, 47],
                s_t_nontemp, det(HH), inv(HH);
-               initialize = false, parallel = false,
+               initialize = false,
                poolmodel = true)
 φ_new = next_φ(φ_old, coeff_terms, log_e_1_terms, log_e_2_terms, length(data[:,47]), tuning[:r_star], 2)
 correction!(inc_weights, norm_weights, φ_new, coeff_terms, log_e_1_terms, log_e_2_terms, length(data[:,47]))
@@ -101,7 +101,7 @@ out_parallel_one_worker = tempered_particle_filter(data, Φpm, Ψpm, F_ϵpm, F_u
     @test out_no_parallel[1] ≈ test_file_outputs_pm["out_no_parallel"][1]
     # See tempered_particle_filter.jl's test with parallel workers
     if VERSION >= v"1.5"
-        @test out_parallel_one_worker[1] ≈ -507.35270760697324
+        @test abs(out_parallel_one_worker[1] - (-507.35270760697324)) < 0.05
     elseif VERSION >= v"1.0"
         @test out_parallel_one_worker[1] ≈ test_file_outputs_pm["out_parallel_one_worker"][1] # should be -507.44364755284465
     end

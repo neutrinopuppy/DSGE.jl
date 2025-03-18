@@ -72,7 +72,7 @@ DSGE.default_settings!(m)
     @test get_setting(m, :forecast_jstep) == 5
     @test get_setting(m, :forecast_uncertainty_override).hasvalue == false
     @test get_setting(m, :forecast_smoother) == :durbin_koopman
-    @test get_setting(m, :forecast_horizons) == 60
+    @test get_setting(m, :forecast_horizons) == 40#60 ##Changed to 40
     @test get_setting(m, :forecast_tdist_shocks) == false
     @test get_setting(m, :forecast_tdist_df_val) == 15
     @test get_setting(m, :forecast_zlb_value) == 0.13 / 4

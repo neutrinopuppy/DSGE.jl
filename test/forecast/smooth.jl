@@ -49,15 +49,14 @@ end
 
 
 # Now check for regime switching
-custom_settings = Dict{Symbol, Setting}(
-                                        :data_vintage             => Setting(:data_vintage, "160812"),
-                                        :cond_vintage             => Setting(:cond_vintage, "160812"),
-                                        :cond_id                  => Setting(:cond_id, 0),
-                                        :use_population_forecast  => Setting(:use_population_forecast, true),
-                                        :date_presample_start     => Setting(:date_presample_start, Date(1959, 9, 30)),
-                                        :date_forecast_start      => Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-                                        :date_conditional_end     => Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
-                                        :n_mon_anticipated_shocks => Setting(:n_mon_anticipated_shocks, 6))
+custom_settings = [Setting(:data_vintage, "160812"),
+                   Setting(:cond_vintage, "160812"),
+                   Setting(:cond_id, 0),
+                   Setting(:use_population_forecast, true),
+                   Setting(:date_presample_start, Date(1959, 9, 30)),
+                   Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                   Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
+                   Setting(:n_mon_anticipated_shocks, 6)]
 
 m = Model1002("ss10", custom_settings = custom_settings, testing = true)
 m <= Setting(:rate_expectations_source, :ois)
@@ -72,7 +71,7 @@ m_rs1 <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m_rs1)
                                                 3 => Date(2012, 3, 31)))
 setup_regime_switching_inds!(m_rs1)
 
-m_rs2 = Model1002("ss51v", custom_settings = custom_settings) # pseudo regime switching (identical values for standard deviations)
+m_rs2 = Model1002("ss51", custom_settings = custom_settings) # pseudo regime switching (identical values for standard deviations)
 m_rs2 <= Setting(:rate_expectations_source, :ois)
 m_rs2 <= Setting(:regime_switching, true)
 m_rs2 <= Setting(:n_regimes, 3)
@@ -80,7 +79,7 @@ m_rs2 <= Setting(:regime_dates, Dict{Int, Date}(1 => date_presample_start(m_rs1)
                                                 3 => Date(2012, 3, 31)))
 setup_regime_switching_inds!(m_rs2)
 
-m_rs3 = Model1002("ss51v", custom_settings = custom_settings) # non-trivial regime switching
+m_rs3 = Model1002("ss51", custom_settings = custom_settings) # non-trivial regime switching
 m_rs3 <= Setting(:rate_expectations_source, :ois)
 m_rs3 <= Setting(:regime_switching, true)
 m_rs3 <= Setting(:n_regimes, 3)
@@ -198,76 +197,76 @@ pseudo_sv = Matrix{Float64}[]
         if writing_output && smoother == :durbin_koopman
             jldopen("$path/../reference/smooth_out_draw_states=false_version="
                     * ver * ".jld2", "w") do file
-                write(file, "exp_states_regime_switch", states_rs3[:durbin_koopman])
-                write(file, "exp_shocks_regime_switch", shocks_rs3[:durbin_koopman])
-                write(file, "exp_pseudo_regime_switch", pseudo_rs3[:durbin_koopman])
-            end
-        end
-
-        exp_states_regime_switch = load("$path/../reference/smooth_out_draw_states=false_version=" * ver * ".jld2", "exp_states_regime_switch")
-        exp_shocks_regime_switch = load("$path/../reference/smooth_out_draw_states=false_version=" * ver * ".jld2", "exp_shocks_regime_switch")
-        exp_pseudo_regime_switch = load("$path/../reference/smooth_out_draw_states=false_version=" * ver * ".jld2", "exp_pseudo_regime_switch")
-
-        if smoother == :durbin_koopman
-            @test @test_matrix_approx_eq states_rs3[smoother] exp_states_regime_switch
-            @test @test_matrix_approx_eq shocks_rs3[smoother] exp_shocks_regime_switch
-            @test @test_matrix_approx_eq pseudo_rs3[smoother] exp_pseudo_regime_switch[1:21, :] # extra rows b/c used more pseudo-obs when generating the test file
-        else # the other smoothers should generate similar output, but may not be the exact same thing
-            @test maximum(abs.(states_rs3[smoother] - exp_states_regime_switch))  < 9e-1
-            @test maximum(abs.(shocks_rs3[smoother] - exp_shocks_regime_switch))  < 2e-1
-            @test maximum(abs.(pseudo_rs3[smoother] - exp_pseudo_regime_switch[1:21, :])) < 3e-1
+            write(file, "exp_states_regime_switch", states_rs3[:durbin_koopman])
+            write(file, "exp_shocks_regime_switch", shocks_rs3[:durbin_koopman])
+            write(file, "exp_pseudo_regime_switch", pseudo_rs3[:durbin_koopman])
         end
     end
 
-    @info "The following warnings about calling smoothers with draw_states = true are expected."
-    for smoother in [:durbin_koopman, :hamilton, :koopman, :carter_kohn]
-        m <= Setting(:forecast_smoother, smoother)
-        m_rs1 <= Setting(:forecast_smoother, smoother)
-        m_rs2 <= Setting(:forecast_smoother, smoother)
-        m_rs3 <= Setting(:forecast_smoother, smoother)
+    exp_states_regime_switch = load("$path/../reference/smooth_out_draw_states=false_version=" * ver * ".jld2", "exp_states_regime_switch")
+    exp_shocks_regime_switch = load("$path/../reference/smooth_out_draw_states=false_version=" * ver * ".jld2", "exp_shocks_regime_switch")
+    exp_pseudo_regime_switch = load("$path/../reference/smooth_out_draw_states=false_version=" * ver * ".jld2", "exp_pseudo_regime_switch")
 
-        Random.seed!(1793)
-        states[smoother], shocks[smoother], pseudo[smoother] =
-        smooth(m, df, system; draw_states = true)
-        Random.seed!(1793)
-        states_rs1[smoother], shocks_rs1[smoother], pseudo_rs1[smoother] =
-        smooth(m_rs1, df, system_rs1; draw_states = true)
-        Random.seed!(1793)
-        states_rs2[smoother], shocks_rs2[smoother], pseudo_rs2[smoother] =
-        smooth(m_rs2, df, system_rs2; draw_states = true)
-        Random.seed!(1793)
-        states_rs3[smoother], shocks_rs3[smoother], pseudo_rs3[smoother] =
-        smooth(m_rs3, df, system_rs3; draw_states = true)
+    if smoother == :durbin_koopman
+        @test @test_matrix_approx_eq states_rs3[smoother] exp_states_regime_switch
+        @test @test_matrix_approx_eq shocks_rs3[smoother] exp_shocks_regime_switch
+        @test @test_matrix_approx_eq pseudo_rs3[smoother]  exp_pseudo_regime_switch[1:24, :] # extra rows b/c used more pseudo-obs when generating the test file
+    else # the other smoothers should generate similar output, but may not be the exact same thing
+        @test maximum(abs.(states_rs3[smoother] - exp_states_regime_switch))  < 9e-1
+        @test maximum(abs.(shocks_rs3[smoother] - exp_shocks_regime_switch))  < 2e-1
+        @test maximum(abs.(pseudo_rs3[smoother] - exp_pseudo_regime_switch[1:24, :])) < 3e-1
+    end
+end
 
-        @test @test_matrix_approx_eq states_rs1[smoother] states[smoother]
-        @test @test_matrix_approx_eq shocks_rs1[smoother] shocks[smoother]
-        @test @test_matrix_approx_eq pseudo_rs1[smoother] pseudo[smoother]
-        @test @test_matrix_approx_eq states_rs1[smoother] states_rs2[smoother]
-        @test @test_matrix_approx_eq shocks_rs1[smoother] shocks_rs2[smoother]
-        @test @test_matrix_approx_eq pseudo_rs1[smoother] pseudo_rs2[smoother]
-        @test !(states_rs3[smoother] ≈ states_rs2[smoother])
-        @test !(shocks_rs3[smoother] ≈ shocks_rs2[smoother])
-        @test !(pseudo_rs3[smoother] ≈ pseudo_rs2[smoother])
+@info "The following warnings about calling smoothers with draw_states = true are expected."
+for smoother in [:durbin_koopman, :hamilton, :koopman, :carter_kohn]
+    m <= Setting(:forecast_smoother, smoother)
+    m_rs1 <= Setting(:forecast_smoother, smoother)
+    m_rs2 <= Setting(:forecast_smoother, smoother)
+    m_rs3 <= Setting(:forecast_smoother, smoother)
 
-        if writing_output && smoother == :durbin_koopman
-            jldopen("$path/../reference/smooth_out_draw_states=true_version="
-                    * ver * ".jld2", "w") do file
-                write(file, "exp_states_regime_switch_draw", states_rs3[:durbin_koopman])
-                write(file, "exp_shocks_regime_switch_draw", shocks_rs3[:durbin_koopman])
-                write(file, "exp_pseudo_regime_switch_draw", pseudo_rs3[:durbin_koopman])
-            end
-        end
+    Random.seed!(1793)
+    states[smoother], shocks[smoother], pseudo[smoother] =
+    smooth(m, df, system; draw_states = true)
+    Random.seed!(1793)
+    states_rs1[smoother], shocks_rs1[smoother], pseudo_rs1[smoother] =
+    smooth(m_rs1, df, system_rs1; draw_states = true)
+    Random.seed!(1793)
+    states_rs2[smoother], shocks_rs2[smoother], pseudo_rs2[smoother] =
+    smooth(m_rs2, df, system_rs2; draw_states = true)
+    Random.seed!(1793)
+    states_rs3[smoother], shocks_rs3[smoother], pseudo_rs3[smoother] =
+    smooth(m_rs3, df, system_rs3; draw_states = true)
 
-        exp_states_regime_switch_draw = load("$path/../reference/smooth_out_draw_states=true_version=" * ver * ".jld2", "exp_states_regime_switch_draw")
-        exp_shocks_regime_switch_draw = load("$path/../reference/smooth_out_draw_states=true_version=" * ver * ".jld2", "exp_shocks_regime_switch_draw")
-        exp_pseudo_regime_switch_draw = load("$path/../reference/smooth_out_draw_states=true_version=" * ver * ".jld2", "exp_pseudo_regime_switch_draw")
+    @test @test_matrix_approx_eq states_rs1[smoother] states[smoother]
+    @test @test_matrix_approx_eq shocks_rs1[smoother] shocks[smoother]
+    @test @test_matrix_approx_eq pseudo_rs1[smoother] pseudo[smoother]
+    @test @test_matrix_approx_eq states_rs1[smoother] states_rs2[smoother]
+    @test @test_matrix_approx_eq shocks_rs1[smoother] shocks_rs2[smoother]
+    @test @test_matrix_approx_eq pseudo_rs1[smoother] pseudo_rs2[smoother]
+    @test !(states_rs3[smoother] ≈ states_rs2[smoother])
+    @test !(shocks_rs3[smoother] ≈ shocks_rs2[smoother])
+    @test !(pseudo_rs3[smoother] ≈ pseudo_rs2[smoother])
 
-        if smoother == :durbin_koopman
-            @test maximum(abs.(states_rs3[smoother] - exp_states_regime_switch_draw)) < 3e-5
-            # @test @test_matrix_approx_eq states_rs3[smoother] exp_states_regime_switch_draw
-            @test @test_matrix_approx_eq shocks_rs3[smoother] exp_shocks_regime_switch_draw
-            #    @test @test_matrix_approx_eq pseudo_rs3[smoother] exp_pseudo_regime_switch_draw
-        end
+    if writing_output && smoother == :durbin_koopman
+        jldopen("$path/../reference/smooth_out_draw_states=true_version="
+                * ver * ".jld2", "w") do file
+        write(file, "exp_states_regime_switch_draw", states_rs3[:durbin_koopman])
+        write(file, "exp_shocks_regime_switch_draw", shocks_rs3[:durbin_koopman])
+        write(file, "exp_pseudo_regime_switch_draw", pseudo_rs3[:durbin_koopman])
+    end
+end
+
+exp_states_regime_switch_draw = load("$path/../reference/smooth_out_draw_states=true_version=" * ver * ".jld2", "exp_states_regime_switch_draw")
+exp_shocks_regime_switch_draw = load("$path/../reference/smooth_out_draw_states=true_version=" * ver * ".jld2", "exp_shocks_regime_switch_draw")
+exp_pseudo_regime_switch_draw = load("$path/../reference/smooth_out_draw_states=true_version=" * ver * ".jld2", "exp_pseudo_regime_switch_draw")
+
+if smoother == :durbin_koopman
+    @test maximum(abs.(states_rs3[smoother] - exp_states_regime_switch_draw)) < 3e-5
+    # @test @test_matrix_approx_eq states_rs3[smoother] exp_states_regime_switch_draw
+    @test @test_matrix_approx_eq shocks_rs3[smoother] exp_shocks_regime_switch_draw
+    #    @test @test_matrix_approx_eq pseudo_rs3[smoother] exp_pseudo_regime_switch_draw
+end
     end
 
     if writing_output
@@ -280,18 +279,17 @@ pseudo_sv = Matrix{Float64}[]
 end
 
 @testset "Smoothing with time-varying information sets" begin
-    custom_settings = Dict{Symbol, Setting}(
-        :data_vintage             => Setting(:data_vintage, "160812"),
-        :cond_vintage             => Setting(:cond_vintage, "160812"),
-        :cond_id                  => Setting(:cond_id, 0),
-        :use_population_forecast  => Setting(:use_population_forecast, true),
-        :date_presample_start     => Setting(:date_presample_start, Date(1959, 9, 30)),
-        :date_forecast_start      => Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-        :date_conditional_end     => Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
-        :n_mon_anticipated_shocks => Setting(:n_mon_anticipated_shocks, 6),
-        :cond_full_names          => Setting(:cond_full_names, [:obs_gdp, :obs_longrate, :obs_longinflation,
-                                                                :obs_nominalrate, :obs_nominalrate1,
-                                                                :obs_corepce]))
+    custom_settings = [Setting(:data_vintage, "160812"),
+                       Setting(:cond_vintage, "160812"),
+                       Setting(:cond_id, 0),
+                       Setting(:use_population_forecast, true),
+                       Setting(:date_presample_start, Date(1959, 9, 30)),
+                       Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                       Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
+                       Setting(:n_mon_anticipated_shocks, 6),
+                       Setting(:cond_full_names, [:obs_gdp, :obs_longrate, :obs_longinflation,
+                                                  :obs_nominalrate, :obs_nominalrate1,
+                                                  :obs_corepce])]
     df = load("$path/../reference/regime_switch_data.jld2", "full")
     df[end, :obs_longrate] = .44
     df[end, :obs_longinflation] = .42
@@ -304,14 +302,14 @@ end
     m <= Setting(:gensys2_separate_cond_regimes, true)
     regime_dates = Dict{Int, Date}(1 => date_presample_start(m))
     for (i, d) in enumerate(DSGE.quarter_range(Date(2016, 9, 30), Date(2021, 3, 31)))
-        regime_dates[i + 1] = d
-    end
-    m <= Setting(:regime_dates, regime_dates)
-    m <= Setting(:regime_switching, true)
-    setup_regime_switching_inds!(m; cond_type = :full)
-    regime_eqcond_info_shortzlb = Dict()
-    for i in 4:(length(DSGE.quarter_range(Date(2017, 3, 31), Date(2019, 12, 31))) + 1)
-        regime_eqcond_info_shortzlb[i] = DSGE.EqcondEntry(DSGE.zlb_rule(), [1., 0.])
+    regime_dates[i + 1] = d
+end
+m <= Setting(:regime_dates, regime_dates)
+m <= Setting(:regime_switching, true)
+setup_regime_switching_inds!(m; cond_type = :full)
+regime_eqcond_info_shortzlb = Dict()
+for i in 4:(length(DSGE.quarter_range(Date(2017, 3, 31), Date(2019, 12, 31))) + 1)
+regime_eqcond_info_shortzlb[i] = DSGE.EqcondEntry(DSGE.zlb_rule(), [1., 0.])
     end
     regime_eqcond_info_shortzlb[length(DSGE.quarter_range(Date(2017, 3, 31), Date(2019, 12, 31))) + 2] = DSGE.EqcondEntry(AltPolicy(:historical, eqcond, solve), [1., 0.])
     regime_eqcond_info_shortzlb[get_setting(m, :n_regimes)] = DSGE.EqcondEntry(AltPolicy(:historical, eqcond, solve), [1., 0.])
@@ -319,29 +317,29 @@ end
 
     regime_eqcond_info_longzlb = Dict()
     for i in 4:(length(DSGE.quarter_range(Date(2017, 3, 31), Date(2020, 12, 31))) + 1)
-        regime_eqcond_info_longzlb[i] = DSGE.EqcondEntry(DSGE.zlb_rule(), [1., 0.])
-    end
-    regime_eqcond_info_longzlb[length(DSGE.quarter_range(Date(2017, 3, 31), Date(2020, 12, 31))) + 2] = DSGE.EqcondEntry(AltPolicy(:historical, eqcond, solve), [1., 0.])
-    regime_eqcond_info_longzlb[get_setting(m, :n_regimes)] = DSGE.EqcondEntry(AltPolicy(:historical, eqcond, solve), [1., 0.])
+    regime_eqcond_info_longzlb[i] = DSGE.EqcondEntry(DSGE.zlb_rule(), [1., 0.])
+end
+regime_eqcond_info_longzlb[length(DSGE.quarter_range(Date(2017, 3, 31), Date(2020, 12, 31))) + 2] = DSGE.EqcondEntry(AltPolicy(:historical, eqcond, solve), [1., 0.])
+regime_eqcond_info_longzlb[get_setting(m, :n_regimes)] = DSGE.EqcondEntry(AltPolicy(:historical, eqcond, solve), [1., 0.])
 
-    reg_2020Q1 = get_setting(m, :n_regimes) - 4
-    reg_2018Q1 = DSGE.subtract_quarters(Date(2018, 3, 31), Date(2016, 9, 30)) + 2
-    m <= Setting(:tvis_regime_eqcond_info, [regime_eqcond_info_shortzlb, regime_eqcond_info_longzlb])
-    m <= Setting(:tvis_select_system, vcat(ones(Int, reg_2018Q1), fill(2, get_setting(m, :n_regimes) - reg_2018Q1)))
-    m <= Setting(:tvis_information_set, vcat([1:1], [i:reg_2020Q1 for i in 2:reg_2018Q1],
-                                             [i:get_setting(m, :n_regimes) for i in (reg_2018Q1 + 1):get_setting(m, :n_regimes)]))
-    m <= Setting(:forecast_smoother, :durbin_koopman)
-    system = compute_system(m; tvis = true)
-    histstates, _, _, _ = smooth(m, df, system; cond_type = :full)
-    obs = zeros(n_observables(m), size(histstates, 2))
-    obs[:, 1:end - 1] = system[1, :ZZ] * histstates[:, 1:end - 1] .+ system[1, :DD]
-    obs[:, end] = system[2, :ZZ] * histstates[:, end] + system[2, :DD]
-    fcast = system[3, :ZZ] * (system[3, :TTT] * histstates[:, end] + system[3, :CCC]) + system[3, :DD]
-    truedata = df_to_matrix(m, df; cond_type = :full)
-    @test (isapprox(obs[vcat(1:9, 11:13), 47:end - 2], truedata[vcat(1:9, 11:13), (47 + 2):end - 2], atol=2e-4))
-    @test obs[vcat(1:9, 11), end - 1] ≈ truedata[vcat(1:9, 11), end - 1]
-    for k in get_setting(m, :cond_full_names)
-        @test obs[m.observables[k], end] ≈ truedata[m.observables[k], end]
+reg_2020Q1 = get_setting(m, :n_regimes) - 4
+reg_2018Q1 = DSGE.subtract_quarters(Date(2018, 3, 31), Date(2016, 9, 30)) + 2
+m <= Setting(:tvis_regime_eqcond_info, [regime_eqcond_info_shortzlb, regime_eqcond_info_longzlb])
+m <= Setting(:tvis_select_system, vcat(ones(Int, reg_2018Q1), fill(2, get_setting(m, :n_regimes) - reg_2018Q1)))
+m <= Setting(:tvis_information_set, vcat([1:1], [i:reg_2020Q1 for i in 2:reg_2018Q1],
+                                         [i:get_setting(m, :n_regimes) for i in (reg_2018Q1 + 1):get_setting(m, :n_regimes)]))
+m <= Setting(:forecast_smoother, :durbin_koopman)
+system = compute_system(m; tvis = true)
+histstates, _, _, _ = smooth(m, df, system; cond_type = :full)
+obs = zeros(n_observables(m), size(histstates, 2))
+obs[:, 1:end - 1] = system[1, :ZZ] * histstates[:, 1:end - 1] .+ system[1, :DD]
+obs[:, end] = system[2, :ZZ] * histstates[:, end] + system[2, :DD]
+fcast = system[3, :ZZ] * (system[3, :TTT] * histstates[:, end] + system[3, :CCC]) + system[3, :DD]
+truedata = df_to_matrix(m, df; cond_type = :full)
+@test (isapprox(obs[vcat(1:9, 11:13), 47:end - 2], truedata[vcat(1:9, 11:13), (47 + 2):end - 2], atol=2e-4))
+@test obs[vcat(1:9, 11), end - 1] ≈ truedata[vcat(1:9, 11), end - 1]
+for k in get_setting(m, :cond_full_names)
+@test obs[m.observables[k], end] ≈ truedata[m.observables[k], end]
     end
     @test fcast[m.observables[:obs_nominalrate]] ≈ obs[m.observables[:obs_nominalrate1], end]
     @test fcast[m.observables[:obs_nominalrate2]] ≈ 0. # ZLB now binds

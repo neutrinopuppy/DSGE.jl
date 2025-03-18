@@ -292,5 +292,76 @@ n_param_regs(params::ParameterVector)
 Get total number of parameter regimes for each parameter
 """
 function n_param_regs(params::ParameterVector)
-    return [haskey(params[i].regimes, :value) ? length(params[i].regimes[:value]) : 1 for i in 1:length(m.parameters)]
+    return [haskey(params[i].regimes, :value) ? length(params[i].regimes[:value]) : 1 for i in 1:length(params)]
+end
+
+"""
+```
+find_param_ind(params::Vector{AbstractParameter{Float64}}, para_one::Symbol; regime::Int = 1)
+```
+Return the index of (para_one, regime) in params.
+"""
+function find_param_ind(params::Vector{AbstractParameter{Float64}}, para_one::Symbol; regime::Int = 1)
+    if regime == 1
+        correct_ind = findfirst(x -> x == para_one, [params[i].key for i in 1:length(params)])
+        return isnothing(correct_ind) ? -1 : correct_ind
+    end
+    j = length(params)
+    for i in 1:length(params)
+        if !isempty(params[i].regimes) && params[i].key != para_one
+            j += length(params[i].regimes[:value])-1
+        elseif params[i].key == para_one
+            if haskey(params[i].regimes[:value], regime)
+                return j += regime - 1
+            else
+                return -1
+            end
+        end
+    end
+    return -1
+end
+
+"""
+```
+find_param_regimes(m::AbstractDSGEModel, reg::Int64)
+```
+Return an array of the parameter regimes associated with the given model regime.
+"""
+function find_param_regimes(m::AbstractDSGEModel, reg::Int64)
+    param_regimes = Array{Int64}(undef, length(m.parameters))
+    for i in 1:length(m.parameters)
+        if haskey(m.settings, :model2para_regime)
+            m2p = get_setting(m, :model2para_regime)
+            pkey = m.parameters[i].key
+            if haskey(m2p, pkey)
+                param_regimes[i] = get_setting(m, :model2para_regime)[m.parameters[i].key][reg]
+            else
+                param_regimes[i] = 1
+            end
+        else
+            if haskey(m.parameters[i].regimes, :value)
+                param_regimes[i] = reg
+            else
+                param_regimes[i] = 1
+            end
+        end
+    end
+    return param_regimes
+end
+
+"""
+```
+df_to_mat(df::DataFrame; type_convert::Union{DataType,Union} = Float64)
+```
+Return a matrix of dataframe df with type given by type_convert
+"""
+function df_to_mat(df::DataFrame; type_convert::Union{DataType, Union} = Float64)
+    df_as_mat = Matrix{type_convert}(undef, size(df))
+    for i in 1:size(df_as_mat,1)
+        for j in 1:size(df_as_mat,2)
+            df_as_mat[i,j] = df[i,j]
+        end
+    end
+
+    return df_as_mat
 end

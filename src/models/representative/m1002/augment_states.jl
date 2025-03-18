@@ -43,6 +43,9 @@ The diagram below shows how `TTT` is extended to `TTT_aug`.
 """
 function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vector{T};
                         regime_switching::Bool = false, reg::Int = 1) where {T<:AbstractFloat}
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+
     endo     = m.endogenous_states
     endo_new = m.endogenous_states_augmented
     exo      = m.exogenous_shocks
@@ -203,6 +206,11 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
     TTT_aug[endo_new[:e_corepce_t], endo_new[:e_corepce_t]] = m[:ρ_corepce]
     TTT_aug[endo_new[:e_gdp_t], endo_new[:e_gdp_t]]         = m[:ρ_gdp]
     TTT_aug[endo_new[:e_gdi_t], endo_new[:e_gdi_t]]         = m[:ρ_gdi]
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            TTT_aug[endo_new[Symbol("e_exp_rm$i")], endo_new[Symbol("e_exp_rm$i")]] = m[:ρ_exp_rm]
+        end
+    end
 
     if subspec(m) in ["ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss80", "ss82", "ss83"]
         # COVID counterparts to measurement errors
@@ -210,6 +218,11 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
         TTT_aug[endo_new[:e_tfp_t], endo_new[:e_tfp_covid_t]] = m[:ρ_tfp_covid]
         TTT_aug[endo_new[:e_gdp_t], endo_new[:e_gdp_covid_t]] = m[:ρ_gdp_covid]
         TTT_aug[endo_new[:e_gdi_t], endo_new[:e_gdi_covid_t]] = m[:ρ_gdi_covid]
+    end
+
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
+        TTT_aug[endo_new[:e_meas_π_t], endo_new[:e_meas_π_t]] = m[:ρ_meas_π]
+        TTT_aug[endo_new[:e_meas_π_t1], endo_new[:e_meas_π_t]] = 1.0
     end
 
     if haskey(get_settings(m), :add_iid_cond_obs_gdp_meas_err) ?
@@ -266,6 +279,11 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
 
     RRR_aug[endo_new[:e_gdi_t], exo[:gdi_sh]] = 1.0
 
+    # Measurement Error in Levels on PCE and GDP Deflator
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
+        RRR_aug[endo_new[:e_meas_π_t], exo[:meas_π_sh]] = 1.0
+    end
+
     if subspec(m) in ["ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss80", "ss82", "ss83"]
         # COVID counterparts to measurement errors
         RRR_aug[endo_new[:e_lr_t], exo[:lr_covid_sh]]   = 1.0
@@ -290,6 +308,12 @@ function augment_states(m::Model1002, TTT::Matrix{T}, RRR::Matrix{T}, CCC::Vecto
     if haskey(get_settings(m), :add_iid_cond_obs_corepce_meas_err) ?
         get_setting(m, :add_iid_cond_obs_corepce_meas_err) : false
         RRR_aug[endo_new[:e_condcorepce_t], exo[:condcorepce_sh]] = 1.0
+    end
+
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            RRR_aug[endo_new[Symbol("e_exp_rm$i")], exo[Symbol("exp_rm_sh$i")]] = 1.0
+        end
     end
 
     ### CCC Modifications

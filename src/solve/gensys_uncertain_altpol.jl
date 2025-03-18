@@ -185,7 +185,6 @@ function gensys_uncertain_altpol(m::AbstractDSGEModel, prob_vec::AbstractVector{
                                  is_altpol::Vector{Bool}) where {S <: Real}
 
     @assert sum(prob_vec) == 1. "The vector of probabilities must sum to 1"
-
     @assert length(systems) == length(prob_vec)
 
     has_pos_prob = findall(x -> x > 0., (@view prob_vec[2:end])) # Note that has_pos_prob has 1 less length than prob_vec

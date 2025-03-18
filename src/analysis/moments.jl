@@ -172,7 +172,7 @@ end
 moment_tables(m; percent = 0.90, subset_inds = 1:0, subset_string = "",
     groupings = Dict{String, Vector{Parameter}}(), use_mode = false,
     tables = [:prior_posterior_means, :moments, :prior, :posterior],
-    caption = true, outdir = "", verbose = :none)
+    caption = true, outdir = "", params = [], verbose = :none)
 ```
 
 Computes prior and posterior parameter moments. Tabulates prior mean, posterior
@@ -197,6 +197,7 @@ if it is nonempty, or else in `tablespath(m, \"estimate\")`.
 - `tables::Vector{Symbol}`: which tables to produce
 - `caption::Bool`: whether to include table captions
 - `outdir::String`: where to save output tables
+- `params::Array{Float64}`: Pass in parameters instead of using load_draws
 - `verbose::Symbol`: desired frequency of function progress messages printed to
   standard out. One of `:none`, `:low`, or `:high`
   """
@@ -204,20 +205,21 @@ if it is nonempty, or else in `tablespath(m, \"estimate\")`.
                          subset_inds::AbstractRange{Int64} = 1:0, subset_string::String = "",
                          groupings::AbstractDict{String, Vector{Parameter}} = Dict{String, Vector{Parameter}}(),
                          tables = [:prior_posterior_means, :moments, :prior, :posterior],
-                         caption = true, outdir = "",
+                         caption = true, outdir = "", params::Array{Float64} = Array{Float64}(undef, 0),
                          verbose::Symbol = :low, use_mode::Bool = false)
 
       ### 1. Load parameter draws from Metropolis-Hastings
-
-      params = if !isempty(subset_inds)
-          # Use subset of draws
-          if isempty(subset_string)
-              error("Must supply a nonempty subset_string if subset_inds is nonempty")
+      if length(params) == 0
+          params = if !isempty(subset_inds)
+              # Use subset of draws
+              if isempty(subset_string)
+                  error("Must supply a nonempty subset_string if subset_inds is nonempty")
+              end
+              load_draws(m, :subset; subset_inds = subset_inds, verbose = verbose)
+          else
+              # Use all draws
+              load_draws(m, :full; verbose = verbose)
           end
-          load_draws(m, :subset; subset_inds = subset_inds, verbose = verbose)
-      else
-          # Use all draws
-          load_draws(m, :full; verbose = verbose)
       end
 
       ### 2. Compute posterior moments
@@ -244,7 +246,7 @@ if it is nonempty, or else in `tablespath(m, \"estimate\")`.
           i = length(m.parameters)
           for para in m.parameters
               if haskey(para.regimes, :value)
-                  for key in keys(para.regimes[:value])
+                  for key in sort(collect(keys(para.regimes[:value])))
                       if key == 1
                           para_regime_indices[m.keys[para.key]] = [m.keys[para.key]]
                       else
@@ -419,7 +421,9 @@ function prior_table(m::AbstractDSGEModel; subset_string::String = "",
 
             dist_id = para.fixed ? "-" : distid(get(para.prior))
 
-            append!(entries, [PriorTableEntry(para.key, 1, para.fixed, para.tex_label, dist_id, prior_mean, prior_sd)])
+            if !(para.fixed && prior_mean == 0.)
+                append!(entries, [PriorTableEntry(para.key, 1, para.fixed, para.tex_label, dist_id, prior_mean, prior_sd)])
+            end
 
             if haskey(para.regimes, :prior)
                 for reg in keys(para.regimes[:prior])
@@ -427,7 +431,9 @@ function prior_table(m::AbstractDSGEModel; subset_string::String = "",
                         (prior_mean, prior_sd) = moments(para, reg)
                         fixed = haskey(para.regimes, :fixed) ? para.regimes[:fixed][reg] : para.fixed
                         tex_label = para.tex_label * ", reg $reg"
-                        append!(entries, [PriorTableEntry(para.key, reg, fixed, tex_label, fixed ? "-" : distid(get(para.regimes[:prior][reg])), prior_mean, prior_sd)])
+                        if !(fixed && prior_mean == 0.)
+                           append!(entries, [PriorTableEntry(para.key, reg, fixed, tex_label, fixed ? "-" : distid(get(para.regimes[:prior][reg])), prior_mean, prior_sd)])
+                       end
                     end
                 end
             end
@@ -545,13 +551,18 @@ function posterior_table(m::AbstractDSGEModel, post_means::Vector, post_bands::M
         entries = Vector{PosteriorTableEntry}()
         for para in params
             para_i = m.keys[para.key]
-            append!(entries, [PosteriorTableEntry(para.key, 1, para.fixed, para.tex_label, post_means[para_i], post_bands[para_i, :])])
+            fixed = haskey(para.regimes, :fixed) ? para.regimes[:fixed][1] : para.fixed
+            if !(para.fixed && post_means[para_i] == 0.)
+                append!(entries, [PosteriorTableEntry(para.key, 1, fixed, para.tex_label, post_means[para_i], post_bands[para_i, :])])
+            end
             if haskey(para.regimes, :value)
                 for reg in keys(para.regimes[:value])
                     if reg > 1
                         fixed = haskey(para.regimes, :fixed) ? para.regimes[:fixed][reg] : para.fixed
                         tex_label = para.tex_label * ", reg $reg"
-                        append!(entries, [PosteriorTableEntry(para.key, reg, fixed, tex_label, post_means[para_regime_indices[para_i][reg]], post_bands[para_regime_indices[para_i][reg], :])])
+                        if !(fixed && post_means[para_regime_indices[para_i][reg]] == 0.)
+                            append!(entries, [PosteriorTableEntry(para.key, reg, fixed, tex_label, post_means[para_regime_indices[para_i][reg]], post_bands[para_regime_indices[para_i][reg], :])])
+                        end
                     end
                 end
             end
@@ -1028,7 +1039,7 @@ function sample_λ(m::PoolModel{S}, data::Matrix{S}, θ::Vector{S},
                   tuning::Dict{Symbol,Any}) where S<:AbstractFloat
     update!(m, θ)
     loglik, λ_particles, λ_weights = DSGE.filter(m, data; tuning = tuning)
-    return λ_particles[size(data,2)][1,DSGE.sample(DSGE.Weights(λ_weights[:,end]))]
+    return λ_particles[size(data,2)][DSGE.sample(DSGE.Weights(λ_weights[:,end]))]
 end
 
 function sample_λ(m::PoolModel{S}, pred_dens::Matrix{S}, T::Int64 = -1;

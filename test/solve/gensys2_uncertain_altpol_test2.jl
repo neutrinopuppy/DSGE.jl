@@ -9,12 +9,10 @@ Hbar_vec = [2, 6, 21]
 newThalf = 10
 
 # Set model up
-m = Model1002("ss59"; custom_settings = Dict{Symbol, Setting}(:add_altpolicy_pgap => Setting(:add_altpolicy_pgap, true),
-                                                              :add_altpolicy_ygap => Setting(:add_altpolicy_ygap, true),
-                                                              :add_urhat => Setting(:add_urhat, true),
-                                                              :flexible_ait_policy_change =>
-                                                              Setting(:flexible_ait_policy_change,
-                                                                      false))) # Set to false unless you want to re-generate any saved output
+m = Model1002("ss59"; custom_settings = [Setting(:add_altpolicy_pgap, true),
+                                         Setting(:add_altpolicy_ygap, true),
+                                         Setting(:add_urhat, true),
+                                         Setting(:flexible_ait_policy_change, false)]) # Set to false unless you want to re-generate any saved output
 m <= Setting(:date_forecast_start, Date(2020, 6, 30))
 m <= Setting(:date_conditional_end, Date(2020, 6, 30))
 m <= Setting(:cond_full_names, [:obs_gdp, :obs_corepce, :obs_spread, # Have to add anticipated rates to conditional data
@@ -166,6 +164,8 @@ for j in 1:length(prob_vecs)
     # Automatic calculation
     m <= Setting(:uncertain_altpolicy, true)
     m <= Setting(:uncertain_temporary_altpolicy, true)
+    m <= Setting(:preprocessed_transitions, Dict())
+    m <= Setting(:k_max, Hbar_vec[j])
     autoTs[j], autoRs[j], autoCs[j] = solve(m; regime_switching = true,
                                             gensys_regimes = [1:(get_setting(m, :n_hist_regimes) + 1)],
                                             gensys2_regimes =
@@ -194,7 +194,7 @@ for j in 1:length(prob_vecs)
     gensys2_regimes = (tempZLB_regimes[j][1] - 1):(tempZLB_regimes[j][end] + 1)
     Tcal, Rcal, Ccal = DSGE.gensys2(m, Γ0s[gensys2_regimes], Γ1s[gensys2_regimes],
                                          Cs[gensys2_regimes], Ψs[gensys2_regimes], Πs[gensys2_regimes],
-                                         TTT_gensys_final, RRR_gensys_final, CCC_gensys_final, Hbar_vec[j] + 1)
+                                         TTT_gensys_final, RRR_gensys_final, CCC_gensys_final, Hbar_vec[j] + 1, last(gensys2_regimes))
     Tcal[end] = TTT_gensys_final
     Rcal[end] = RRR_gensys_final
     Ccal[end] = CCC_gensys_final

@@ -512,7 +512,9 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                       forecast_string::String = "",
                       use_filtered_shocks_in_shockdec::Bool = false,
                       shock_name::Symbol = :none, shock_var_name::Symbol = :none,
-                      shock_var_value::Float64 = 0.0, check_empty_columns = true,
+                      shock_var_value::Float64 = 0.0, shock_names::Vector{Symbol} = Vector{Symbol}(undef, 0),
+                      shock_values::Vector{Float64} = Vector{Float64}(undef, 0),
+                      check_empty_columns = true,
                       bdd_fcast::Bool = true, params::AbstractArray{Float64} = Vector{Float64}(undef, 0),
                       zlb_method::Symbol = :shock, set_regime_vals_altpolicy::Function = identity,
                       set_info_sets_altpolicy::Function = auto_temp_altpolicy_info_set,
@@ -524,10 +526,10 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                       show_failed_percent::Bool = false, only_filter::Bool = false,
                       verbose::Symbol = :low, testing_carter_kohn::Bool = false,
                       trend_nostates_obs = Array{(0,0)}, trend_nostates_pseudo = Array{(0,0)},
-                      full_shock_decomp::Bool = true, n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[])
+                      full_shock_decomp::Bool = true, n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[],
+                      shock_qtrs::Vector{UnitRange{Int}} = [-1:1], use_changing_systems::Bool = false)
 
     ### Common Setup
-
     # Add necessary output_vars and load data
     output_vars, df = prepare_forecast_inputs!(m, input_type, cond_type, output_vars;
                                                df = df, verbose = verbose, bdd_fcast = bdd_fcast,
@@ -565,6 +567,7 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                 shock_name = shock_name,
                                                 shock_var_name = shock_var_name,
                                                 shock_var_value = shock_var_value,
+                                                shock_names = shock_names, shock_values = shock_values,
                                                 regime_switching = regime_switching,
                                                 n_regimes = n_regimes, zlb_method = zlb_method,
                                                 set_regime_vals_altpolicy = set_regime_vals_altpolicy,
@@ -575,7 +578,7 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                 catch_smoother_lapack = catch_smoother_lapack,
                                                 testing_carter_kohn = testing_carter_kohn, trend_nostates_obs = trend_nostates_obs,
                                                 trend_nostates_pseudo = trend_nostates_pseudo, full_shock_decomp = full_shock_decomp,
-                                                n_back = n_back, back_shocks = back_shocks)
+                                                n_back = n_back, back_shocks = back_shocks, shock_qtrs = shock_qtrs, use_changing_systems = use_changing_systems)
 
             write_forecast_outputs(m, input_type, output_vars, forecast_output_files,
                                    forecast_output; df = df, block_number = Nullable{Int64}(),
@@ -662,6 +665,8 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                                  shock_name = shock_name,
                                                                  shock_var_name = shock_var_name,
                                                                  shock_var_value = shock_var_value,
+                                                                 shock_names = shock_names,
+                                                                 shock_values = shock_values,
                                                                  regime_switching = regime_switching,
                                                                  n_regimes = n_regimes, zlb_method = zlb_method,
                                                                  set_regime_vals_altpolicy = set_regime_vals_altpolicy,
@@ -672,7 +677,9 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                                  nan_endozlb_failures = nan_endozlb_failures,
                                                                  catch_smoother_lapack = catch_smoother_lapack,
                                                                  testing_carter_kohn = testing_carter_kohn,
-                                                                 n_back = n_back, back_shocks = back_shocks),
+                                                                 n_back = n_back, back_shocks = back_shocks,
+                                                                 shock_qtrs = shock_qtrs,
+                                                                 use_changing_systems = use_changing_systems),
                                       params_for_map)
 
             # Assemble outputs from this block and write to file
@@ -777,7 +784,9 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                            output_vars::Vector{Symbol}, params::Vector{Float64}, df::DataFrame; verbose::Symbol = :low,
                            use_filtered_shocks_in_shockdec::Bool = false,
                            shock_name::Symbol = :none, shock_var_name::Symbol = :none,
-                           shock_var_value::Float64 = 0.0, zlb_method::Symbol = :shock,
+                           shock_var_value::Float64 = 0.0, shock_names::Vector{Symbol} = Vector{Symbol}(undef, 0),
+                           shock_values::Vector{Float64} = Vector{Float64}(undef, 0),
+                           zlb_method::Symbol = :shock,
                            set_regime_vals_altpolicy::Function = identity,
                            set_info_sets_altpolicy::Function = auto_temp_altpolicy_info_set,
                            update_regime_eqcond_info!::Function =
@@ -789,9 +798,9 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                            catch_smoother_lapack::Bool = false, testing_carter_kohn::Bool = false,
                            return_loglh::Bool = false, trend_nostates_obs = Array{(0,0)},
                            trend_nostates_pseudo = Array{(0,0)}, full_shock_decomp::Bool = false,
-                           n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[])
+                           n_back::Int64 = 0, back_shocks::Vector{Symbol} = Symbol[],
+                           shock_qtrs::Vector{UnitRange{Int}} = [-1:1], use_changing_systems::Bool = false)
     ### Setup
-
     # Re-initialize model indices if forecasting under an alternative policy
     # rule (in case new states or equations were added)
     if alternative_policy(m).key != :historical
@@ -808,6 +817,8 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
     # Compute state space
     update!(m, params) # Note that params is a Vector{Float64}, not a ParameterVector. This `update!` infers if the forecast is regime-switching if length(params) > length(m.parameters)
 
+    # Initialize the preprocessed mats
+    m <= Setting(:preprocessed_transitions, Dict())
     system = compute_system(m; tvis = tvis)
     if haskey(m.settings, :old_shock_decs) && get_setting(m, :old_shock_decs)
         # Must be using TV cred system
@@ -847,8 +858,9 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
     hist_vars = [:histstates, :histpseudo, :histshocks, :histstdshocks]
     shockdec_vars = [:shockdecstates, :shockdecpseudo, :shockdecobs]
     shockdecseq_vars = [:shockdecseqstates, :shockdecseqpseudo, :shockdecseqobs]
+    shockdecqtrs_vars = [:shockdecqtrsstates, :shockdecqtrspseudo, :shockdecqtrsobs]
     dettrend_vars = [:dettrendstates, :dettrendpseudo, :dettrendobs]
-    smooth_vars = vcat(hist_vars, shockdec_vars, dettrend_vars, shockdecseq_vars)
+    smooth_vars = vcat(hist_vars, shockdec_vars, dettrend_vars, shockdecseq_vars, shockdecqtrs_vars)
     hists_to_compute = intersect(output_vars, smooth_vars)
 
     run_smoother = (!isempty(hists_to_compute) ||
@@ -1139,6 +1151,7 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                                  draw_states = uncertainty,
                                  histstates = histstates, histshocks = histshocks, histpseudo = histpseudo,
                                  initial_states = initial_states)
+
                     forecaststates, forecastobs, forecastpseudo, histstates, histshocks, histpseudo, initial_states =
                         zlb_enforced_output
 
@@ -1347,12 +1360,23 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
 
     if !isempty(irfs_to_compute)
         if shock_name!=:none
-            irfstates, irfobs, irfpseudo = impulse_responses(m, system, impulse_response_horizons(m),
+            irfstates, irfobs, irfpseudo = typeof(system) <: RegimeSwitchingSystem ? impulse_responses(m, system, impulse_response_horizons(m),
                                                              shock_name,
                                                              shock_var_name,
-                                                             shock_var_value)
+                                                             shock_var_value,
+                                                             use_changing_systems = use_changing_systems) :
+                                                                 impulse_responses(m, system, impulse_response_horizons(m),
+                                                                                   shock_name, shock_var_name, shock_var_value)
+        elseif length(shock_names) > 0
+            irf_reg = haskey(get_settings(m), :impulse_response_regime) ? get_setting(m, :impulse_response_regime) : get_setting(m, :reg_forecast_start)
+            irfstates, irfobs, irfpseudo = typeof(system) <: RegimeSwitchingSystem ? impulse_responses(m, system, impulse_response_horizons(m),
+                                                             shock_names,
+                                                             shock_values,
+                                                             irf_reg) : #TODO: set up use_changing_systems
+                                                                 impulse_responses(m, system, impulse_response_horizons(m),
+                                                                                   shock_names, shock_values)
         else
-            irfstates, irfobs, irfpseudo = impulse_responses(m, system)
+            irfstates, irfobs, irfpseudo = typeof(system) <: RegimeSwitchingSystem ? impulse_responses(m, system, use_changing_systems = use_changing_systems) : impulse_responses(m, system)
         end
         forecast_output[:irfstates] = irfstates
         forecast_output[:irfobs] = irfobs
@@ -1394,6 +1418,32 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
         forecast_output[:shockdecseqstates] = shockdecseqstates
         forecast_output[:shockdecseqobs]    = shockdecseqobs
         forecast_output[:shockdecseqpseudo] = shockdecseqpseudo
+    end
+
+    # 8. Shock dec quarters
+    shockdecqtrs_to_compute = intersect(output_vars, shockdecqtrs_vars)
+
+    if !isempty(shockdecqtrs_to_compute)
+        histshocks_shockdecqtrs = if use_filtered_shocks_in_shockdec
+            filter_shocks(m, df, system, cond_type = cond_type)
+        else
+            histshocks
+        end
+
+        start_date = max(date_mainsample_start(m), df[1, :date]) # smooth doesn't return presample
+        end_date   = if cond_type in [:semi, :full] # end date of histshocks includes conditional periods
+            max(date_conditional_end(m), prev_quarter(date_forecast_start(m)))
+        else
+            prev_quarter(date_forecast_start(m)) # this is the end date of history period
+        end
+
+        shockdecqtrstates, shockdecqtrobs, shockdecqtrpseudo = isa(system, RegimeSwitchingSystem) ?
+            shock_decompositions_quarters(m, system, histshocks_shockdecqtrs, start_date, end_date, cond_type, shock_qtrs = shock_qtrs, back_shocks = back_shocks) :
+            shock_decompositions_quarters(m, system, histshocks_shockdecqtrs, shock_qtrs = shock_qtrs, back_shocks = back_shocks)
+
+        forecast_output[:shockdecqtrsstates] = shockdecqtrstates
+        forecast_output[:shockdecqtrsobs]    = shockdecqtrobs
+        forecast_output[:shockdecqtrspseudo] = shockdecqtrpseudo
     end
 
     ### Return only desired output_vars

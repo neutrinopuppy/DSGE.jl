@@ -52,6 +52,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol,
                             bdd_fcast::Bool = true, skipnan::Bool = false,
                             pseudo2data::AbstractDict{Symbol, Symbol} = Dict{Symbol, Symbol}(),
                             variable_names::Vector{Symbol} = Vector{Symbol}(undef, 0),
+                            transform_gdp::Bool = false,
                             kwargs...)
 
     if VERBOSITY[verbose] >= VERBOSITY[:low]
@@ -78,7 +79,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol,
         for output_var in output_vars
             prod = get_product(output_var)
             if VERBOSITY[verbose] >= VERBOSITY[:high]
-                if prod in [:shockdec, :irf, :shockdecseq]
+                if prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
                     println("Computing " * string(output_var) * " for shocks:")
                 else
                     print("Computing " * string(output_var) * "... ")
@@ -94,6 +95,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol,
                                     variable_names = variable_names,
                                     verbose = verbose,
                                     bdd_fcast = bdd_fcast,
+                                    transform_gdp = transform_gdp,
                                     kwargs...)
             GC.gc()
         end
@@ -117,6 +119,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
                             variable_names::Vector{Symbol} = Vector{Symbol}(undef, 0),
                             verbose::Symbol = :none,
                             bdd_fcast::Bool = true,
+                            transform_gdp::Bool = false,
                             kwargs...)
 
     # Determine class and product
@@ -154,7 +157,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
                                                             pop_growth = pop_growth, forecast_string = forecast_string,
                                                             pseudo2data = pseudo2data,
                                                             bdd_fcast = bdd_fcast,
-                                                            skipnan = skipnan, kwargs...),
+                                                            skipnan = skipnan, transform_gdp = transform_gdp, kwargs...),
                              variable_names)
         end
 
@@ -164,11 +167,11 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
 
         for (var_name, (var_means, var_bands)) in zip(variable_names, mb_vec)
             means[!,var_name] = var_means
-            bands[var_name] = var_bands
+            bands[var_name] = typeof(var_bands) == Dict{Symbol, DataFrame} ? DataFrame() : var_bands
             bands[var_name][!,:date] = date_list
         end
 
-    elseif product in [:shockdec, :irf, :shockdecseq]
+    elseif product in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
         means = product == :irf ? DataFrame() : DataFrame(date = date_list)
         bands = Dict{Symbol, DataFrame}()
 
@@ -185,7 +188,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
             # Re-assemble pmap outputs
             for (var_name, (var_means, var_bands)) in zip(variable_names, mb_vec)
                 means[!, Symbol(var_name, DSGE_SHOCKDEC_DELIM, shock_name)] = var_means
-                bands[Symbol(var_name, DSGE_SHOCKDEC_DELIM, shock_name)] = var_bands
+                bands[Symbol(var_name, DSGE_SHOCKDEC_DELIM, shock_name)] = typeof(var_bands) == Dict{Symbol, DataFrame} ? DataFrame() : var_bands
                 if product != :irf
                     bands[Symbol(var_name, DSGE_SHOCKDEC_DELIM, shock_name)][!, :date] = date_list
                 end
@@ -207,7 +210,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
         write(file, "mb", mb)
     end
 
-    sep = prod in [:shockdec, :irf, :shockdecseq] ? "  " : ""
+    sep = prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs] ? "  " : ""
     println(verbose, :high, sep * "wrote " * basename(filepath))
 
     return mb
@@ -223,6 +226,7 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
                             minimize::Bool = false,
                             pseudo2data::AbstractDict{Symbol, Symbol} = Dict{Symbol, Symbol}(),
                             compute_shockdec_bands::Bool = false,
+                            transform_gdp::Bool = false,
                             bdd_fcast::Bool = true)
 
     # Return only one set of bands if we read in only one draw
@@ -263,9 +267,14 @@ function compute_meansbands(m::AbstractDSGEModel, input_type::Symbol, cond_type:
         transformed_series = transformed_series[.!nanrows, :]
     end
 
+    if transform_gdp && output_var ∉ [:histobs, :hist4qobs] && var_name == :PseudoGDP
+        println("SAVING RELEVANT FILE AS meanrecessionprobabilities.jld2 IN CURRENT DIRECTORY")
+        save("meanrecessionprobabilities.jld2", "transformed_series", transformed_series)
+    end
+
     # Compute means and bands
     means = vec(mean(transformed_series, dims = 1))
-    bands = if product in [:shockdec, :dettrend, :trend, :shockdecseq] && !compute_shockdec_bands
+    bands = if product in [:shockdec, :dettrend, :trend, :shockdecseq, :shockdecqtrs] && !compute_shockdec_bands
         Dict{Symbol,DataFrame}()
     else
         find_density_bands(transformed_series, density_bands, minimize = minimize)
@@ -361,7 +370,7 @@ function compute_meansbands(models::Vector{<: AbstractDSGEModel},
         for output_var in output_vars
             prod = get_product(output_var)
             if VERBOSITY[verbose] >= VERBOSITY[:high]
-                if prod in [:shockdec, :irf, :shockdecseq]
+                if prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
                     println("Computing " * string(output_var) * " for shocks:")
                 else
                     print("Computing " * string(output_var) * "... ")
@@ -463,7 +472,7 @@ function compute_meansbands(models::Vector{<: AbstractDSGEModel},
             bands[var_name][!,:date] = date_list
         end
 
-    elseif product in [:shockdec, :irf, :shockdecseq]
+    elseif product in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
         means = product == :irf ? DataFrame() : DataFrame(date = date_list)
         bands = Dict{Symbol, DataFrame}()
 
@@ -509,7 +518,7 @@ function compute_meansbands(models::Vector{<: AbstractDSGEModel},
         write(file, "mb", mb)
     end
 
-    sep = prod in [:shockdec, :irf, :shockdecseq] ? "  " : ""
+    sep = prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs] ? "  " : ""
     println(verbose, :high, sep * "wrote " * basename(filepath))
 
     return mb
@@ -588,7 +597,7 @@ function compute_meansbands(models::Vector,
 
     # Compute means and bands
     means = vec(mean(transformed_series, dims= 1))
-    bands = if product in [:shockdec, :dettrend, :trend, :shockdecseq] && !compute_shockdec_bands
+    bands = if product in [:shockdec, :dettrend, :trend, :shockdecseq, :shockdecqtrs] && !compute_shockdec_bands
         Dict{Symbol,DataFrame}()
     else
         find_density_bands(transformed_series, density_bands, minimize = minimize)
@@ -632,7 +641,7 @@ function mb_reverse_transform(fcast_series::AbstractArray, transform::Function,
     else
         # Use transformation that doesn't add back population growth for
         # products which are given in deviations
-        if product in [:shockdec, :dettrend, :irf, :shockdecseq]
+        if product in [:shockdec, :dettrend, :irf, :shockdecseq, :shockdecqtrs]
             transform = get_nopop_transform(transform)
             y0 = 0.0
         else

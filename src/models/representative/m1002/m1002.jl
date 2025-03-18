@@ -117,6 +117,9 @@ Description:
 Initializes indices for all of `m`'s states, shocks, and equilibrium conditions.
 """
 function init_model_indices!(m::Model1002)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+
     # Endogenous states
     endogenous_states = [[
         :y_t, :c_t, :i_t, :qk_t, :k_t, :kbar_t, :u_t, :rk_t, :Rktil_t, :n_t, :mc_t,
@@ -150,12 +153,13 @@ function init_model_indices!(m::Model1002)
     equilibrium_conditions = [[
         :eq_euler, :eq_inv, :eq_capval, :eq_spread, :eq_nevol, :eq_output, :eq_caputl, :eq_capsrv, :eq_capev,
         :eq_mkupp, :eq_phlps, :eq_caprnt, :eq_msub, :eq_wage, :eq_mp, :eq_res, :eq_g, :eq_b, :eq_μ, :eq_z,
-        :eq_λ_f, :eq_λ_w, :eq_rm, :eq_σ_ω, :eq_μ_e, :eq_γ, :eq_λ_f1, :eq_λ_w1, :eq_Ec,
+        :eq_λ_f, :eq_λ_w, :eq_rm,  :eq_σ_ω, :eq_μ_e, :eq_γ, :eq_λ_f1, :eq_λ_w1, :eq_Ec,
         :eq_Eqk, :eq_Ei, :eq_Eπ, :eq_EL, :eq_Erk, :eq_Ew, :eq_ERktil, :eq_euler_f, :eq_inv_f,
         :eq_capval_f, :eq_output_f, :eq_caputl_f, :eq_capsrv_f, :eq_capev_f, :eq_mkupp_f,
         :eq_caprnt_f, :eq_msub_f, :eq_res_f, :eq_Ec_f, :eq_Eqk_f, :eq_Ei_f, :eq_EL_f,
         :eq_ztil, :eq_π_star, :eq_π1, :eq_π2, :eq_π_a, :eq_Rt1, :eq_zp, :eq_Ez, :eq_spread_f,:eq_nevol_f,  :eq_ERktil_f];
         [Symbol("eq_rml$i") for i=1:n_mon_anticipated_shocks(m)]]
+
     for (key, val) in get_setting(m, :antshocks)
         equilibrium_conditions = vcat(equilibrium_conditions, [Symbol("eq_", key, "l$i") for i = 1:val])
     end
@@ -171,9 +175,31 @@ function init_model_indices!(m::Model1002)
     if subspec(m) in ["ss14", "ss15", "ss16", "ss18", "ss19"]
         push!(endogenous_states_augmented, :e_tfp_t1)
     end
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
+        push!(endogenous_states_augmented, :e_meas_π_t, :e_meas_π_t1)
+    end
+    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
+        push!(equilibrium_conditions, :eq_λ_f_persist)
+        push!(endogenous_states, :λ_f_t_persist)
+    end
+    if subspec(m) in ["ss88", "ss90", "ss92", "ss94", "ss95", "ss96"]
+        push!(endogenous_states, :λ_f_mr)
+        push!(equilibrium_conditions, :eq_λ_f_mr)
+    end
+    if subspec(m) in ["ss98"]
+        push!(equilibrium_conditions, :eq_biidc_sh)
+        push!(endogenous_states, :biidc_sh1)
+    end
+    # SPD expected FFR measurement error
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            push!(endogenous_states_augmented, Symbol("e_exp_rm$i"))
+            push!(exogenous_shocks, Symbol("exp_rm_sh$i"))
+        end
+    end
 
     # COVID-19 states, shocks, and equations
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m), 3,subspec_ind)) >= 59
         push!(endogenous_states, :ziid_t)
         push!(equilibrium_conditions, :eq_ziid)
         push!(exogenous_shocks, :ziid_sh)
@@ -186,8 +212,11 @@ function init_model_indices!(m::Model1002)
         push!(equilibrium_conditions, :eq_Eφ)
         push!(exogenous_shocks, :φ_sh)
     end
-    if subspec(m) in ["ss86"]
+    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
         push!(exogenous_shocks, :λ_f_iid_sh)
+    end
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
+        push!(exogenous_shocks, :meas_π_sh)
     end
 
     # COVID counterparts for standard business cycle shocks
@@ -271,6 +300,18 @@ function init_model_indices!(m::Model1002)
         push!(endogenous_states, setdiff([:rw_t, :Rref_t], endogenous_states)...)
         push!(equilibrium_conditions, setdiff([:eq_rw, :eq_Rref], equilibrium_conditions)...)
     end
+    if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+        push!(endogenous_states, setdiff([:ait_rm_t], endogenous_states)...)
+        push!(equilibrium_conditions, setdiff([:eq_ait_rm], equilibrium_conditions)...)
+        push!(exogenous_shocks, setdiff([:rm_ait_sh], exogenous_shocks)...)
+        if !isempty(mon_anticipated_ait_shocks(m))
+            for i = 1:maximum(mon_anticipated_ait_shocks(m))
+                push!(endogenous_states, setdiff([Symbol("rm_ait_tl$i")], endogenous_states)...)
+                push!(exogenous_shocks, setdiff([Symbol("rm_ait_shl$i")], exogenous_shocks)...)
+                push!(equilibrium_conditions, setdiff([Symbol("eq_ait_rml$i")], equilibrium_conditions)...)
+            end
+        end
+    end
 
     if haskey(get_settings(m), :add_iid_cond_obs_gdp_meas_err) ?
         get_setting(m, :add_iid_cond_obs_gdp_meas_err) : false
@@ -307,7 +348,7 @@ function init_model_indices!(m::Model1002)
 end
 
 function Model1002(subspec::String = "ss10";
-                   custom_settings::Dict{Symbol, Setting} = Dict{Symbol, Setting}(),
+                   custom_settings::Array{S} where S<:Setting = Array{Setting{Bool}}(undef,0),
                    testing = false)
 
     # Model-specific specifications
@@ -337,9 +378,12 @@ function Model1002(subspec::String = "ss10";
     # Set settings
     model_settings!(m)
     default_test_settings!(m)
-    for custom_setting in values(custom_settings)
+    for custom_setting in custom_settings
         m <= custom_setting
     end
+
+    # Initialize base settings
+    init_settings!(m)
 
     # Set observable and pseudo-observable transformations
     init_observable_mappings!(m)
@@ -357,6 +401,33 @@ end
 
 """
 ```
+init_settings!(m::Model1002)
+```
+
+Initializes the model's settings as per sub specification. These settings are intrinsic to building the rest of the model (as opposed to other settings which may just affect the forecasting or estimation process once the model has been created) and are likely to contain dependencies in `subspecs.jl` or `subspecs_builder.jl`.
+"""
+function init_settings!(m::Model1002)
+    subspec_int = parse(Int, subspec(m)[3:end])
+
+    if subspec_int == 104
+        m <= Setting(:mon_anticipated_ait_shocks, [1, 2, 3, 4, 5, 6])
+        m <= Setting(:expected_ffr, [1, 2, 3, 4, 5, 6])
+        m <= Setting(:all_ffr_qs, [1, 2, 3, 4, 5, 6])
+        m <= Setting(:forecast_horizons, 40)
+        m <= Setting(:add_iid_cond_obs_gdp_meas_err, true)
+        m <= Setting(:add_iid_cond_obs_corepce_meas_err, true)
+        m <= Setting(:add_ait_rm, true)
+        m <= Setting(:add_taylor_rm, true)
+        m <= Setting(:standard_shocks_mode_adjust, 1, false, "modeadj", "")
+        m <= Setting(:standard_shocks_spread_adjust, 2, false, "spreadadj", "")
+        m <= Setting(:add_altpolicy_pgap, true)
+        m <= Setting(:add_altpolicy_ygap, true)
+    end
+end
+
+
+"""
+```
 init_parameters!(m::Model1002)
 ```
 
@@ -365,6 +436,9 @@ parameters (in preparation for `steadystate!(m)` being called to initialize
 those).
 """
 function init_parameters!(m::Model1002)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+
     m <= parameter(:α, 0.1596, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), Normal(0.30, 0.05), fixed=false,
                    description="α: Capital elasticity in the intermediate goods sector's production function (also known as the capital share).",
                    tex_label="\\alpha")
@@ -504,7 +578,7 @@ buted to steady-state inflation.",
                    tex_label="\\rho_{\\mu}")
 
     m <= parameter(:ρ_ztil, 0.9446, (0., 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
-                   description="ρ_ztil: AR(1) coefficient in the technology process.",
+                   description="ρ_{ztil}: AR(1) coefficient in the technology process.",
                    tex_label="\\rho_{\\tilde{z}}")
 
     m <= parameter(:ρ_λ_f, 0.8827, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
@@ -565,6 +639,17 @@ buted to steady-state inflation.",
                    description="me_level: Indicator of cointegration of GDP and GDI.",
                    tex_label="\\mathcal{C}_{me}")
 
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
+        m <= parameter(:ρ_meas_π, 0.2320, (0.0, 0.999), (0.0, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
+                       tex_label="\\rho_{meas_\\pi}")
+    end
+
+    if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+        m <= parameter(:ρ_ait_rm, 0.2135, (-1e-5, 0.999), (-1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=false,
+                       description="ρ_ait_rm: AR(1) coefficient in the AIT monetary policy shock process.",
+                       tex_label="\\rho_{ait,r^m}")
+    end
+
     # exogenous processes - standard deviation
     m <= parameter(:σ_g, 2.5230, (1e-8, 5.), (1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
                    description="σ_g: The standard deviation of the government spending process.",
@@ -589,7 +674,7 @@ buted to steady-state inflation.",
     m <= parameter(:σ_λ_w, 0.3864, (1e-8, 5.), (1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
                    tex_label="\\sigma_{\\lambda_w}")
 
-    m <= parameter(:σ_r_m, 0.2380, (1e-8, 5.), (1e-8, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
+    m <= parameter(:σ_r_m, 0.2380, (0.0, 5.), (0.0, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
                    description="σ_r_m: The standard deviation of the monetary policy shock.",
                    tex_label="\\sigma_{r^m}")
 
@@ -631,7 +716,18 @@ buted to steady-state inflation.",
     m <= parameter(:σ_gdi, 0.1, (1e-8, 5.),(1e-8, 5.),ModelConstructors.Exponential(),RootInverseGamma(2, 0.10), fixed=false,
                    tex_label="\\sigma_{gdi}")
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
+        m <= parameter(:σ_meas_π, 0.0999, (0.0, 5.),(0.0, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
+                       tex_label="\\sigma_{meas_\\pi}")
+    end
+
+    if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+        m <= parameter(:σ_ait_rm, 0.2380, (0.0, 5.), (0.0, 5.), ModelConstructors.Exponential(), RootInverseGamma(2, 0.10), fixed=false,
+                       description="σ_ait_rm: The standard deviation of the AIT monetary policy shock.",
+                       tex_label="\\sigma_{ait,r^m}")
+    end
+
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         m <= parameter(:ρ_ziid, 0., (0., 0.999), (0., 0.999), ModelConstructors.Untransformed(), BetaAlt(0.5, 0.2), fixed=true,
                        description="ρ_ziid: AR(1) coefficient in the iid component of the technology process.",
                        tex_label="\\rho_{z, iid}")
@@ -738,6 +834,38 @@ buted to steady-state inflation.",
                        tex_label="amplify inflation measurement error")
     end
 
+    if subspec(m) in ["ss98"]
+        m <= parameter(:ρ_biidc_sh, 0.75, (0., 0.999), (0., 0.999), ModelConstructors.Untransformed(), BetaAlt(0.5, 0.2), fixed=false,
+                       description="ρ_biidc_sh: AR(1) coefficient for the shock of the preference process.",
+                       tex_label="\\rho_{b, iid, c, sh}")
+    end
+
+    if subspec(m) == "ss100"
+        m <= parameter(:φ_π, 4.0, (1.25, 15.0), (1.25, 15.0), ModelConstructors.Untransformed(), Normal(4.0, 3.0), fixed=false,
+                       description="φ_π: Weight on inflation in AIT Rule",
+                       tex_label="\\varphi_{\\pi}")
+
+        m <= parameter(:φ_y, 3.0, (1.25, 15.0), (1.25, 15.0), ModelConstructors.Untransformed(), Normal(3.0, 3.0), fixed=false,
+                       description="φ_y: Weight on output gap in AIT Rule",
+                       tex_label="\\varphi_y")
+
+        m <= parameter(:ρ_smooth, 0.9, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.75, 0.10), fixed=false,
+                       description="ρ_smooth: Degree of inertia in AIT Rule",
+                       tex_label="\\rho_{smooth}")
+    end
+
+    if subspec(m) == "ss103"
+        m <= parameter(:κ_std_bcshocks, 1.0, (0.0, 1.0), (0.0, 1.0), ModelConstructors.SquareRoot(), Uniform(0,1), fixed=false,
+                       description="κ_std_bcshocks: scaling factor for standard business cycle shocks during covid",
+                       tex_label="\\kappa_{bcshocks}")
+        m <= parameter(:κ_covid, 1.0, (0.0, 1.0), (0.0, 1.0), Untransformed(), Uniform(0,1), fixed=false,
+                       description="Fraction of regime 2 value used in regime 3 for σ_{covid}",
+                       tex_label = "\\kappa_{covid}")
+        m <= parameter(:κ_pce, 1.0, (0.0, 1.0), (0.0, 1.0), Untransformed(), Uniform(0,1), fixed=false,
+                       description="Fraction of regime 2 value used in regime 3 for σ_{meas,π}",
+                       tex_label = "\\kappa_{pce}")
+    end
+
     if haskey(get_settings(m), :add_initialize_pgap_ygap_pseudoobs) ?
         get_setting(m, :add_initialize_pgap_ygap_pseudoobs) : false
         m <= parameter(:σ_pgap, 0., (0., 1e2), (0., 5.), ModelConstructors.Exponential(),
@@ -787,14 +915,25 @@ buted to steady-state inflation.",
     end
 
     # standard deviations of the anticipated policy shocks
+    if  haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+        for i in mon_anticipated_ait_shocks(m)
+            m <= parameter(Symbol("σ_ait_r_m$i"), .2, (0.0, 100.), (0.0, 0.), ModelConstructors.Exponential(),
+                           RootInverseGamma(4, .2), fixed=false,
+                           description="σ_ait_r_m$i: Standard deviation of the $i-period-ahead anticipated AIT policy shock.",
+                           tex_label=@sprintf("\\sigma_{ait,r^m%d}",i))
+        end
+    end
+
+
     for i = 1:n_mon_anticipated_shocks_padding(m)
         if i <= n_mon_anticipated_shocks(m)
-            m <= parameter(Symbol("σ_r_m$i"), .2, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(),
+            m <= parameter(Symbol("σ_r_m$i"), .2, (0.0, 100.), (0.0, 0.), ModelConstructors.Exponential(),
                            RootInverseGamma(4, .2), fixed=false,
                            description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
                            tex_label=@sprintf("\\sigma_{ant%d}",i))
         else
-            m <= parameter(Symbol("σ_r_m$i"), .0, (1e-7, 100.), (1e-5, 0.), ModelConstructors.Exponential(), RootInverseGamma(4, .2), fixed=true,
+
+            m <= parameter(Symbol("σ_r_m$i"), .0, (0.0, 100.), (1e-5, 0.), ModelConstructors.Exponential(), RootInverseGamma(4, .2), fixed=true,
                            description="σ_r_m$i: Standard deviation of the $i-period-ahead anticipated policy shock.",
                            tex_label=@sprintf("\\sigma_{ant%d}",i))
         end
@@ -838,11 +977,53 @@ buted to steady-state inflation.",
     m <= parameter(:δ_gdi, 0., (-10., 10.), (-10., -10.), ModelConstructors.Untransformed(), Normal(0.00, 2.), fixed=false,
                    tex_label="\\delta_{gdi}")
 
-    if subspec(m) in ["ss86"]
+    if subspec(m) in ["ss86", "ss88", "ss89", "ss90", "ss91", "ss92", "ss94", "ss95", "ss96"]
         m <= parameter(:σ_λ_f_iid, 0.0, (0., 100.), (0., 100.), ModelConstructors.Exponential(), RootInverseGamma(10.0, sqrt(25.1)),
                        fixed=false,
-                       description="σ_λ_f_iid: The standard deviation of the shock to the price markup.",
+                       description="σ_λ_f_iid: The standard deviation of the mean-reverting shock to the price markup.",
                        tex_label="\\sigma_{\\lambda_f, ziid}")
+    end
+
+    if subspec(m) in ["ss94", "ss95", "ss96"]
+        m <= parameter(:ρ_λ_f_iid, 0.8827, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2),
+                       fixed=false,
+                       description="ρ_λ_f_iid: The persistence of the mean-reverting shock to the price markup.",
+                       tex_label="\\rho_{\\lambda_f, ziid}")
+    elseif subspec(m) in ["ss88", "ss90", "ss92"]
+        m <= parameter(:ρ_λ_f_iid, 0.0, (1e-5, 0.999), (1e-5, 0.999), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2),
+                       fixed=true,
+                       description="ρ_λ_f_iid: The persistence of the mean-reverting shock to the price markup.",
+                       tex_label="\\rho_{\\lambda_f, ziid}")
+    end
+
+    if subspec(m) == "ss99"
+        m <= parameter(:meas_π1, 0.0, (0.0, 5.0), (0.0, 5.0), ModelConstructors.SquareRoot(), BetaAlt(0.5, 0.2), fixed=true,
+                       tex_label="meas_\\pi1")
+    end
+
+    # SPD expected FFR measurement error parameters
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            m <= parameter(Symbol("σ_exp_rm$i"), 0.0375 + 0.00625 * i, (0.0, 5.), (0.0, 5.), ModelConstructors.Exponential(),
+                           RootInverseGamma(4, .2), fixed=true,
+                           description="σ_exp_rm$i: Standard deviation of the $i-period-ahead FFR measurement error.",
+                           tex_label=@sprintf("\\sigma_{exp_{r^m}%d}",i))
+
+        end
+        m <= parameter(:ρ_exp_rm, 0., (-1e-5, 0.999), (-1e-5, 0.999), ModelConstructors.SquareRoot(), Normal(0.0, 0.2), fixed=true,
+                       tex_label="\\rho_{exp_rm}")
+    end
+
+    # Kappa to restrict values to fixed proportion of value in earlier regime
+    if haskey(m.settings, :add_κ_covid) && get_setting(m, :add_κ_covid)
+        m <= parameter(:κ_covid, 1.0, (0.0, 2.0), (0.0, 2.0), Untransformed(), Uniform(0,1), fixed=false,
+                       description="Fraction of regime 2 value used in regime 3 for σ_{covid}",
+                       tex_label = "\\kappa_{covid}")
+    end
+    if haskey(m.settings, :add_κ_pce) && get_setting(m, :add_κ_pce)
+        m <= parameter(:κ_pce, 1.0, (0.0, 2.0), (0.0, 2.0), Untransformed(), Uniform(0,1), fixed=true,
+                       description="Fraction of regime 2 value used in regime 3 for σ_{meas,π}",
+                       tex_label = "\\kappa_{pce}")
     end
 
     # steady states
@@ -858,7 +1039,7 @@ buted to steady-state inflation.",
     m <= SteadyStateParameter(:ystar, NaN, tex_label="\\y_*")
     m <= SteadyStateParameter(:cstar, NaN, tex_label="\\c_*")
     m <= SteadyStateParameter(:wl_c, NaN, tex_label="\\wl_c")
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         m <= SteadyStateParameter(:φstar, NaN, tex_label="\\varphi_*")
     end
     m <= SteadyStateParameter(:nstar, NaN, tex_label="\\n_*")
@@ -882,6 +1063,9 @@ Calculates the model's steady-state values. `steadystate!(m)` must be called whe
 the parameters of `m` are updated.
 """
 function steadystate!(m::Model1002)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+
     SIGWSTAR_ZERO = 0.5
 
     m[:z_star]   = log(1+m[:γ]) + m[:α]/(1-m[:α])*log(m[:Upsilon])
@@ -897,7 +1081,7 @@ function steadystate!(m::Model1002)
     m[:cstar]    = (1-m[:g_star])*m[:ystar] - m[:istar]
     m[:wl_c]     = (m[:wstar]*m[:Lstar])/(m[:cstar]*m[:λ_w])
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         m[:φstar] = 0. # log(1) in steady state
     end
 
@@ -1010,6 +1194,8 @@ function steadystate!(m::Model1002)
 end
 
 function model_settings!(m::Model1002)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
 
     default_settings!(m)
 
@@ -1058,13 +1244,13 @@ function model_settings!(m::Model1002)
                  "Date of start of shock decomposition output period. If null, then shockdec starts at date_mainsample_start")
 
     # COVID-19 settings
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         m <= Setting(:antshocks, Dict{Symbol, Int}(:biidc => 1, :φ => 1, :ziid => 1))
         m <= Setting(:ant_eq_mapping, Dict{Symbol, Symbol}(:biidc => :biidc, :φ => :φ, :ziid => :ziid))
         m <= Setting(:ant_eq_E_mapping, Dict{Symbol, Symbol}(:φ => :Eφ))
         m <= Setting(:proportional_antshocks, Symbol[:biidc, :φ, :ziid])
     end
-    if subspec(m) in ["ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 62
         m <= Setting(:add_pseudo_gdp, true),
         m <= Setting(:add_pseudo_corepce, true)
         m <= Setting(:add_anticipated_obs_gdp, true)
@@ -1083,7 +1269,7 @@ function model_settings!(m::Model1002)
                      "Indicator for whether 2020-Q3 switch in monetary policy rule to AIT is on")
         m <= Setting(:add_pgap, true)
         m <= Setting(:add_ygap, true)
-    elseif subspec(m) in ["ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    elseif parse(Int, SubString(subspec(m),3,subspec_ind)) >= 62
         m <= Setting(:flexible_ait_policy_change, false,
                      "Indicator for whether 2020-Q3 switch in monetary policy rule to AIT is on")
         m <= Setting(:add_pgap, true)
@@ -1121,8 +1307,13 @@ parameter groupings (e.g. \"Policy Parameters\") to vectors of
 `prior_table`.
 """
 function parameter_groupings(m::Model1002)
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+    subspec_num = parse(Int, SubString(subspec(m),3,subspec_ind))
+
     policy     = [[:ψ1, :ψ2, :ψ3, :ρ, :ρ_rm, :σ_r_m];
-                  [Symbol("σ_r_m$i") for i = 1:n_mon_anticipated_shocks(m)]]
+                  [Symbol("σ_r_m$i") for i = 1:n_mon_anticipated_shocks(m)];
+                  [Symbol("σ_ait_r_m$i") for i in mon_anticipated_ait_shocks(m)]]
     sticky     = [:ζ_p, :ι_p, :ϵ_p, :ζ_w, :ι_w, :ϵ_w]
     other_endo = [:γ, :α, :β, :σ_c, :h, :ν_l, :δ, :Φ, :S′′, :ppsi, :π_star,
                   :Γ_gdpdef, :δ_gdpdef, :Lmean, :λ_w, :g_star]
@@ -1132,13 +1323,31 @@ function parameter_groupings(m::Model1002)
     error      = [:me_level, :ρ_gdp, :ρ_gdi, :ρ_lr, :ρ_tfp, :ρ_gdpdef, :ρ_corepce,
                   :ρ_gdpvar, :σ_gdp, :σ_gdi, :σ_lr, :σ_tfp, :σ_gdpdef, :σ_corepce]
 
+    if subspec_num >= 87
+        push!(error, :ρ_meas_π, :σ_meas_π)
+    end
+    if subspec_num >= 100 && subspec_num != 104
+        push!(policy, :φ_π, :φ_y, :ρ_smooth)
+    end
+    if haskey(get_settings(m), :add_ait_rm) && get_setting(m, :add_ait_rm)
+        push!(policy, :σ_ait_rm, :ρ_ait_rm)
+    end
+
+    # SPD expected FFR measurement error
+    if !isempty(expected_ffr(m))
+        for i in expected_ffr(m)
+            push!(error, Symbol("σ_exp_rm$i"))
+        end
+        push!(error, Symbol("ρ_exp_rm"))
+    end
+
     all_keys     = Vector[policy, sticky, other_endo, financial, processes, error]
     descriptions = ["Policy Parameters", "Nominal Rigidities Parameters",
                     "Other Endogenous Propagation and Steady State Parameters",
                     "Financial Frictions Parameters", "Exogenous Process Parameters",
                     "Measurement Error Parameters"]
 
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if subspec_num >= 59
         covid = [:σ_ziid, :σ_biidc, :σ_φ]
         for (sh, ant_num) in get_setting(m, :antshocks)
             for i in 1:ant_num
@@ -1147,6 +1356,12 @@ function parameter_groupings(m::Model1002)
         end
         for key in get_setting(m, :proportional_antshocks)
             push!(covid, Symbol(:σ_, key, :_prop))
+        end
+        if haskey(m.settings, :add_κ_covid) && get_setting(m, :add_κ_covid)
+            push!(covid, :κ_covid)
+        end
+        if haskey(m.settings, :add_κ_pce) && get_setting(m, :add_κ_pce)
+            push!(covid, :κ_pce)
         end
         push!(all_keys, covid)
         push!(descriptions, "COVID-19 Parameters")
@@ -1159,7 +1374,7 @@ function parameter_groupings(m::Model1002)
     incl_params    = vcat(collect(values(groupings))...)
     excl_params_sym = vcat([:Upsilon, :ρ_μ_e, :ρ_γ, :σ_μ_e, :σ_γ, :Iendoα, :γ_gdi, :δ_gdi],
                            [Symbol("σ_r_m$i") for i=n_mon_anticipated_shocks(m)+1:n_mon_anticipated_shocks_padding(m)])
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    if subspec_num >= 59
         push!(excl_params_sym, :ρ_ziid, :ρ_biidc, :ρ_φ)
     end
     if haskey(get_settings(m), :add_initialize_pgap_ygap_pseudoobs) ?
@@ -1190,9 +1405,10 @@ Returns a `Vector{ShockGroup}`, which must be passed in to
 `plot_shock_decomposition`. See `?ShockGroup` for details.
 """
 function shock_groupings(m::Model1002)
-    if subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69",
-                      "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80",
-                      "ss81", "ss82", "ss83", "ss84", "ss85", "ss86"]
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
+
+    if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 59
         gov = ShockGroup("g", [:g_sh], RGB(0.70, 0.13, 0.13)) # firebrick
         bet = ShockGroup("b", [:b_sh], RGB(0.3, 0.3, 1.0))
         fin = ShockGroup("FF", [:γ_sh, :μ_e_sh, :σ_ω_sh], RGB(0.29, 0.0, 0.51)) # indigo
@@ -1201,21 +1417,44 @@ function shock_groupings(m::Model1002)
         pmu = ShockGroup("mkp", [:λ_f_sh, :λ_w_sh], RGB(0.60, 0.80, 0.20)) # yellowgreen
         wmu = ShockGroup("w-mkp", [:λ_w_sh], RGB(0.0, 0.5, 0.5)) # teal
         phi = ShockGroup("phi", [:φ_sh], RGB(0.5, 0.5, 0.))
-        pol = ShockGroup("pol", vcat([:rm_sh], [Symbol("rm_shl$i") for i = 1:n_mon_anticipated_shocks(m)]),
-                         RGB(1.0, 0.84, 0.0)) # gold
+
+        rm_vec = vcat([:rm_sh], [Symbol("rm_shl$i") for i = 1:n_mon_anticipated_shocks(m)])
+        if haskey(get_settings(m), :add_ait_rm) ? get_setting(m, :add_ait_rm) : false
+            append!(rm_vec, [:rm_ait_sh])
+            if !isempty(mon_anticipated_ait_shocks(m))
+                for i in mon_anticipated_ait_shocks(m)
+                    push!(rm_vec, Symbol("ait_rm_sh$i"))
+                end
+            end
+        end
+
+        pol = ShockGroup("pol", rm_vec, RGB(1.0, 0.84, 0.0)) # gold
         pis = ShockGroup("pi-LR", [:π_star_sh], RGB(1.0, 0.75, 0.793)) # pink
         mei = ShockGroup("mu", [:μ_sh], :cyan)
+
+        mea_vec = [:lr_sh, :tfp_sh, :gdpdef_sh, :corepce_sh, :gdp_sh, :gdi_sh]
+        if parse(Int, SubString(subspec(m),3,subspec_ind)) >= 87
+            push!(mea_vec, :meas_π_sh)
+        end
+        if !isempty(expected_ffr(m))
+            for i in expected_ffr(m)
+                push!(rm_vec, Symbol("exp_rm_sh$i"))
+                #push!(exogenous_shocks, Symbol("exp_rm_sh$i"))
+            end
+        end
+
         if haskey(get_settings(m), :add_iid_cond_obs_gdp_meas_err) ?
             get_setting(m, :add_iid_cond_obs_gdp_meas_err) : false
-            mea = ShockGroup("me", [:lr_sh, :tfp_sh, :gdpdef_sh, :corepce_sh, :gdp_sh, :gdi_sh, :condgdp_sh, :condcorepce_sh],
+            mea = ShockGroup("me", push!(mea_vec, :condgdp_sh, :condcorepce_sh),
                              RGB(0.0, 0.8, 0.0))
         elseif haskey(get_settings(m), :add_iid_anticipated_obs_gdp_meas_err) ?
             get_setting(m, :add_iid_anticipated_obs_gdp_meas_err) : false
-            mea = ShockGroup("me", [:lr_sh, :tfp_sh, :gdpdef_sh, :corepce_sh, :gdp_sh, :gdi_sh, :gdpexp_sh],
+            mea = ShockGroup("me", push!(mea_vec, :gdpexp_sh),
                              RGB(0.0, 0.8, 0.0))
         else
-            mea = ShockGroup("me", [:lr_sh, :tfp_sh, :gdpdef_sh, :corepce_sh, :gdp_sh, :gdi_sh], RGB(0.0, 0.8, 0.0))
+            mea = ShockGroup("me", mea_vec, RGB(0.0, 0.8, 0.0))
         end
+
         zpe = ShockGroup("zp", [:zp_sh], RGB(0.0, 0.3, 0.0))
         det = ShockGroup("dt", [:dettrend], :gray40)
         oth = ShockGroup("other", [:dettrend, :g_sh, :π_star_sh, :μ_sh], :gray40) # :dettrend

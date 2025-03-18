@@ -153,15 +153,14 @@ end
 
 ## Now check for regime switching
 # TODO: ADD TEST WHEN USING OVERRIDES W/REGIME-SWITCHING MODEL, also two more TODO below
-custom_settings = Dict{Symbol, Setting}(
-                                        :data_vintage             => Setting(:data_vintage, "160812"),
-                                        :cond_vintage             => Setting(:cond_vintage, "160812"),
-                                        :cond_id                  => Setting(:cond_id, 0),
-                                        :use_population_forecast  => Setting(:use_population_forecast, true),
-                                        :date_presample_start     => Setting(:date_presample_start, Date(1959, 9, 30)),
-                                        :date_forecast_start      => Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
-                                        :date_conditional_end     => Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
-                                        :n_mon_anticipated_shocks => Setting(:n_mon_anticipated_shocks, 6))
+custom_settings = [Setting(:data_vintage, "160812"),
+                   Setting(:cond_vintage, "160812"),
+                   Setting(:cond_id, 0),
+                   Setting(:use_population_forecast, true),
+                   Setting(:date_presample_start, Date(1959, 9, 30)),
+                   Setting(:date_forecast_start, DSGE.quartertodate("2016-Q3")),
+                   Setting(:date_conditional_end, DSGE.quartertodate("2016-Q3")),
+                   Setting(:n_mon_anticipated_shocks, 6)]
 :forecast_horizons => Setting(:forecast_horizons, 12)
 :impulse_response_horizons => Setting(:impulse_response_horizons, 12)
 
@@ -225,7 +224,7 @@ end
         m_rs1 = DSGE.setup_regime_switching_inds!(m_rs1)
 
         # pseudo regime switching (identical values for standard deviations)
-        m_rs2 = Model1002("ss51v", testing = true, custom_settings = custom_settings)
+        m_rs2 = Model1002("ss51", testing = true, custom_settings = custom_settings)
         m_rs2 <= Setting(:rate_expectations_source, :ois)
         m_rs2.settings[:regime_switching] = Setting(:regime_switching, true)
         m_rs2.settings[:n_regimes] = Setting(:n_regimes, 3)
@@ -243,7 +242,7 @@ end
 
         # non-trivial regime switching: eqcond matrices different and QQ matrix is different
         # - Does not test for switching in ZZ or ZZ_pseudo
-        m_rs3 = Model1002("ss51v", testing = true, custom_settings = custom_settings)
+        m_rs3 = Model1002("ss51", testing = true, custom_settings = custom_settings)
         m_rs3 <= Setting(:rate_expectations_source, :ois)
         m_rs3.settings[:regime_switching] = Setting(:regime_switching, true)
         m_rs3.settings[:n_regimes] = Setting(:n_regimes, 3)

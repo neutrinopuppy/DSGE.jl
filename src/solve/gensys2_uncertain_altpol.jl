@@ -29,6 +29,16 @@ gensys2_uncertain_altpol(prob_vec::Vector{Vector{S}}, gensys2_regimes::Vector{In
                          systems::Vector{Union{System, RegimeSwitchingSystem}}, is_altpol::Vector{Bool},
                          Γ0_til::AbstractMatrix{S}, Γ1_til::AbstractMatrix{S}, Γ2_til::AbstractMatrix{S},
                          C_til::AbstractVector{S}, Ψ_til::AbstractMatrix{S}) where {S <: Real}
+
+gensys2_uncertain_altpol(prob_vec::Vector{Vector{S}}, T_alt::Vector{Matrix{S}}, C_alt::Vector{Vector{S}},
+                         T_impl::Vector{Matrix{S}}, R_impl::Vector{Matrix{S}}, C_impl::Vector{Vector{S}},
+                         Γ0_til::Vector{Matrix{S}}, Γ1_til::Vector{Matrix{S}}, Γ2_til::Vector{Matrix{S}},
+                         C_til::Vector{Vector{S}}, Ψ_til::Vector{Matrix{S}}) where {S <: Real}
+
+gensys2_uncertain_altpol(prob_vec::Vector{Vector{S}}, gensys2_regimes::Vector{Int64}, inds::UnitRange{Int64},
+                         systems::Vector{Union{System, RegimeSwitchingSystem}}, is_altpol::Vector{Bool},
+                         Γ0_til::Vector{Matrix{S}}, Γ1_til::Vector{Matrix{S}}, Γ2_til::Vector{Matrix{S}},
+                         C_til::Vector{Vector{S}}, Ψ_til::Vector{Matrix{S}}) where {S <: Real}
 ```
 
 calculates the transition matrices when there is a temporary alternative policy with imperfect awareness.
@@ -248,6 +258,73 @@ function gensys2_uncertain_altpol(prob_vec::Vector{Vector{S}}, gensys2_regimes::
         Tout[i] = tmp \ Γ1_til
         Rout[i] = tmp \ Ψ_til
         Cout[i] = tmp \ (C_til  - Γ2_til * Cbars)
+    end
+
+    # Add terminal condition
+    l_g2      = last(gensys2_regimes)
+    Tout[end] = systems[1][l_g2, :TTT]
+    Rout[end] = systems[1][l_g2, :RRR]
+    Cout[end] = systems[1][l_g2, :CCC]
+
+    return Tout, Rout, Cout
+end
+
+# Time-varying til matrices to allow ZLB matrices to vary over time
+function gensys2_uncertain_altpol(prob_vec::Vector{Vector{S}}, T_alt::Vector{Matrix{S}}, C_alt::Vector{Vector{S}},
+                                  T_impl::Vector{Matrix{S}}, R_impl::Vector{Matrix{S}}, C_impl::Vector{Vector{S}},
+                                  Γ0_til::Vector{Matrix{S}}, Γ1_til::Vector{Matrix{S}}, Γ2_til::Vector{Matrix{S}},
+                                  C_til::Vector{Vector{S}}, Ψ_til::Vector{Matrix{S}}) where {S <: Real}
+
+    Tout  = Vector{Matrix{S}}(undef, length(T_impl) + 1)
+    Rout  = Vector{Matrix{S}}(undef, length(T_impl) + 1)
+    Cout  = Vector{Vector{S}}(undef, length(T_impl) + 1)
+
+    # Calculate "uncertain" temporary altpolicy matrices and back out the transition equation
+    for i in 1:length(T_impl)
+        Tbars = prob_vec[i][1] .* T_impl[i] .+ sum([prob_vec[i][j+1] .* T_alt[j] for j in 1:length(T_alt)]) # it is assumed T_impl is a vector of the
+        Cbars = prob_vec[i][1] * C_impl[i] .+ sum([prob_vec[i][j+1] .* C_alt[j] for j in 1:length(C_alt)])  # T_{t + 1}^{(temporary altpolicy)} matr
+
+        tmp     = Γ2_til[i] * Tbars + Γ0_til[i]
+        Tout[i] = tmp \ Γ1_til[i]
+        Rout[i] = tmp \ Ψ_til[i]
+        Cout[i] = tmp \ (C_til[i] - Γ2_til[i] * Cbars)
+    end
+
+    # Add terminal condition
+    Tout[end] = T_impl[end]
+    Rout[end] = R_impl[end]
+    Cout[end] = C_impl[end]
+
+    return Tout, Rout, Cout
+end
+
+
+# # Time-varying til matrices to allow ZLB matrices to vary over time with time-varying credibility
+function gensys2_uncertain_altpol(prob_vec::Vector{Vector{S}}, gensys2_regimes::Vector{Int64}, inds::UnitRange{Int64},
+                                  systems::Vector{Union{System, RegimeSwitchingSystem}}, is_altpol::Vector{Bool},
+                                  Γ0_til::Vector{Matrix{S}}, Γ1_til::Vector{Matrix{S}}, Γ2_til::Vector{Matrix{S}},
+                                  C_til::Vector{Vector{S}}, Ψ_til::Vector{Matrix{S}}) where {S <: Real}
+
+    Tout  = Vector{Matrix{S}}(undef, length(gensys2_regimes) - 1)
+    Rout  = Vector{Matrix{S}}(undef, length(gensys2_regimes) - 1)
+    Cout  = Vector{Vector{S}}(undef, length(gensys2_regimes) - 1)
+
+    # Calculate "uncertain" temporary altpolicy matrices and back out the transition equation
+    n_alt = length(prob_vec[1])
+    for (i, reg) in enumerate(gensys2_regimes[2:end - 1]) # gensys2_regimes includes 1 extra regime at beginning for boundary condition
+        # it is assumed T_impl is a vector of the T_{t + 1}^{(temporary altpolicy)} matrices,
+        # hence Tbars will be a vector of T_t matrices
+        Tbars = prob_vec[i][1] * (@view systems[1][reg + 1, :TTT][inds, inds]) .+
+        sum([prob_vec[i][j] .* (is_altpol[j - 1] ? (@view systems[j][:TTT][inds, inds]) : (@view systems[j][min(length(systems[j].transitions), reg + 1), :TTT][inds, inds]))
+                 for j in 2:n_alt])
+        Cbars = prob_vec[i][1] * (@view systems[1][reg + 1, :CCC][inds]) .+
+        sum([prob_vec[i][j] .* (is_altpol[j - 1] ? (@view systems[j][:CCC][inds]) : (@view systems[j][min(length(systems[j].transitions), reg + 1), :CCC][inds]))
+                 for j in 2:n_alt])
+
+        tmp     = Γ2_til[i] * Tbars + Γ0_til[i]
+        Tout[i] = tmp \ Γ1_til[i]
+        Rout[i] = tmp \ Ψ_til[i]
+        Cout[i] = tmp \ (C_til[i] - Γ2_til[i] * Cbars)
     end
 
     # Add terminal condition

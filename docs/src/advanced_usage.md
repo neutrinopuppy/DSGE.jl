@@ -182,7 +182,7 @@ object `m` as an argument. Note that not all are exported.
 ### Overwriting Default Settings
 
 To overwrite default settings added during model construction, a user must
-create a `Dict{Symbol, Setting}` and pass that into the model constructor as the
+create a `Array{Setting}` and pass that into the model constructor as the
 keyword argument `custom_settings`. If the `print`, `code`, and `description`
 fields of the new `Setting` object are not provided, the fields of the existing
 setting will be maintained. If new values for `print`, `code`, and `description`
@@ -191,8 +191,7 @@ fields, the fields of the existing setting will be updated.
 
 For example, overwriting `use_parallel_workers` should look like this:
 ```julia
-custom_settings = Dict{Symbol, Setting}(
-    :use_parallel_workers => Setting(:use_parallel_workers, true))
+custom_settings = Array{Setting}(Setting(:use_parallel_workers, true))
 m = Model990(custom_settings = custom_settings)
 ```
 
@@ -662,8 +661,8 @@ As an example, the following code
 creates an instance of `Model1002` with anticipation of `b` shocks up to two periods ahead.
 
 ```
-custom_settings = Dict{Symbol, Setting}(:antshocks => Setting(:antshocks, Dict{Symbol, Int}(:b => 2)),
-                :ant_eq_mapping => Setting(:ant_eq_mapping, Dict{Symbol, Symbol}(:b => :b)))
+custom_settings = Array{Setting}(Setting(:antshocks, Dict{Symbol, Int}(:b => 2)),
+                                 Setting(:ant_eq_mapping, Dict{Symbol, Symbol}(:b => :b)))
 m = Model1002("ss10"; custom_settings = custom_settings)
 ```
 

@@ -19,6 +19,8 @@ function pseudo_measurement(m::Model1002{T},
                             CCCs::Vector{<: AbstractVector{T}} = Vector{T}[],
                             information_set::UnitRange = reg:reg,
                             memo::Union{ForwardMultipleExpectationsMemo, Nothing} = nothing) where {T <: AbstractFloat}
+    # For parsing model subspec to Int
+    subspec_ind = isletter(subspec(m)[end]) ? length(subspec(m)) - 1 : length(subspec(m))
 
     endo      = m.endogenous_states
     endo_addl = m.endogenous_states_augmented
@@ -82,6 +84,37 @@ function pseudo_measurement(m::Model1002{T},
                                                  memo = use_fwd_exp_sum ? memo : nothing)
     TTT10        = TTT10./ 40. # divide by 40 to average across 10 years
     CCC10        = CCC10 ./ 40.
+
+
+    econo_perm_t = if reg >= 11 length(TTTs) else permanent_t end # THIS IS HARD CODED, IF YOU ARE THINKING ABOUT CHANGING IT REACH OUT TO PG/BP
+    TTT10Econo, CCC10Econo = k_periods_ahead_expected_sums(TTT, CCC, TTTs, CCCs, reg, 40, econo_perm_t;
+                                                           integ_series = integ_series,
+                                                           memo = use_fwd_exp_sum ? memo : nothing)
+    TTT10Econo   = TTT10Econo ./ 40
+    CCC10Econo   = CCC10Econo ./ 40
+
+
+    if haskey(m.settings, :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
+        # Compute TTT^5, used for Expected5YearNaturalRate
+        TTT5, CCC5 = k_periods_ahead_expected_sums(TTT, CCC, TTTs, CCCs, reg, 20, permanent_t;
+                                                   integ_series = integ_series,
+                                                   memo = use_fwd_exp_sum ? memo : nothing)
+        TTT5        = TTT5 ./ 20. # divide by 20 to average across 5 years
+        CCC5        = CCC5 ./ 20.
+    end
+
+    if haskey(m.settings, :add_expected_FFR_pseudo)
+        for i in 1:get_setting(m, :add_expected_FFR_pseudo)
+            TTT_accum, CCC_accum = k_periods_ahead_expectations(TTT, CCC, TTTs, CCCs, reg, i, permanent_t;
+                                                                integ_series = integ_series,
+                                                                memo = (isnothing(memo) || !use_fwd_exp) ? nothing :
+                                                                ForwardExpectationsMemo(memo.time_varying_memo[min(reg + i, permanent_t, 17)],
+                                                                                        memo.permanent_memo))
+
+            ZZ_pseudo[pseudo[Symbol("ExpectedFFR$i")], :] = view(TTT_accum, endo[:R_t], :)
+            DD_pseudo[pseudo[Symbol("ExpectedFFR$i")]]    = m[:Rstarn] + CCC_accum[endo[:R_t]]
+        end
+    end
 
     if get_setting(m, :add_laborproductivity_measurement)
         # Construct pseudo-obs from integrated states first
@@ -164,7 +197,7 @@ function pseudo_measurement(m::Model1002{T},
 
     ## Pseudo GDP Growth
     if haskey(m.settings, :add_pseudo_gdp)
-        if get_setting(m, :add_pseudo_gdp) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_pseudo_gdp) && parse(Int,SubString(subspec(m),3,subspec_ind)) >= 59
             ZZ_pseudo[pseudo[:PseudoGDP], endo[:y_t]]          = 1.0
             ZZ_pseudo[pseudo[:PseudoGDP], endo_addl[:y_t1]]     = -1.0
             ZZ_pseudo[pseudo[:PseudoGDP], endo[:z_t]]          = 1.0
@@ -176,10 +209,15 @@ function pseudo_measurement(m::Model1002{T},
 
     ## Pseudo Core PCE # TODO
     if haskey(m.settings, :add_pseudo_corepce)
-        if get_setting(m, :add_pseudo_corepce) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_pseudo_corepce) && parse(Int,SubString(subspec(m),3,subspec_ind)) >= 59
             ZZ_pseudo[pseudo[:PseudoCorePCE], endo[:π_t]]              = 1.0
             ZZ_pseudo[pseudo[:PseudoCorePCE], endo_addl[:e_corepce_t]] = 1.0
             DD_pseudo[pseudo[:PseudoCorePCE]]                          = 100. * (m[:π_star] - 1.)
+
+            if parse(Int,SubString(subspec(m),3,subspec_ind)) >= 87
+                ZZ_pseudo[pseudo[:PseudoCorePCE], endo_addl[:e_meas_π_t]]  = 1.0
+                ZZ_pseudo[pseudo[:PseudoCorePCE], endo_addl[:e_meas_π_t1]] = subspec(m) == "ss99" ? -m[:meas_π1] : -1.0
+            end
         end
     end
 
@@ -230,6 +268,10 @@ function pseudo_measurement(m::Model1002{T},
     ZZ_pseudo[pseudo[:Expected10YearRateGap], :] = view(TTT10, endo[:R_t], :) - view(TTT10, endo[:r_f_t], :) - view(TTT10, endo[:Eπ_t], :)
     DD_pseudo[pseudo[:Expected10YearRateGap]]    = CCC10[endo[:R_t]] - CCC10[endo[:r_f_t]] - CCC10[endo[:Eπ_t]]
 
+
+#Econometrician's 10 Year Rate gap -- calculated using the econometrician's beliefs rather than the agents:
+ZZ_pseudo[pseudo[:Econometricians10YearRateGap], :] = view(TTT10Econo, endo[:R_t], :) - view(TTT10Econo, endo[:r_f_t], :) - view(TTT10Econo, endo[:Eπ_t], :)
+    DD_pseudo[pseudo[:Econometricians10YearRateGap]]    = CCC10[endo[:R_t]] - CCC10[endo[:r_f_t]] - CCC10[endo[:Eπ_t]]
     ## Nominal FFR
     ZZ_pseudo[pseudo[:NominalFFR], endo[:R_t]] = 1.
     DD_pseudo[pseudo[:NominalFFR]] = m[:Rstarn]
@@ -243,6 +285,18 @@ function pseudo_measurement(m::Model1002{T},
     # ZZ_pseudo[pseudo[:Expected10YearNaturalRate], :] = TTT10[endo[:r_f_t], :] + TTT10[endo[:Eπ_t], :]
     ZZ_pseudo[pseudo[:Expected10YearNaturalRate], :] = view(TTT10, endo[:r_f_t], :) + view(TTT10, endo[:Eπ_t], :)
     DD_pseudo[pseudo[:Expected10YearNaturalRate]]    = m[:Rstarn] + CCC10[endo[:r_f_t]] + CCC10[endo[:Eπ_t]]
+
+    if haskey(m.settings, :add_expected_long_naturalrate) && get_setting(m, :add_expected_long_naturalrate)
+        ZZ_pseudo[pseudo[:Expected5YearNaturalRate], :] = view(TTT5, endo[:r_f_t], :) + view(TTT5, endo[:Eπ_t], :)
+        DD_pseudo[pseudo[:Expected5YearNaturalRate]]    = m[:Rstarn] + CCC5[endo[:r_f_t]] + CCC5[endo[:Eπ_t]]
+
+        # Expected Real Natural Rate - subtract longinflation
+        ZZ_pseudo[pseudo[:Expected10YearRealNaturalRate], :] = view(TTT10, endo[:r_f_t], :) + view(TTT10, endo[:Eπ_t], :) - view(TTT10, endo[:π_t], :)
+        DD_pseudo[pseudo[:Expected10YearRealNaturalRate]]    = m[:Rstarn] + CCC10[endo[:r_f_t]] + CCC10[endo[:Eπ_t]] - (100*(m[:π_star]-1) + CCC10[endo[:π_t]])
+
+        ZZ_pseudo[pseudo[:Expected5YearRealNaturalRate], :] = view(TTT5, endo[:r_f_t], :) + view(TTT5, endo[:Eπ_t], :) - view(TTT5, endo[:π_t], :)
+        DD_pseudo[pseudo[:Expected5YearRealNaturalRate]]    = m[:Rstarn] + CCC5[endo[:r_f_t]] + CCC5[endo[:Eπ_t]] - (100*(m[:π_star]-1) + CCC5[endo[:π_t]])
+    end
 
     ## Expected Nominal Natural Rate
     ZZ_pseudo[pseudo[:ExpectedNominalNaturalRate], endo[:r_f_t]] = 1.
@@ -365,7 +419,7 @@ function pseudo_measurement(m::Model1002{T},
     end
 
     if haskey(m.settings, :add_covid_pseudoobs)
-        if get_setting(m, :add_covid_pseudoobs) && subspec(m) in ["ss59", "ss60", "ss61", "ss62", "ss63", "ss64", "ss65", "ss66", "ss67", "ss68", "ss69", "ss70", "ss71", "ss72", "ss73", "ss74", "ss75", "ss76", "ss77", "ss78", "ss79", "ss80", "ss81", "ss82", "ss83", "ss84", "ss85"]
+        if get_setting(m, :add_covid_pseudoobs) && parse(Int,SubString(subspec(m),3,subspec_ind)) >= 59
             ZZ_pseudo[pseudo[:ziid], endo[:ziid_t]] = 1.
             ZZ_pseudo[pseudo[:varphiiid], endo[:φ_t]] = 1.
             ZZ_pseudo[pseudo[:biidc], endo[:biidc_t]] = 1.

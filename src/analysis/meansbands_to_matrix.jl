@@ -119,7 +119,7 @@ function meansbands_to_matrix(mb::MeansBands)
             end
         end
 
-    elseif prod in [:shockdec, :irf]
+    elseif prod in [:shockdec, :irf, :shockdecseq, :shockdecqtrs]
 
         shock_inds = mb.metadata[:shock_indices]
         nshocks = length(shock_inds)

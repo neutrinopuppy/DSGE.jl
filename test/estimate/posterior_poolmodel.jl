@@ -17,8 +17,9 @@ pm[:μ].value = 0.
 pm[:σ].value = 1.
 Random.seed!(1793)
 Φpost, Ψpost, F_ϵpost, F_upost, F_λpost = compute_system(pm)
-s_init = reshape(rand(F_λpost, tuning[:n_particles]), 1, 1000)
-s_init = [s_init; 1 .- s_init]
+s_init = quantile.(Normal(), rand(F_λpost, tuning[:n_particles]))
+# s_init = reshape(rand(F_λpost, tuning[:n_particles]), 1, 1000)
+# s_init = [s_init; 1 .- s_init]
 tpf_out, ~, ~ = tempered_particle_filter(data, Φpost, Ψpost, F_ϵpost, F_upost,
                                    s_init; tuning..., verbose = :none,
                                    fixed_sched = [1.], parallel = false, poolmodel = true)

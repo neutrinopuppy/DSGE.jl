@@ -43,9 +43,8 @@ is reproduced below.
 
 ```julia
 # estimate as of 2015-Q3 using the default data vintage from 2015 Nov 27
-custom_settings = Dict{Symbol, Setting}(
-    :data_vintage        => Setting(:data_vintage, "151127"),
-    :date_forecast_start => Setting(:date_forecast_start, quartertodate("2015-Q4")))
+custom_settings = Array{Setting}(Setting(:data_vintage, "151127"),
+                                 Setting(:date_forecast_start, quartertodate("2015-Q4")))
 
 # construct a model object
 m = Model990(custom_settings = custom_settings)

@@ -161,7 +161,7 @@ end
 
 # This function should be edited!
 function AnSchorfheide(subspec::String="ss0"; # do not edit inputs
-                       custom_settings::Dict{Symbol, Setting} = Dict{Symbol, Setting}(),
+                       custom_settings::Array{S} where S<:Setting = Array{Setting{Bool}}(undef, 0),
                        testing = false)
 
     # Model-specific specifications (do not edit)
@@ -194,7 +194,7 @@ function AnSchorfheide(subspec::String="ss0"; # do not edit inputs
     # Set settings (do not edit)
     model_settings!(m) # see below for this function
     default_test_settings!(m) # default settings when initializing object in test mode
-    for custom_setting in values(custom_settings) # after adding all the default settings,
+    for custom_setting in custom_settings # after adding all the default settings,
         m <= custom_setting                       # custom_settings allow us to modify the defaults or add other settings
     end                                           # that are required during instantiation
 

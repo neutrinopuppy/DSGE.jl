@@ -4,24 +4,22 @@ using ModelConstructors, Nullables, Dates, OrderedCollections
 prob_vecs = [[1., 0.], [.5, .5], [0., 1.]]
 Hbar_vec = [14, 10, 6]
 
-m = Model1002("ss59"; custom_settings = Dict{Symbol, Setting}(:flexible_ait_policy_change =>
-                                                              Setting(:flexible_ait_policy_change,
-                                                                      false),
-                                                              :add_pgap => Setting(:add_pgap, false),
-                                                              :add_ygap => Setting(:add_ygap, false),
-                                                              :add_altpolicy_pgap => Setting(:add_altpolicy_pgap, true),
-                                                              :add_altpolicy_ygap => Setting(:add_altpolicy_ygap, true))) # Set to false unless you want to re-generate any saved output
+m = Model1002("ss59"; custom_settings = [Setting(:flexible_ait_policy_change, false),
+                                         Setting(:add_pgap, false),
+                                         Setting(:add_ygap, false),
+                                         Setting(:add_altpolicy_pgap, true),
+                                         Setting(:add_altpolicy_ygap, true)]) # Set to false unless you want to re-generate any saved output
 m <= Setting(:flexible_ait_policy_change, false) # Set to false unless you want to re-generate any saved output
 m <= Setting(:date_forecast_start, Date(2020, 6, 30))
 m <= Setting(:date_conditional_end, Date(2020, 6, 30))
 m <= Setting(:cond_full_names, [:obs_gdp, :obs_corepce, :obs_spread, # Have to add anticipated rates to conditional data
-                                   :obs_nominalrate, :obs_longrate,
-                                   :obs_nominalrate1, :obs_nominalrate2, :obs_nominalrate3,
-                                   :obs_nominalrate4, :obs_nominalrate5, :obs_nominalrate6])
+                                :obs_nominalrate, :obs_longrate,
+                                :obs_nominalrate1, :obs_nominalrate2, :obs_nominalrate3,
+                                :obs_nominalrate4, :obs_nominalrate5, :obs_nominalrate6])
 m <= Setting(:cond_semi_names, [:obs_spread,
-                                   :obs_nominalrate, :obs_longrate,
-                                   :obs_nominalrate1, :obs_nominalrate2, :obs_nominalrate3,
-                                   :obs_nominalrate4, :obs_nominalrate5, :obs_nominalrate6])
+                                :obs_nominalrate, :obs_longrate,
+                                :obs_nominalrate1, :obs_nominalrate2, :obs_nominalrate3,
+                                :obs_nominalrate4, :obs_nominalrate5, :obs_nominalrate6])
 
 output_vars = [:histobs, :forecastobs, :histpseudo, :forecastpseudo]
 
@@ -170,7 +168,7 @@ for j in 1:length(prob_vecs)
     gensys2_regimes = (tempZLB_regimes[j][1] - 1):(tempZLB_regimes[j][end] + 1)
     Tcal, Rcal, Ccal = DSGE.gensys2(m, Γ0s[gensys2_regimes], Γ1s[gensys2_regimes],
                                     Cs[gensys2_regimes], Ψs[gensys2_regimes], Πs[gensys2_regimes],
-                                    TTT_gensys_final, RRR_gensys_final, CCC_gensys_final, Hbar_vec[j] + 1)
+                                    TTT_gensys_final, RRR_gensys_final, CCC_gensys_final, Hbar_vec[j] + 1, last(gensys2_regimes))
     Tcal[end] = TTT_gensys_final
     Rcal[end] = RRR_gensys_final
     Ccal[end] = CCC_gensys_final
@@ -191,9 +189,9 @@ for j in 1:length(prob_vecs)
     # TTTs_uzlb[inreg] is the same size as Tcal though b/c TTTs_uzbl[inreg[end]] is just Tcal[end], etc.
     inreg = gensys2_regimes[2:end]
     TTTs_uzlb[inreg], RRRs_uzlb[inreg], CCCs_uzlb[inreg] =
-        DSGE.gensys2_uncertain_altpol(prob_vecs[j], Th[1:n_states(m), 1:n_states(m)],
-                                      Ch[1:n_states(m)], Tcal[2:end], Rcal[2:end], Ccal[2:end],
-                                      Γ0_til, Γ1_til, Γ2_til, C_til, Ψ_til)
+    DSGE.gensys2_uncertain_altpol(prob_vecs[j], Th[1:n_states(m), 1:n_states(m)],
+                                  Ch[1:n_states(m)], Tcal[2:end], Rcal[2:end], Ccal[2:end],
+                                  Γ0_til, Γ1_til, Γ2_til, C_til, Ψ_til)
     for li in inreg
         TTTs_uzlb[li], RRRs_uzlb[li], CCCs_uzlb[li] = DSGE.augment_states(m, TTTs_uzlb[li], RRRs_uzlb[li], CCCs_uzlb[li])
     end

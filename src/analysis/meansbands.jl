@@ -306,7 +306,7 @@ Returns a list of shock names that are used for the shock
 decomposition stored in a shock decomposition or irf MeansBands object `mb`.
 """
 function get_shocks(mb::MeansBands)
-    @assert get_product(mb) in [:shockdec, :irf, :shockdecseq] "Function only for shockdec, shockdecseq, or irf MeansBands objects"
+    @assert get_product(mb) in [:shockdec, :irf, :shockdecseq, :shockdecqtrs] "Function only for shockdec, shockdecseq, shockdecqtrs, or irf MeansBands objects"
     varshocks = setdiff(propertynames(mb.means), [:date])
     unique(map(x -> Symbol(split(string(x), DSGE_SHOCKDEC_DELIM)[2]), varshocks))
 end
@@ -333,7 +333,7 @@ Returns a list of variable names that are used for the shock
 decomposition stored in a shock decomposition or irf MeansBands object `mb`.
 """
 function get_variables(mb::MeansBands)
-    @assert get_product(mb) in [:shockdec, :irf, :shockdecseq] "Function only for shockdec or irf MeansBands objects"
+    @assert get_product(mb) in [:shockdec, :irf, :shockdecseq, :shockdecqtrs] "Function only for shockdec or irf MeansBands objects"
     varshocks = setdiff(propertynames(mb.means), [:date])
     unique(map(x -> Symbol(split(string(x), DSGE_SHOCKDEC_DELIM)[1]), varshocks))
 end
@@ -560,7 +560,7 @@ function get_shockdec_bands(mb::MeansBands, var::Symbol;
                             shocks::Vector{Symbol} = Vector{Symbol}(),
                             bands::Vector{Symbol} = Vector{Symbol}())
 
-    @assert get_product(mb) == :shockdec || get_product(mb) == :shockdecseq
+    @assert get_product(mb) in [:shockdec, :shockdecseq, :shockdecqtrs]
 
     # Extract the subset of columns relating to the variable `var` and the shocks listed in `shocks.`
     # If `shocks` not provided, give all the shocks
@@ -681,9 +681,10 @@ function prepare_means_table_shockdec(mb_shockdec::MeansBands, mb_trend::MeansBa
                                       mb_hist::MeansBands = MeansBands(),
                                       detexify_shocks::Bool = true,
                                       groups::Vector{ShockGroup} = ShockGroup[],
-                                      trend_nostates::DataFrame = DataFrame(), df_enddate = Date(2100,12,31))
+                                      trend_nostates::DataFrame = DataFrame(), df_enddate = Date(2100,12,31),
+                                      keep_DD::Bool = false)
 
-    @assert get_product(mb_shockdec) in [:shockdec, :shockdecseq] "The first argument must be a MeansBands object for a shockdec"
+    @assert get_product(mb_shockdec) in [:shockdec, :shockdecseq, :shockdecqtrs] "The first argument must be a MeansBands object for a shockdec"
     @assert get_product(mb_trend)    == :trend    "The second argument must be a MeansBands object for a trend"
     @assert get_product(mb_dettrend) == :dettrend "The third argument must be a MeansBands object for a deterministic trend"
 
@@ -739,13 +740,13 @@ function prepare_means_table_shockdec(mb_shockdec::MeansBands, mb_trend::MeansBa
             var_trend_nostates   = trend_nostates[startdate .<= trend_nostates[!, :date] .<= enddate, var]
             if size(var_trend_nostates, 1) != size(df_shockdec, 1)
                 error("The number of rows in kwarg `trend_nostates` does not match the number in df_shockdec. Check that " *
-                      "the Setting :date_forecast_end matches the date used for the calculation of the shockdecs " *
+                      "the Setting :date_forecast_end matches the date used forOA the calculation of the shockdecs " *
                       "when constructing the `trend_nostates` DataFrame.")
             end
 
             var_trend_states      = df_shockdec[!, :trend] - var_trend_nostates
-            df[!, :detrendedMean] = df_shockdec[!,var] - var_trend_nostates
-            df[!, :StatesTrend]   = var_trend_states
+            df[!, :detrendedMean] = keep_DD ? df_shockdec[!,var] : df_shockdec[!,var] - var_trend_nostates
+            df[!, :StatesTrend]   = keep_DD ? copy(df_shockdec[!, :trend]) : var_trend_states
         end
     end
 
@@ -784,6 +785,8 @@ end
 # rather than return the trend in states, this function will return a DataFrame of
 # all zeros since the trend in states without the trend in states is just detrending the trend!
 # This function is tested in test/forecast/shock_decompositions.jl
+## Note that if the model runs an endogenous forecast, check that each regime equilibrium conditions
+## reflects the values at the end rather than being reset.
 function prepare_means_table_trend_nostates(m::AbstractDSGEModel{S}, cond_type::Symbol, class::Symbol,
                                             start_date::Date, end_fcast_date::Date; annualize::Bool = true,
                                             apply_altpolicy::Bool = false) where {S <: Real}
@@ -815,6 +818,7 @@ function prepare_means_table_trend_nostates(m::AbstractDSGEModel{S}, cond_type::
     else
         fcast_regime_inds = get_fcast_regime_inds(m, forecast_horizons(m; cond_type = cond_type), cond_type,
                                                   start_index = hist_regime_inds[end][end])
+
         fcast_cutoff = findfirst([regind[end] >= end_index for regind in fcast_regime_inds])
         if isnothing(fcast_cutoff)
             error("The index_shockdec_end(m) occurs past the index of the final forecast date.")

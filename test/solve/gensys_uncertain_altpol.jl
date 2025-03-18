@@ -3,7 +3,7 @@ using DSGE, HDF5, ModelConstructors, Test, Dates
 regen = false
 
 
-m = Model1002("ss10"; custom_settings = Dict{Symbol, Setting}(:add_altpolicy_pgap => Setting(:add_altpolicy_pgap, true)))
+m = Model1002("ss10"; custom_settings = [Setting(:add_altpolicy_pgap, true)])
 hist_rule = DSGE.taylor_rule()
 m <= Setting(:alternative_policies, AltPolicy[hist_rule])
 ngdp_altpol = DSGE.ngdp()
