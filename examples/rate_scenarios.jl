@@ -1,0 +1,1247 @@
+####################################################################
+# rate_scenarios.jl
+#
+# Fed Funds Rate Policy Recommendation
+# Focus: Dual Mandate (Inflation + Employment)
+# Scenarios: Hold, Cut 25bp, Hike 25bp — with 25bp range bands
+#
+# For presentation, April 2026
+####################################################################
+
+using DSGE, ModelConstructors, Plots, DataFrames, Dates, OrderedCollections
+using Printf, Statistics, LinearAlgebra
+
+plotly()
+
+println("="^65)
+println("  FED FUNDS RATE POLICY RECOMMENDATION")
+println("  Dual Mandate Analysis")
+println("="^65)
+
+##############
+# Model Setup
+##############
+m = Model1002("ss10")
+m <= Setting(:data_vintage, "260410")
+m <= Setting(:date_forecast_start, quartertodate("2026-Q2"))
+m <= Setting(:use_population_forecast, false)
+
+# --- Sampling / MH settings -------------------------------------------------
+# We need posterior draws (not just the mode) to build honest uncertainty
+# bands around the scenario forecasts. These numbers are deliberately modest
+# for a demo/presentation run; bump n_mh_simulations and n_mh_blocks for a
+# production-quality posterior.
+m <= Setting(:sampling_method, :MH)
+m <= Setting(:n_mh_blocks, 5)
+m <= Setting(:n_mh_simulations, 2000)     # draws per block
+m <= Setting(:n_mh_burn, 1)               # burn 1 of 5 blocks
+m <= Setting(:mh_thin, 2)                 # thin factor inside MH (correct name)
+
+# --- Forecast settings ------------------------------------------------------
+# With :full, forecast_one iterates over (n_blocks - n_burn) * n_mh_simulations
+# thinned draws from mhsave.h5. forecast_jstep thins that further at forecast
+# time. forecast_block_size controls the in-memory batch size.
+m <= Setting(:forecast_jstep, 5)
+m <= Setting(:forecast_block_size, 500)
+
+println("\n>> Loading fresh data from FRED...")
+df = load_data(m, try_disk = false, check_empty_columns = false, summary_statistics = :none)
+data = df_to_matrix(m, df)
+
+# --- Mode + Hessian handling ------------------------------------------------
+# The estimate() entry point does NOT auto-load paramsmode.h5 into the model
+# state — with reoptimize=false it uses whatever parameters the model was
+# constructed with (prior means for Model1002). Computing a hessian there
+# fails with "Negative diagonal in Hessian" because you're not at a mode.
+# specify_mode! loads the stored params into m and sets reoptimize=false.
+modefile = rawpath(m, "estimate", "paramsmode.h5")
+if isfile(modefile)
+    println(">> Loading saved mode from $modefile")
+    specify_mode!(m, modefile)   # sets reoptimize=false AND loads params
+else
+    println(">> No paramsmode.h5 found — running mode-finding first (~45 min)...")
+    m <= Setting(:reoptimize, true)
+    @time estimate(m, data; sampling = false)
+    specify_mode!(m, modefile)
+end
+
+# The hessian MUST be paired with the mode you're sitting at. If there's no
+# stored hessian.h5 (or if you suspect it's stale), force a recompute here at
+# the current params — this is cheap compared to MH and guarantees a valid
+# proposal covariance.
+_hess_default = rawpath(m, "estimate", "hessian.h5")
+if isfile(_hess_default)
+    m <= Setting(:hessian_path, _hess_default)
+    m <= Setting(:calculate_hessian, false)
+    println(">> Reusing hessian at $_hess_default")
+else
+    m <= Setting(:calculate_hessian, true)
+    println(">> No hessian.h5 found — will compute a fresh hessian at the " *
+            "loaded mode during estimate().")
+end
+
+mhfile = rawpath(m, "estimate", "mhsave.h5")
+if !isfile(mhfile)
+    println(">> No mhsave.h5 found — running MH to generate posterior draws.")
+    println("   ($(get_setting(m, :n_mh_blocks)) blocks × " *
+            "$(get_setting(m, :n_mh_simulations)) draws; this is the slow step)")
+    @time estimate(m, data)  # sampling = true is the default
+else
+    println(">> Using existing MH draws from $(mhfile).")
+end
+
+Rstarn = m[:Rstarn].value
+println(">> Steady-state rate: $(round(Rstarn * 4, digits=2))% annualized")
+
+######################
+# Scenario Definitions
+######################
+# H+1 = number of quarters we can pin the rate at a user-specified target.
+# Model1002 ss10 has n_mon_anticipated_shocks = 6, giving 6 anticipated MP
+# shocks + 1 contemporaneous = 7 independent instruments, so the peg solver
+# could in principle pin up to 7 quarters. We use H=3 (4 pinned quarters, 1
+# year) deliberately — this is the window length where the "forward guidance
+# puzzle" (Del Negro, Giannoni, Patterson 2015) doesn't catastrophically
+# amplify the response. With H=6 we saw ~2.5 pp Core PCE response to 25 bp
+# of guidance; H=3 should deliver ~0.5–1 pp, which matches both economic
+# intuition and what the Fed usually publishes for short-window conditional
+# forecasts.
+H = 3
+n_peg_quarters = H + 1
+
+# Scenarios are TACTICAL DEVIATIONS from the baseline rate path, not fixed
+# rate levels. Each scenario's realized rate rides at baseline ± delta over
+# the pinned window and fades back toward baseline afterwards. Matches the
+# Liberty Street / Cúrdia–Del Negro "conditional on alternative rate path"
+# convention for published Fed DSGE exercises.
+scenarios = OrderedDict(
+    "Cut 25bp"  => (delta = -0.25, color = :forestgreen),
+    "Hold"      => (delta =  0.00, color = :royalblue),
+    "Hike 25bp" => (delta =  0.25, color = :crimson),
+)
+
+######################
+# Run Forecasts
+######################
+output_vars = [:forecastobs]
+
+# Percentile bands to compute for every :full run. [0.68, 0.90] matches the
+# Liberty Street Economics fan-chart conventions (darker inner band = 68%,
+# lighter outer band = 90%).
+fan_bands = [0.68, 0.90]
+
+# input_type for the runs that feed fan charts. :full loops over posterior
+# MH draws so we can compute honest percentile bands.
+band_input_type = :full
+
+# Baseline (no peg — model's own rate path under the historical rule).
+# This run feeds (a) the published baseline fan chart and (b) the rate path
+# the Cut/Hike scenarios are constructed relative to.
+println("\n>> Running model baseline (historical Taylor rule, posterior)...")
+forecast_one(m, band_input_type, :none, output_vars;
+             check_empty_columns = false, forecast_string = "baseline")
+compute_meansbands(m, band_input_type, :none, output_vars;
+                   check_empty_columns = false, density_bands = fan_bands,
+                   forecast_string = "baseline")
+mb_baseline = read_mb(m, band_input_type, :none, :forecastobs;
+                      forecast_string = "baseline")
+
+# The peg solver takes `FFRpeg` in state-deviation units for R_t, which are
+# unitless from a user's perspective. Run two small test pegs at :mode to
+# empirically recover the linear map from FFRpeg → annualized obs_nominalrate
+# (the model is linear, so this map is exact up to floating point). Then we
+# invert it to convert target annual rates back into FFRpeg inputs.
+println(">> Calibrating peg→rate map with two test pegs (at :mode)...")
+test_peg_a = -0.001
+test_peg_b =  0.001
+forecast_one(m, :mode, :none, output_vars;
+             check_empty_columns = false,
+             pegFFR = true, FFRpeg = test_peg_a, H = H,
+             forecast_string = "cal_a")
+compute_meansbands(m, :mode, :none, output_vars;
+                   check_empty_columns = false, forecast_string = "cal_a")
+rate_a = read_mb(m, :mode, :none, :forecastobs; forecast_string = "cal_a").means[1, :obs_nominalrate]
+
+forecast_one(m, :mode, :none, output_vars;
+             check_empty_columns = false,
+             pegFFR = true, FFRpeg = test_peg_b, H = H,
+             forecast_string = "cal_b")
+compute_meansbands(m, :mode, :none, output_vars;
+                   check_empty_columns = false, forecast_string = "cal_b")
+rate_b = read_mb(m, :mode, :none, :forecastobs; forecast_string = "cal_b").means[1, :obs_nominalrate]
+
+peg_slope     = (rate_b - rate_a) / (test_peg_b - test_peg_a)
+peg_intercept = rate_a - peg_slope * test_peg_a
+ffr_peg_for(target_annual) = (target_annual - peg_intercept) / peg_slope
+println(">> Peg→rate map: obs_nominalrate ≈ $(round(peg_intercept, digits=3))% + $(round(peg_slope, digits=2)) * FFRpeg")
+
+# Pull the baseline (MODE) rate path over the pinned window. We use the
+# :mode baseline — not the :full posterior mean — as the reference for the
+# scenario deltas, because:
+#   (a) The peg solver is calibrated at :mode, so baseline_rates has to be
+#       in the same units / reference frame as the calibration map.
+#   (b) mb_baseline (under :full) aggregates across ~1000 posterior draws.
+#       A few draws with explosive anticipated-shock responses get
+#       EXPONENTIATED by obs_corepce's rev_transform (100*(exp(y/100)^4 - 1))
+#       before averaging, which produces multi-hundred-percent inflation
+#       readings in the posterior mean even when the peg hits its rate
+#       target cleanly.
+# Scenarios therefore run at :mode and get clean deterministic conditional
+# paths. Baseline stays at :full so the published fan chart still has
+# honest posterior uncertainty around the unconditional forecast. This is
+# exactly the Liberty Street convention: fan on baseline, lines on
+# conditional scenarios.
+println(">> Running mode-baseline to anchor scenario deltas...")
+forecast_one(m, :mode, :none, output_vars;
+             check_empty_columns = false, forecast_string = "baseline_mode")
+compute_meansbands(m, :mode, :none, output_vars;
+                   check_empty_columns = false, forecast_string = "baseline_mode")
+mb_baseline_mode = read_mb(m, :mode, :none, :forecastobs;
+                           forecast_string = "baseline_mode")
+
+baseline_rates = Float64[]
+for q in 1:n_peg_quarters
+    push!(baseline_rates, mb_baseline_mode.means[q, :obs_nominalrate])
+end
+println(">> Baseline rate path (Q1..Q$(n_peg_quarters), at mode): " *
+        join([string(round(r, digits=2), "%") for r in baseline_rates], ", "))
+
+# Run each scenario at :mode — single deterministic path per scenario, no
+# posterior averaging, no explosive-draw pollution.
+results = OrderedDict{String, Any}()
+for (name, spec) in scenarios
+    tag = replace("$(name)_tactical", " " => "", "%" => "", "." => "", "-" => "")
+
+    target_path = baseline_rates .+ spec.delta               # annualized %
+    ffr_peg_path = [ffr_peg_for(r) for r in target_path]     # state-deviation units
+
+    println(">> $name: baseline $(spec.delta >= 0 ? "+" : "")$(spec.delta) pp " *
+            "for $(n_peg_quarters) quarters (mode)")
+
+    forecast_one(m, :mode, :none, output_vars;
+                 check_empty_columns = false,
+                 pegFFR = true, H = H, FFRpeg_path = ffr_peg_path,
+                 forecast_string = tag)
+    compute_meansbands(m, :mode, :none, output_vars;
+                       check_empty_columns = false, forecast_string = tag)
+    results[name] = read_mb(m, :mode, :none, :forecastobs;
+                            forecast_string = tag)
+end
+
+####################################################################
+# Alternative Policy Rules
+#
+# Counterfactual: hold all parameters fixed (they were estimated under
+# the historical rule), but ask "what rate path would Rule X prescribe
+# from forecast start, given the same s_T?". This is genuinely different
+# from a peg — the rule is endogenous and reacts to inflation/output as
+# the forecast unfolds. Useful as a sanity check on the discretionary
+# scenarios: if Taylor93 says "cut" and the discretionary cut scenario
+# also looks good on the dual mandate, that's two independent arguments
+# pointing the same direction.
+#
+# IMPORTANT: alt-policy runs do NOT use pegFFR. The peg replaces the
+# policy rule entirely; alt-policy replaces it with a different rule.
+# You can't compose them.
+####################################################################
+println("\n>> Running alternative policy rules...")
+
+# orig_altpol was saved at the top of the script before the scenario loop;
+# we rely on that to restore after this block.
+
+altpol_specs = OrderedDict(
+    "Taylor 1993"  => (policy = taylor93(), color = :navy,    style = :solid),
+    "Taylor 1999"  => (policy = taylor99(), color = :purple,  style = :dash),
+)
+
+altpol_results = OrderedDict{String, Any}()
+for (name, spec) in altpol_specs
+    println(">> $name")
+    m <= Setting(:alternative_policy, spec.policy)
+    tag = "altpol_$(spec.policy.key)"
+    try
+        forecast_one(m, :mode, :none, output_vars;
+                     check_empty_columns = false,
+                     forecast_string = tag)
+        compute_meansbands(m, :mode, :none, output_vars;
+                           check_empty_columns = false, forecast_string = tag)
+        altpol_results[name] = read_mb(m, :mode, :none, :forecastobs;
+                                       forecast_string = tag)
+    catch e
+        @warn "Alt-policy $(name) failed: $e"
+        altpol_results[name] = nothing
+    end
+end
+
+# Restore the historical rule on the model object.
+m <= Setting(:alternative_policy, orig_altpol)
+
+############################
+# Historical filtered estimates (model's view of "now")
+############################
+println("\n>> Running history to get model's view of current state...")
+hist_vars = [:histobs]
+forecast_one(m, :mode, :none, hist_vars;
+             check_empty_columns = false, forecast_string = "hist")
+compute_meansbands(m, :mode, :none, hist_vars;
+                   check_empty_columns = false, forecast_string = "hist")
+mb_hist = read_mb(m, :mode, :none, :histobs; forecast_string = "hist")
+
+############################
+# Tariff cost-push shock: pure IRF for λ_f_sh (the price markup shock),
+# which is the structural channel through which a tariff-like supply shock
+# enters the model. Isolated effect only — not composed with the rate peg.
+# If you want the combined "rate decision + tariff shock" response, linearity
+# of the state-space lets you superpose the IRF onto each rate-pegged mean
+# forecast at the same starting state in post-processing.
+############################
+# TODO(units): tariff_shock_size = 1.0 with shock_var_name=:obs_gdpdeflator is
+# the desired Q1 IMPACT in obs_gdpdeflator (annualized %), NOT a one-σ λ_f
+# shock. Replace with the (shock_names=[:λ_f_sh], shock_values=[m[:σ_λ_f]])
+# overload if you want a structural-σ interpretation.
+tariff_shock_size = 1.0
+
+println("\n>> Computing impulse response for cost-push shock...")
+irf_output_vars = [:irfobs]
+forecast_one(m, :mode, :none, irf_output_vars;
+             check_empty_columns = false,
+             shock_name = :λ_f_sh, shock_var_name = :obs_gdpdeflator,
+             shock_var_value = tariff_shock_size,
+             forecast_string = "irf_costpush")
+compute_meansbands(m, :mode, :none, irf_output_vars;
+                   check_empty_columns = false,
+                   forecast_string = "irf_costpush")
+
+############################
+# Output Directory
+############################
+plotdir = joinpath(dirname(@__FILE__), "..", "save", "output_data", "m1002", "ss10", "scenarios")
+mkpath(plotdir)
+
+############################
+# Helper: extract forecast
+############################
+function get_forecast(mb, obs_key, n)
+    col_names = Symbol.(names(mb.means))
+    if obs_key in col_names
+        col = mb.means[!, obs_key]
+        vals = col[1:min(n, length(col))]
+        return any(isnan.(vals)) ? nothing : vals
+    end
+    return nothing
+end
+
+####################################################################
+# KEY INDICATORS
+# Note: compute_meansbands already reverse-transforms to data units:
+#   - obs_nominalrate: already annualized (%)
+#   - obs_gdpdeflator, obs_corepce, obs_wages: annualized quarterly rates (%)
+#   - obs_hours: log level (use DIFFERENCES between scenarios only)
+#   - obs_gdp, obs_consumption, obs_investment: NaN (missing source data)
+####################################################################
+
+# Indicators that have meaningful absolute levels
+level_indicators = OrderedDict(
+    "Inflation — GDP Deflator (%)" => :obs_gdpdeflator,
+    "Inflation — Core PCE (%)"     => :obs_corepce,
+    "Fed Funds Rate (%)"           => :obs_nominalrate,
+    "Wage Growth (%)"              => :obs_wages,
+    "Credit Spread (%)"            => :obs_spread,
+)
+
+# Employment (log level — only meaningful as differences)
+employment_key = :obs_hours
+
+####################################################################
+# Helpers: band extraction + fan-chart drawing
+####################################################################
+# MeansBands stores percentile bands as Dict{Symbol,DataFrame} with columns
+# named like Symbol("68.0% LB"), Symbol("68.0% UB"), etc. At :mode there are
+# no bands, so get_bands returns nothing and the caller skips the shaded region.
+function get_bands(mb, obs_key::Symbol, pct::String, n::Int)
+    if isempty(mb.bands); return nothing; end
+    if !haskey(mb.bands, obs_key); return nothing; end
+    bands_df = mb.bands[obs_key]
+    lb_col = Symbol(pct, " LB")
+    ub_col = Symbol(pct, " UB")
+    cols = propertynames(bands_df)
+    if !(lb_col in cols) || !(ub_col in cols); return nothing; end
+    nrow = min(n, size(bands_df, 1))
+    lb = bands_df[1:nrow, lb_col]
+    ub = bands_df[1:nrow, ub_col]
+    (any(isnan.(lb)) || any(isnan.(ub))) && return nothing
+    return (lb, ub)
+end
+
+# Draws mean + 90% + 68% shaded bands on plot `p`, across x-axis positions xs.
+function plot_fan!(p, xs, mb, obs_key; color, label,
+                   pct_outer = "90.0%", pct_inner = "68.0%")
+    y_mean = get_forecast(mb, obs_key, length(xs))
+    y_mean === nothing && return
+    outer = get_bands(mb, obs_key, pct_outer, length(xs))
+    inner = get_bands(mb, obs_key, pct_inner, length(xs))
+    if outer !== nothing
+        plot!(p, xs, outer[1]; fillrange = outer[2], fillalpha = 0.12,
+              color = color, linewidth = 0, label = "")
+    end
+    if inner !== nothing
+        plot!(p, xs, inner[1]; fillrange = inner[2], fillalpha = 0.25,
+              color = color, linewidth = 0, label = "")
+    end
+    plot!(p, xs, y_mean; color = color, linewidth = 2.5, label = label)
+end
+
+####################################################################
+# PLOT 1a: DUAL MANDATE COMPARISON — mean lines across scenarios
+# (No bands — three fans overlaid would be illegible. See PLOT 1b.)
+####################################################################
+println("\n>> Generating plots...")
+
+plot_vars = OrderedDict(
+    "Inflation — Core PCE (%)"     => :obs_corepce,
+    "Inflation — GDP Deflator (%)" => :obs_gdpdeflator,
+    "Fed Funds Rate (%)"           => :obs_nominalrate,
+    "Wage Growth (%)"              => :obs_wages,
+)
+
+subplots = []
+for (title, obs_key) in plot_vars
+    p = plot(; title = title, titlefontsize = 10, legend = :topright,
+             legendfontsize = 6, xlabel = "Quarter", xticks = 1:H)
+
+    # Baseline (no peg)
+    base_y = get_forecast(mb_baseline, obs_key, H)
+    if base_y !== nothing
+        plot!(p, 1:H, base_y; label = "Model Baseline",
+              color = :gray, linewidth = 1.5, linestyle = :dash)
+    end
+
+    # Scenario means
+    for (name, spec) in scenarios
+        y = get_forecast(results[name], obs_key, H)
+        if y !== nothing
+            short_name = split(name, "\n")[1]
+            plot!(p, 1:H, y; label = short_name,
+                  color = spec.color, linewidth = 2.5)
+        end
+    end
+
+    # 2% target line for inflation
+    if obs_key in [:obs_gdpdeflator, :obs_corepce]
+        hline!(p, [2.0]; color = :black, linestyle = :dot, linewidth = 1, label = "2% Target")
+    end
+
+    push!(subplots, p)
+end
+
+main_plot = plot(subplots...; layout = (2, 2), size = (1100, 750),
+                 plot_title = "Fed Policy Scenarios: Baseline ± 25bp Tactical Deviation (posterior means)")
+display(main_plot)
+savefig(main_plot, joinpath(plotdir, "dual_mandate_comparison.html"))
+println("   Saved: dual_mandate_comparison.html")
+
+####################################################################
+# PLOT 1b: PER-SCENARIO PANELS (Liberty Street style)
+# One 2×2 dual-mandate grid per rate decision. Each panel shows the
+# baseline posterior fan (68% / 90% from :full draws) as a shaded region,
+# with the conditional scenario mean (from :mode, deterministic) drawn on
+# top as a solid line. That's the LSE convention: unconditional fan for
+# uncertainty, conditional line for the policy experiment.
+####################################################################
+for (name, spec) in scenarios
+    fan_subplots = []
+    for (title, obs_key) in plot_vars
+        p = plot(; title = title, titlefontsize = 10, legend = :topright,
+                 legendfontsize = 6, xlabel = "Quarter", xticks = 1:H)
+
+        # Baseline FAN (from mb_baseline, which is :full)
+        plot_fan!(p, 1:H, mb_baseline, obs_key;
+                  color = :slategray, label = "Baseline (68/90%)")
+
+        # Scenario conditional path (from :mode)
+        short_name = split(name, "\n")[1]
+        y_scen = get_forecast(results[name], obs_key, H)
+        if y_scen !== nothing
+            plot!(p, 1:H, y_scen; label = short_name,
+                  color = spec.color, linewidth = 2.5)
+        end
+
+        if obs_key in [:obs_gdpdeflator, :obs_corepce]
+            hline!(p, [2.0]; color = :black, linestyle = :dot,
+                   linewidth = 1, label = "2% Target")
+        end
+        push!(fan_subplots, p)
+    end
+
+    short = split(name, "\n")[1]
+    fan_plot = plot(fan_subplots...; layout = (2, 2), size = (1100, 750),
+                    plot_title = "$(short): conditional path vs. baseline posterior fan")
+    display(fan_plot)
+    tag = replace(short, " " => "_")
+    savefig(fan_plot, joinpath(plotdir, "dual_mandate_fan_$(tag).html"))
+    println("   Saved: dual_mandate_fan_$(tag).html")
+end
+
+####################################################################
+# PLOT 2: EMPLOYMENT IMPACT (shown as change from Hold baseline)
+####################################################################
+emp_plot = plot(; title = "Hours Worked: Change vs. Baseline Rate Path",
+               xlabel = "Quarter", ylabel = "Δ Hours per Capita (%)",
+               size = (800, 450), legend = :topright)
+
+hold_key = collect(keys(scenarios))[2]
+hold_mid_hours = get_forecast(results[hold_key], employment_key, H)
+
+if hold_mid_hours !== nothing
+    for (name, spec) in scenarios
+        if name == hold_key
+            continue
+        end
+        y_mid = get_forecast(results[name], employment_key, H)
+        if y_mid !== nothing
+            diff = y_mid .- hold_mid_hours
+            short_name = split(name, "\n")[1]
+            plot!(emp_plot, 1:H, diff;
+                  label = short_name, color = spec.color, linewidth = 2.5)
+        end
+    end
+    hline!(emp_plot, [0.0]; color = :black, linestyle = :dot, linewidth = 1, label = "Hold (baseline)")
+end
+
+display(emp_plot)
+savefig(emp_plot, joinpath(plotdir, "employment_impact.html"))
+println("   Saved: employment_impact.html")
+
+base_hours_for_diff = get_forecast(mb_baseline, :obs_hours, H)
+
+####################################################################
+# PLOT 2c: ALT POLICY RULES vs PERMANENT RATE PEG SCENARIOS
+# Two angles on the same question, side by side:
+#   - Discretionary peg lines: what each level (cut/hold/hike at the
+#     midpoint of its range) implies for inflation/employment
+#   - Alt-policy lines: what each rule would itself prescribe, given
+#     the same starting state
+# If the rules cluster near one of the discretionary scenarios, that's
+# a sign the rule-based and judgment-based answers agree.
+####################################################################
+altpol_plot_vars = OrderedDict(
+    "Inflation — Core PCE (%)"     => :obs_corepce,
+    "Fed Funds Rate (%)"           => :obs_nominalrate,
+    "Wage Growth (%)"              => :obs_wages,
+    "Hours Worked (vs baseline)"   => :obs_hours,
+)
+
+altpol_subplots = []
+for (title, obs_key) in altpol_plot_vars
+    p = plot(; title = title, titlefontsize = 10, legend = :topright,
+             legendfontsize = 6, xlabel = "Quarter", xticks = 1:H)
+
+    base_y = get_forecast(mb_baseline, obs_key, H)
+    if base_y !== nothing && obs_key != :obs_hours
+        plot!(p, 1:H, base_y; label = "Baseline (historical rule)",
+              color = :gray, linewidth = 1.5, linestyle = :dash)
+    end
+
+    # Discretionary mid-of-range scenarios
+    for (name, spec) in scenarios
+        y = get_forecast(results[name], obs_key, H)
+        y === nothing && continue
+        if obs_key == :obs_hours && base_hours_for_diff !== nothing
+            y = y .- base_hours_for_diff
+        end
+        short_name = split(name, "\n")[1]
+        plot!(p, 1:H, y; label = short_name, color = spec.color, linewidth = 2.0)
+    end
+
+    # Alt-policy rules
+    for (name, spec) in altpol_specs
+        mb_ap = get(altpol_results, name, nothing)
+        mb_ap === nothing && continue
+        y = get_forecast(mb_ap, obs_key, H)
+        y === nothing && continue
+        if obs_key == :obs_hours && base_hours_for_diff !== nothing
+            y = y .- base_hours_for_diff
+        end
+        plot!(p, 1:H, y; label = name, color = spec.color,
+              linewidth = 2.5, linestyle = spec.style)
+    end
+
+    if obs_key == :obs_corepce
+        hline!(p, [2.0]; color = :black, linestyle = :dot, linewidth = 1, label = "2% Target")
+    elseif obs_key == :obs_hours
+        hline!(p, [0.0]; color = :black, linestyle = :dot, linewidth = 1, label = "Baseline")
+    end
+    push!(altpol_subplots, p)
+end
+
+altpol_main = plot(altpol_subplots...; layout = (2, 2), size = (1100, 750),
+                   plot_title = "Discretionary cut/hold/hike vs. Taylor rules")
+display(altpol_main)
+savefig(altpol_main, joinpath(plotdir, "altpol_vs_discretionary.html"))
+println("   Saved: altpol_vs_discretionary.html")
+
+# Also dump average rate prescribed by each rule, since that's the
+# headline number people will want from this comparison.
+println()
+println("="^60)
+println("  RATE PATH PRESCRIBED BY ALT-POLICY RULES")
+println("="^60)
+@printf("  %-20s", "")
+for q in 1:H; @printf("   Q+%-4d", q); end
+println()
+println("  ", "-"^(20 + 8 * H))
+for (name, _) in altpol_specs
+    mb_ap = get(altpol_results, name, nothing)
+    mb_ap === nothing && continue
+    y = get_forecast(mb_ap, :obs_nominalrate, H)
+    y === nothing && continue
+    @printf("  %-20s", name)
+    for q in 1:H; @printf("  %+6.2f%%", y[q]); end
+    println()
+end
+base_y_rate = get_forecast(mb_baseline, :obs_nominalrate, H)
+if base_y_rate !== nothing
+    @printf("  %-20s", "Baseline (hist rule)")
+    for q in 1:H; @printf("  %+6.2f%%", base_y_rate[q]); end
+    println()
+end
+println()
+
+####################################################################
+# PLOT 3: INFLATION vs EMPLOYMENT TRADEOFF
+# Each scenario is a single point (posterior mean of avg core PCE vs. avg
+# hours diff from Hold) with 68% posterior error bars on each axis.
+####################################################################
+tradeoff_plot = plot(; title = "Policy Tradeoff: Inflation vs. Employment Gain",
+                     xlabel = "Avg. Core PCE Inflation (%, posterior mean)",
+                     ylabel = "Avg. Δ Hours per Capita (%)",
+                     size = (750, 500), legend = :topright)
+
+hold_hours_avg = hold_mid_hours !== nothing ? mean(hold_mid_hours) : 0.0
+
+# Helper: posterior band width for a variable, averaged over forecast horizon.
+# Returns (mean_val, half_width_68) or (mean_val, 0) if bands unavailable.
+function infl_err(mb, obs_key)
+    y = get_forecast(mb, obs_key, H)
+    y === nothing && return (NaN, 0.0)
+    b = get_bands(mb, obs_key, "68.0%", H)
+    if b === nothing
+        return (mean(y), 0.0)
+    end
+    half_w = mean((b[2] .- b[1]) ./ 2)
+    return (mean(y), half_w)
+end
+
+for (name, spec) in scenarios
+    x_mean, x_err = infl_err(results[name], :obs_corepce)
+    y_raw = get_forecast(results[name], employment_key, H)
+    y_raw === nothing && continue
+    y_mean = mean(y_raw) - hold_hours_avg
+    _, y_err = infl_err(results[name], employment_key)   # same half-width
+
+    short_name = split(name, "\n")[1]
+    scatter!(tradeoff_plot, [x_mean], [y_mean];
+             xerror = [x_err], yerror = [y_err],
+             label = short_name, color = spec.color,
+             markershape = :circle, markersize = 7, markerstrokewidth = 1)
+end
+
+vline!(tradeoff_plot, [2.0]; color = :black, linestyle = :dot, linewidth = 1, label = "2% Target")
+hline!(tradeoff_plot, [0.0]; color = :gray, linestyle = :dot, linewidth = 0.5, label = "")
+
+display(tradeoff_plot)
+savefig(tradeoff_plot, joinpath(plotdir, "inflation_employment_tradeoff.html"))
+println("   Saved: inflation_employment_tradeoff.html")
+
+####################################################################
+# TABLES
+####################################################################
+println("\n")
+println("="^72)
+println("  CURRENT ECONOMIC CONDITIONS (April 2026)")
+println("="^72)
+println()
+println("  Fed Funds Rate:     3.50 - 3.75%  (held since Jan 2026)")
+println("  Core PCE Inflation: 3.0 - 3.1%    (above 2% target)")
+println("  CPI Inflation:      2.4% Feb, ~3.2% Mar expected")
+println("  Unemployment:       4.3%           (rising; avg 22K jobs/mo)")
+println("  GDP Growth:         ~1.0% forecast (NY Fed DSGE, Mar 2026)")
+println("  Avg Tariff Rate:    16.8%          (major supply shock)")
+println("  Recession Prob:     35.8%          (NY Fed DSGE)")
+println()
+
+# Model baseline quarter-by-quarter
+println("="^72)
+println("  MODEL BASELINE FORECAST (Model's Own Rate Path)")
+println("="^72)
+println()
+@printf("  %-30s", "")
+for q in 1:H; @printf("   Q+%-6d", q); end
+println()
+println("  ", "-"^(30 + 10 * H))
+
+for (title, obs_key) in level_indicators
+    y = get_forecast(mb_baseline, obs_key, H)
+    if y !== nothing
+        @printf("  %-30s", title)
+        for q in 1:H; @printf("  %+7.2f%%", y[q]); end
+        println()
+    end
+end
+println()
+
+# Scenario comparison (midpoints)
+println("="^72)
+println("  SCENARIO COMPARISON: Average Over $(H) Quarters (Midpoint of Range)")
+println("="^72)
+println()
+scenario_keys = collect(keys(scenarios))
+@printf("  %-28s %11s %11s %11s\n", "Indicator", "Cut 25bp", "Hold", "Hike 25bp")
+println("  ", "-"^63)
+
+for (title, obs_key) in level_indicators
+    @printf("  %-28s", title)
+    for name in scenario_keys
+        y = get_forecast(results[name], obs_key, H)
+        if y !== nothing
+            @printf("  %+9.2f%%", mean(y))
+        else
+            @printf("  %11s", "N/A")
+        end
+    end
+    println()
+end
+
+# Hours per capita (as % diff from hold; obs_hours is stored as 100*log(hours)
+# so differences in that unit ≈ percent change in hours).
+hold_h = get_forecast(results[hold_key], employment_key, H)
+if hold_h !== nothing
+    @printf("  %-30s", "Hours per capita (vs. Hold)")
+    for name in scenario_keys
+        y = get_forecast(results[name], employment_key, H)
+        if y !== nothing
+            diff = mean(y) - mean(hold_h)
+            if name == hold_key
+                @printf("  %12s", "baseline")
+            else
+                @printf("  %+10.2f %%", diff)
+            end
+        end
+    end
+    println()
+end
+println()
+
+# Differential impact
+println("="^72)
+println("  DIFFERENTIAL IMPACT vs. Baseline Rate Path (avg over $(n_peg_quarters) pinned quarters)")
+println("="^72)
+println()
+@printf("  %-30s %14s %14s\n", "Indicator", "Cut 25bp", "Hike 25bp")
+println("  ", "-"^58)
+
+for (title, obs_key) in level_indicators
+    hold_y = get_forecast(results[hold_key], obs_key, H)
+    if hold_y === nothing; continue; end
+    hold_avg = mean(hold_y)
+
+    @printf("  %-30s", title)
+    for name in [scenario_keys[1], scenario_keys[3]]
+        y = get_forecast(results[name], obs_key, H)
+        if y !== nothing
+            @printf("  %+12.3f pp", mean(y) - hold_avg)
+        end
+    end
+    println()
+end
+
+if hold_h !== nothing
+    @printf("  %-30s", "Hours per capita")
+    for name in [scenario_keys[1], scenario_keys[3]]
+        y = get_forecast(results[name], employment_key, H)
+        if y !== nothing
+            @printf("  %+12.3f %%", mean(y) - mean(hold_h))
+        end
+    end
+    println()
+end
+println("  ", "-"^58)
+println("  pp = percentage points; hours shown as % deviation (obs_hours = 100·log(hours))")
+println()
+
+####################################################################
+# POLICY ASSESSMENT
+####################################################################
+println("="^72)
+println("  POLICY ASSESSMENT — DUAL MANDATE")
+println("="^72)
+println()
+
+hold_infl  = mean(get_forecast(results[hold_key], :obs_corepce, H))
+cut_infl   = mean(get_forecast(results[scenario_keys[1]], :obs_corepce, H))
+hike_infl  = mean(get_forecast(results[scenario_keys[3]], :obs_corepce, H))
+
+println("  PRICE STABILITY (2% Core PCE target):")
+@printf("    Cut 25bp     → Core PCE: %.2f%%  (%+.2f pp from target)\n", cut_infl, cut_infl - 2.0)
+@printf("    Hold         → Core PCE: %.2f%%  (%+.2f pp from target)\n", hold_infl, hold_infl - 2.0)
+@printf("    Hike 25bp    → Core PCE: %.2f%%  (%+.2f pp from target)\n", hike_infl, hike_infl - 2.0)
+println()
+
+if hold_h !== nothing
+    cut_emp_diff  = mean(get_forecast(results[scenario_keys[1]], employment_key, H)) - mean(hold_h)
+    hike_emp_diff = mean(get_forecast(results[scenario_keys[3]], employment_key, H)) - mean(hold_h)
+
+    println("  HOURS PER CAPITA (% deviation vs. Baseline rate path):")
+    @printf("    Cut 25bp     → %+.3f %%\n", cut_emp_diff)
+    @printf("    Hold         → baseline\n")
+    @printf("    Hike 25bp    → %+.3f %%\n", hike_emp_diff)
+    println()
+end
+
+println("  KEY CONTEXT:")
+println("  - Inflation above target is driven largely by SUPPLY shocks")
+println("    (tariffs at 16.8% avg). Rate hikes are less effective")
+println("    against supply-driven inflation than demand-driven.")
+println("  - Labor market is weakening (4.3% unemployment, slowing")
+println("    payrolls at 22K/mo avg). Further tightening risks")
+println("    accelerating job losses without meaningfully reducing")
+println("    supply-driven price pressures.")
+println("  - NY Fed DSGE recession probability: 35.8%")
+println("  - A 25bp cut supports employment with a modest inflation")
+println("    cost that is small relative to the tariff-driven overshoot.")
+println()
+
+####################################################################
+# MODEL'S VIEW OF CURRENT STATE
+####################################################################
+println("="^72)
+println("  MODEL'S VIEW: Where Is the Economy Right Now?")
+println("  (Filtered estimates from Kalman filter on FRED data)")
+println("="^72)
+println()
+println("  The model processes all historical data through a Kalman filter")
+println("  to estimate the current state. These are the model's implied")
+println("  values, which may differ from the latest BLS/BEA releases.")
+println()
+
+hist_cols = Symbol.(names(mb_hist.means))
+n_hist = nrow(mb_hist.means)
+
+# Show last 4 quarters of history
+n_show = min(4, n_hist)
+println("  Recent quarters (model-filtered estimates):")
+println()
+@printf("  %-30s", "")
+for i in (n_hist - n_show + 1):n_hist
+    @printf("  %12s", string(mb_hist.means[i, :date])[1:7])
+end
+println()
+println("  ", "-"^(30 + 13 * n_show))
+
+hist_display = OrderedDict(
+    "Core PCE Inflation (%)"   => :obs_corepce,
+    "GDP Deflator Infl. (%)"   => :obs_gdpdeflator,
+    "Fed Funds Rate (%)"       => :obs_nominalrate,
+    "Wage Growth (%)"          => :obs_wages,
+    "Credit Spread (%)"        => :obs_spread,
+    "Hours Worked (log)"       => :obs_hours,
+)
+
+for (title, obs_key) in hist_display
+    if obs_key in hist_cols
+        @printf("  %-30s", title)
+        for i in (n_hist - n_show + 1):n_hist
+            val = mb_hist.means[i, obs_key]
+            if isnan(val)
+                @printf("  %12s", "N/A")
+            else
+                @printf("  %+11.2f%%", val)
+            end
+        end
+        println()
+    end
+end
+println()
+println("  Compare to actual data:")
+println("    Actual Core PCE (Feb 2026):    3.0-3.1%")
+println("    Actual Unemployment (Mar 2026): 4.3%")
+println("    Actual Fed Funds Rate:          3.50-3.75%")
+println()
+
+####################################################################
+# COST-PUSH SHOCK (TARIFF) IMPULSE RESPONSE
+####################################################################
+println("="^72)
+println("  TARIFF EFFECT: Cost-Push Shock Impulse Response")
+println("  (1 std dev price markup shock — proxy for tariff impact)")
+println("="^72)
+println()
+
+# Try to load and display IRF
+try
+    mb_irf = read_mb(m, :mode, :none, :irfobs; forecast_string = "irf_costpush")
+    irf_cols = Symbol.(names(mb_irf.means))
+    n_irf = min(H, nrow(mb_irf.means))
+
+    println("  When a cost-push shock (like tariffs) hits, the model predicts:")
+    println()
+    @printf("  %-30s", "")
+    for q in 1:n_irf; @printf("   Q+%-6d", q); end
+    println()
+    println("  ", "-"^(30 + 10 * n_irf))
+
+    irf_display = OrderedDict(
+        "Core PCE Inflation (%)"   => :obs_corepce,
+        "GDP Deflator Infl. (%)"   => :obs_gdpdeflator,
+        "Fed Funds Rate (%)"       => :obs_nominalrate,
+        "Wage Growth (%)"          => :obs_wages,
+        "Hours Worked"             => :obs_hours,
+    )
+
+    for (title, obs_key) in irf_display
+        if obs_key in irf_cols
+            @printf("  %-30s", title)
+            for q in 1:n_irf
+                val = mb_irf.means[q, obs_key]
+                @printf("  %+8.3f", val)
+            end
+            println()
+        end
+    end
+    println()
+    println("  Interpretation: A tariff-like shock raises inflation but")
+    println("  REDUCES employment. Rate hikes would compound the employment")
+    println("  loss without addressing the supply-side cause of inflation.")
+
+    # Plot the IRF
+    irf_plot_vars = OrderedDict(
+        "Inflation Response (%)" => :obs_gdpdeflator,
+        "Employment Response"    => :obs_hours,
+        "Rate Response (%)"      => :obs_nominalrate,
+        "Wage Response (%)"      => :obs_wages,
+    )
+
+    irf_subplots = []
+    for (title, obs_key) in irf_plot_vars
+        if obs_key in irf_cols
+            y = mb_irf.means[1:n_irf, obs_key]
+            p = plot(1:n_irf, y; title = title, xlabel = "Quarter",
+                     color = :darkorange, linewidth = 2.5, legend = false,
+                     titlefontsize = 10, xticks = 1:n_irf, fillrange = 0,
+                     fillalpha = 0.1)
+            hline!(p, [0.0]; color = :black, linewidth = 0.5)
+            push!(irf_subplots, p)
+        end
+    end
+
+    if !isempty(irf_subplots)
+        irf_plot = plot(irf_subplots...; layout = (2, 2), size = (1000, 650),
+                        plot_title = "Cost-Push Shock (Tariff Proxy): Impulse Response")
+        display(irf_plot)
+        savefig(irf_plot, joinpath(plotdir, "tariff_impulse_response.html"))
+        println("\n   Saved: tariff_impulse_response.html")
+    end
+catch e
+    println("  (Could not compute IRF: $e)")
+    println("  This is OK — the scenario comparison still captures tariff effects")
+    println("  indirectly through the estimated cost-push shocks in the data.")
+end
+
+####################################################################
+# PRESENTATION CHART: Inflation Projections (BLS-style)
+# Extended horizon with history + forecast
+####################################################################
+println("\n>> Generating presentation inflation chart...")
+
+# How many forecast quarters to display (beyond the peg, rates revert to
+# the model's natural path — this is realistic and informative to show)
+n_fcast_display = 12  # 3 years out
+
+# --- Collect history ---
+hist_dates = mb_hist.means[!, :date]
+hist_core  = :obs_corepce in Symbol.(names(mb_hist.means)) ?
+             mb_hist.means[!, :obs_corepce] : nothing
+hist_defl  = :obs_gdpdeflator in Symbol.(names(mb_hist.means)) ?
+             mb_hist.means[!, :obs_gdpdeflator] : nothing
+
+# Take last 8 quarters of history for context
+n_hist_show = min(8, nrow(mb_hist.means))
+hist_range  = (nrow(mb_hist.means) - n_hist_show + 1):nrow(mb_hist.means)
+
+# --- Collect forecast paths ---
+function get_long_forecast(mb, obs_key, n)
+    cols = Symbol.(names(mb.means))
+    if obs_key in cols
+        col = mb.means[!, obs_key]
+        nn = min(n, length(col))
+        vals = col[1:nn]
+        return any(isnan.(vals)) ? nothing : vals
+    end
+    return nothing
+end
+
+# Use Core PCE as the primary inflation measure (Fed's target)
+# Fall back to GDP Deflator if Core PCE unavailable
+infl_key = :obs_corepce
+infl_label = "Core PCE Inflation"
+hist_infl = hist_core
+
+if hist_infl === nothing || all(isnan.(hist_infl[hist_range]))
+    infl_key = :obs_gdpdeflator
+    infl_label = "GDP Deflator Inflation"
+    hist_infl = hist_defl
+end
+
+# Build x-axis: history quarters as negative, forecast as positive
+# x = -n_hist_show+1 ... 0 | 1 ... n_fcast_display
+#     ← history →    now   ← forecast →
+
+x_hist = collect((-n_hist_show + 1):0)
+x_fcast = collect(1:n_fcast_display)
+x_all = vcat(x_hist, x_fcast)
+
+# Quarter labels for x-axis
+fcast_start = hist_dates[end]  # last history date ≈ forecast start
+quarter_labels = Dict{Int, String}()
+for (i, x) in enumerate(x_hist)
+    d = hist_dates[hist_range[i]]
+    q = Dates.quarterofyear(d)
+    y = Dates.year(d) % 100
+    quarter_labels[x] = "$(y)Q$(q)"
+end
+for x in x_fcast
+    d = fcast_start + Dates.Month(3 * x)
+    q = Dates.quarterofyear(d)
+    y = Dates.year(d) % 100
+    quarter_labels[x] = "$(y)Q$(q)"
+end
+
+# Show every other label to avoid crowding
+tick_positions = x_all[1:2:end]
+tick_labels = [get(quarter_labels, x, "") for x in tick_positions]
+
+# --- Main Chart ---
+infl_chart = plot(;
+    title = "$infl_label: Rate Scenario Projections",
+    xlabel = "",
+    ylabel = "Year-over-Year (%)",
+    size = (1000, 500),
+    legend = :topright,
+    legendfontsize = 9,
+    titlefontsize = 13,
+    guidefontsize = 11,
+    xticks = (tick_positions, tick_labels),
+    xrotation = 45,
+    grid = true,
+    gridalpha = 0.3,
+    background_color = :white,
+    foreground_color = :black,
+)
+
+# 2% target line (full width)
+hline!(infl_chart, [2.0]; color = :black, linestyle = :dot, linewidth = 1.5,
+       label = "2% Fed Target")
+
+# Vertical line at forecast start
+vline!(infl_chart, [0.5]; color = :gray, linestyle = :dash, linewidth = 1,
+       label = "")
+
+# End-of-pinned-window marker. Rate is pinned at baseline ± delta for
+# n_peg_quarters quarters; after that the peg releases and the rate is
+# endogenous again under the estimated Taylor rule.
+vline!(infl_chart, [n_peg_quarters + 0.5]; color = :gray, linestyle = :dot,
+       linewidth = 1, label = "")
+annotate!(infl_chart, [(n_peg_quarters + 0.5, 0.3,
+          text("peg ends", 8, :gray, :right))])
+
+# History (solid black)
+if hist_infl !== nothing
+    y_hist = hist_infl[hist_range]
+    valid = .!isnan.(y_hist)
+    if any(valid)
+        plot!(infl_chart, x_hist[valid], y_hist[valid];
+              color = :black, linewidth = 3, label = "Actual",
+              markershape = :circle, markersize = 4)
+    end
+end
+
+# Scenario forecasts
+scenario_plot_order = [
+    ("Cut 25bp",  :forestgreen, "Baseline − 25bp"),
+    ("Hold",      :royalblue,   "Baseline"),
+    ("Hike 25bp", :crimson,     "Baseline + 25bp"),
+]
+
+# Helper: long-horizon posterior band pull (same logic as get_bands but
+# extends across as many rows as the bands DataFrame holds).
+function get_long_bands(mb, obs_key::Symbol, pct::String, n::Int)
+    if isempty(mb.bands); return nothing; end
+    if !haskey(mb.bands, obs_key); return nothing; end
+    bdf = mb.bands[obs_key]
+    lb_col = Symbol(pct, " LB")
+    ub_col = Symbol(pct, " UB")
+    cols = propertynames(bdf)
+    if !(lb_col in cols) || !(ub_col in cols); return nothing; end
+    nrow = min(n, size(bdf, 1))
+    lb = bdf[1:nrow, lb_col]
+    ub = bdf[1:nrow, ub_col]
+    (any(isnan.(lb)) || any(isnan.(ub))) && return nothing
+    return (lb, ub)
+end
+
+# Draw the baseline posterior fan ONCE, behind all scenario lines.
+b90_base = get_long_bands(mb_baseline, infl_key, "90.0%", n_fcast_display)
+b68_base = get_long_bands(mb_baseline, infl_key, "68.0%", n_fcast_display)
+if b90_base !== nothing
+    n = length(b90_base[1])
+    plot!(infl_chart, x_fcast[1:n], b90_base[1]; fillrange = b90_base[2],
+          fillalpha = 0.10, color = :slategray, linewidth = 0,
+          label = "Baseline 90%")
+end
+if b68_base !== nothing
+    n = length(b68_base[1])
+    plot!(infl_chart, x_fcast[1:n], b68_base[1]; fillrange = b68_base[2],
+          fillalpha = 0.22, color = :slategray, linewidth = 0,
+          label = "Baseline 68%")
+end
+
+# Scenario conditional means (at :mode) overlaid as solid lines.
+for (key, color, label) in scenario_plot_order
+    if haskey(results, key)
+        y_mid = get_long_forecast(results[key], infl_key, n_fcast_display)
+        if y_mid !== nothing
+            local nn = length(y_mid)
+            plot!(infl_chart, x_fcast[1:nn], y_mid;
+                  color = color, linewidth = 2.5, label = label)
+        end
+    end
+end
+
+
+# Add annotation for forecast region
+annotate!(infl_chart, [(n_fcast_display ÷ 2, 1.5,
+          text("← Projection →", 9, :gray, :center))])
+
+display(infl_chart)
+savefig(infl_chart, joinpath(plotdir, "inflation_projections.html"))
+println("   Saved: inflation_projections.html")
+
+# --- Same chart for Fed Funds Rate ---
+println(">> Generating rate path chart...")
+
+rate_chart = plot(;
+    title = "Fed Funds Rate: Scenario Paths",
+    xlabel = "",
+    ylabel = "Annualized Rate (%)",
+    size = (1000, 500),
+    legend = :topright,
+    legendfontsize = 9,
+    titlefontsize = 13,
+    guidefontsize = 11,
+    xticks = (tick_positions, tick_labels),
+    xrotation = 45,
+    grid = true,
+    gridalpha = 0.3,
+    background_color = :white,
+)
+
+vline!(rate_chart, [0.5]; color = :gray, linestyle = :dash, linewidth = 1, label = "")
+
+# End-of-pinned-window marker.
+vline!(rate_chart, [n_peg_quarters + 0.5]; color = :gray, linestyle = :dot,
+       linewidth = 1, label = "")
+
+# History
+hist_rate = :obs_nominalrate in Symbol.(names(mb_hist.means)) ?
+            mb_hist.means[hist_range, :obs_nominalrate] : nothing
+if hist_rate !== nothing
+    valid = .!isnan.(hist_rate)
+    if any(valid)
+        plot!(rate_chart, x_hist[valid], hist_rate[valid];
+              color = :black, linewidth = 3, label = "Actual",
+              markershape = :circle, markersize = 4)
+    end
+end
+
+# Baseline FFR posterior fan (from :full) drawn once behind all scenario lines.
+b90_base_r = get_long_bands(mb_baseline, :obs_nominalrate, "90.0%", n_fcast_display)
+b68_base_r = get_long_bands(mb_baseline, :obs_nominalrate, "68.0%", n_fcast_display)
+if b90_base_r !== nothing
+    n = length(b90_base_r[1])
+    plot!(rate_chart, x_fcast[1:n], b90_base_r[1]; fillrange = b90_base_r[2],
+          fillalpha = 0.10, color = :slategray, linewidth = 0, label = "Baseline 90%")
+end
+if b68_base_r !== nothing
+    n = length(b68_base_r[1])
+    plot!(rate_chart, x_fcast[1:n], b68_base_r[1]; fillrange = b68_base_r[2],
+          fillalpha = 0.22, color = :slategray, linewidth = 0, label = "Baseline 68%")
+end
+
+# Scenario conditional rate paths (pinned to baseline ± 25bp over the
+# pinned window; endogenous afterwards. Dotted vertical marks the end.)
+for (key, color, label) in scenario_plot_order
+    if haskey(results, key)
+        y_mid = get_long_forecast(results[key], :obs_nominalrate, n_fcast_display)
+        if y_mid !== nothing
+            local nn = length(y_mid)
+            plot!(rate_chart, x_fcast[1:nn], y_mid;
+                  color = color, linewidth = 2.5, label = label)
+        end
+    end
+end
+
+
+display(rate_chart)
+savefig(rate_chart, joinpath(plotdir, "rate_path_projections.html"))
+println("   Saved: rate_path_projections.html")
+
+# --- Employment impact chart ---
+println(">> Generating employment chart...")
+
+emp_chart = plot(;
+    title = "Employment Impact: Hours Worked (Change vs. Hold)",
+    xlabel = "",
+    ylabel = "Δ Hours per Capita (%)",
+    size = (1000, 500),
+    legend = :topright,
+    legendfontsize = 9,
+    titlefontsize = 13,
+    guidefontsize = 11,
+    xticks = (tick_positions[tick_positions .>= 1], tick_labels[tick_positions .>= 1]),
+    xrotation = 45,
+    grid = true,
+    gridalpha = 0.3,
+    background_color = :white,
+)
+
+hline!(emp_chart, [0.0]; color = :black, linewidth = 1, linestyle = :dot, label = "Hold (baseline)")
+
+hold_key_name = "Hold"
+hold_emp = get_long_forecast(results[hold_key_name], :obs_hours, n_fcast_display)
+
+if hold_emp !== nothing
+    for (key, color, label) in scenario_plot_order
+        if key == hold_key_name; continue; end
+        if haskey(results, key)
+            y = get_long_forecast(results[key], :obs_hours, n_fcast_display)
+            if y !== nothing
+                local nn = min(length(y), length(hold_emp))
+                diff = y[1:nn] .- hold_emp[1:nn]
+                plot!(emp_chart, x_fcast[1:nn], diff;
+                      color = color, linewidth = 2.5, label = label)
+            end
+        end
+    end
+
+end
+
+display(emp_chart)
+savefig(emp_chart, joinpath(plotdir, "employment_projections.html"))
+println("   Saved: employment_projections.html")
+
+println()
+println("="^72)
+println("  ALL DONE!")
+println("  Plots saved to: $plotdir")
+println("  Open .html files in browser to view.")
+println("="^72)

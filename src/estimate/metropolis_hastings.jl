@@ -157,7 +157,7 @@ function metropolis_hastings(proposal_dist::Distribution,
     end
 
     state_tracker = Vector{Float64}[] #New
-    push!(sample_mean_tracker, para_old) #New
+    push!(state_tracker, para_old) #New
 
 
     # Keep track of how long metropolis_hastings has been sampling
@@ -188,18 +188,22 @@ function metropolis_hastings(proposal_dist::Distribution,
             for (k, block_a) in enumerate(blocks_free)
                 # Draw para_new from the proposal distribution
                 para_subset = para_old[block_a]
-                "d_subset    = DegenerateMvNormal(propdist.μ[block_a],
-                                       (propdist.σ[block_a, block_a] +
-                                       propdist.σ[block_a, block_a]') / 2.,
-                                       inv((propdist.σ[block_a, block_a] +
-                                       propdist.σ[block_a, block_a]') / 2.),
-                                       propdist.λ_vals[block_a])
+                # Note: DegenerateMvNormal.σ is treated as the COVARIANCE matrix
+                # by the MH/SMC code path (mvnormal_mixture_draw → MvNormal(μ, c²·σ),
+                # logpdf uses inv(σ) directly). The 2-arg constructor leaves σ_inv
+                # and λ_vals empty, which is fine because mvnormal_mixture_draw never
+                # touches them. The previous form used `propdist.λ_vals[block_a]`,
+                # which BoundsErrors because λ_vals is initialized as Float64[] in
+                # the 2-arg DegenerateMvNormal constructor and is only populated
+                # lazily inside logpdf, which is never called on `propdist`.
+                block_cov = (propdist.σ[block_a, block_a] +
+                             propdist.σ[block_a, block_a]') / 2.
+                d_subset    = DegenerateMvNormal(propdist.μ[block_a], block_cov)
 
                 para_draw         = mvnormal_mixture_draw(para_subset, d_subset;
                                                           α = α, c = cc)
                 para_new          = deepcopy(para_old)
-                "para_new[block_a] = para_draw" #Get rid of this
-                para_new[block_a] = para_draw #New
+                para_new[block_a] = para_draw
 
                 q0, q1 = if adaptive_accept
                     # NOT DONE YET, we're not actually computing draws from the mixture yet b/c not using mvnormal_mixture_draw
@@ -290,6 +294,23 @@ function metropolis_hastings(proposal_dist::Distribution,
                 "$expected_time_remaining_minutes minutes")
         println(verbose, :low, "Block $block acceptance rate: $(1. - block_rejection_rate) \n")
     end # of loop over blocks
+
+    # Persist the per-iteration state tracker (every accepted/rejected step) to
+    # the same HDF5 file as mhparams. mhparams contains every (mhthin)th draw
+    # and is what posterior summaries use; state_tracker keeps every step
+    # including rejections, useful for diagnosing chain mixing.
+    if !isempty(state_tracker)
+        state_matrix = reduce(hcat, state_tracker)'  # rows = MH iterations
+        n_states_saved = size(state_matrix, 1)
+        n_states_dim   = size(state_matrix, 2)
+        state_dataset = isdefined(HDF5, :create_dataset) ?
+            HDF5.create_dataset(simfile, "state_tracker", datatype(Float64),
+                                dataspace(n_states_saved, n_states_dim)) :
+            HDF5.d_create(simfile, "state_tracker", datatype(Float64),
+                          dataspace(n_states_saved, n_states_dim))
+        state_dataset[:, :] = Matrix{Float64}(state_matrix)
+    end
+
     close(simfile)
 
     rejection_rate = all_rejections / (n_blocks * n_sim * mhthin * n_param_blocks)

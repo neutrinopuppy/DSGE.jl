@@ -523,6 +523,7 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                       rerun_smoother::Bool = false, nan_endozlb_failures::Bool = false,
                       catch_smoother_lapack::Bool = false,
                       pegFFR::Bool = false, FFRpeg::Float64 = -0.25/4, H::Int = 4,
+                      FFRpeg_path::Vector{Float64} = Float64[],
                       show_failed_percent::Bool = false, only_filter::Bool = false,
                       verbose::Symbol = :low, testing_carter_kohn::Bool = false,
                       trend_nostates_obs = Array{(0,0)}, trend_nostates_pseudo = Array{(0,0)},
@@ -573,7 +574,7 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                 set_regime_vals_altpolicy = set_regime_vals_altpolicy,
                                                 set_info_sets_altpolicy = set_info_sets_altpolicy,
                                                 update_regime_eqcond_info! = update_regime_eqcond_info!,
-                                                pegFFR = pegFFR, FFRpeg = FFRpeg, H = H, only_filter = only_filter,
+                                                pegFFR = pegFFR, FFRpeg = FFRpeg, H = H, FFRpeg_path = FFRpeg_path, only_filter = only_filter,
                                                 rerun_smoother = rerun_smoother, nan_endozlb_failures = nan_endozlb_failures,
                                                 catch_smoother_lapack = catch_smoother_lapack,
                                                 testing_carter_kohn = testing_carter_kohn, trend_nostates_obs = trend_nostates_obs,
@@ -672,7 +673,7 @@ function forecast_one(m::AbstractDSGEModel{Float64},
                                                                  set_regime_vals_altpolicy = set_regime_vals_altpolicy,
                                                                  set_info_sets_altpolicy = set_info_sets_altpolicy,
                                                                  update_regime_eqcond_info! = update_regime_eqcond_info!,
-                                                                 pegFFR = pegFFR, FFRpeg = FFRpeg, H = H, only_filter = only_filter,
+                                                                 pegFFR = pegFFR, FFRpeg = FFRpeg, H = H, FFRpeg_path = FFRpeg_path, only_filter = only_filter,
                                                                  rerun_smoother = rerun_smoother,
                                                                  nan_endozlb_failures = nan_endozlb_failures,
                                                                  catch_smoother_lapack = catch_smoother_lapack,
@@ -792,6 +793,7 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                            update_regime_eqcond_info!::Function =
                            (a, b, c, d) -> default_update_regime_eqcond_info!(a, b, c, d, alternative_policy(m)),
                            pegFFR::Bool = false, FFRpeg::Float64 = -0.25/4, H::Int = 4,
+                           FFRpeg_path::Vector{Float64} = Float64[],
                            regime_switching::Bool = false, n_regimes::Int = 1, only_filter::Bool = false,
                            filter_smooth::Bool = false, rerun_smoother::Bool = false,
                            nan_endozlb_failures::Bool = false,
@@ -1028,21 +1030,35 @@ function forecast_one_draw(m::AbstractDSGEModel{Float64}, input_type::Symbol, co
                 nshocks = size(system[:RRR], 2)
                 nstates = size(system[:TTT], 1)
                 shocks = m.exogenous_shocks
-                PsiR1 = 0
                 PsiR2 = zeros(nstates)
                 PsiR2[m.endogenous_states[:R_t]] = 1.
+                TTT = system[:TTT]
+                CCC = system[:CCC]
                 Rht = system[:RRR][:, vcat(shocks[:rm_sh], shocks[:rm_shl1]:shocks[Symbol("rm_shl$H")])]
                 bb = zeros(H+1, 1)
                 MH = zeros(H+1, H+1)
+                # Support per-quarter rate targets via FFRpeg_path
+                peg_targets = if !isempty(FFRpeg_path)
+                    FFRpeg_path
+                else
+                    fill(FFRpeg, H+1)
+                end
+                # Compute CCC drift: sum_{k=0}^{hh-1} T^k * C for each horizon
+                ccc_accum = zeros(nstates)
+                Tpow = Matrix{Float64}(LinearAlgebra.I, nstates, nstates)  # T^0 = I
                 for hh = 1:H+1
-                    bb[hh, 1] = (FFRpeg - PsiR1 - PsiR2'*(system[:TTT])^hh*s_T)[1]
-                    MH[hh, :] = PsiR2'*(system[:TTT])^(hh-1)*Rht
+                    ccc_accum += Tpow * CCC          # add T^{hh-1} * C
+                    target_hh = peg_targets[min(hh, length(peg_targets))]
+                    noshock_Rt = (PsiR2' * TTT^hh * s_T)[1] + (PsiR2' * ccc_accum)[1]
+                    bb[hh, 1] = target_hh - noshock_Rt
+                    MH[hh, :] = PsiR2' * TTT^(hh-1) * Rht
+                    Tpow = Tpow * TTT
                 end
                 monshocks = MH\bb
                 etpeg = zeros(nshocks, forecast_horizons(m))
                 etpeg[vcat(shocks[:rm_sh], shocks[:rm_shl1]:shocks[Symbol("rm_shl$H")]), 1] = monshocks
                 forecaststates, forecastobs, forecastpseudo, forecastshocks =
-                    forecast(system, s_T, etpeg; cond_type = cond_type, enforce_zlb = false, draw_shocks = uncertainty)
+                    forecast(system, s_T, etpeg; enforce_zlb = false)
                 println("The forecasted interest rate path is $(forecastobs[m.observables[:obs_nominalrate], :])")
             else
                 forecaststates, forecastobs, forecastpseudo, forecastshocks =
