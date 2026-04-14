@@ -1556,6 +1556,103 @@ savefig(u_chart, joinpath(plotdir, "unemployment_projections.html"))
 println("   Saved: unemployment_projections.html")
 
 ####################################################################
+# PRESENTATION CHART: Real Wage Growth Projections (long horizon)
+#
+# Same structure as inflation_projections and unemployment_projections.
+# obs_wages is directly observed (COMPNFB deflated by GDPDEF, q/q log
+# growth, annualized), so mb_hist.means[:, :obs_wages] is already the
+# FRED-derived value — no bridge layer like unemployment needs.
+#
+# Note on label: obs_wages is REAL compensation per hour growth (q/q
+# log-change of nominal comp deflated by GDPDEF, annualized), NOT
+# nominal wage growth. For nominal wage growth you'd compute
+# obs_wages + obs_gdpdeflator — the wages_vs_inflation chart shows
+# that relationship implicitly via the gap between the two lines.
+####################################################################
+println(">> Generating long-horizon wage growth chart...")
+
+wage_chart = plot(;
+    title = "Real Wage Growth: Scenario Projections",
+    xlabel = "",
+    ylabel = "Annualized % (real comp/hr)",
+    size = (1000, 500),
+    legend = :topright,
+    legendfontsize = 9,
+    titlefontsize = 13,
+    guidefontsize = 11,
+    xticks = (tick_positions, tick_labels),
+    xrotation = 45,
+    grid = true,
+    gridalpha = 0.3,
+    background_color = :white,
+)
+
+# Zero line + productivity-trend reference (real wage growth bounces
+# around long-run productivity growth, usually ~1.5% for the US).
+hline!(wage_chart, [0.0]; color = :black, linestyle = :dot, linewidth = 1,
+       label = "")
+hline!(wage_chart, [1.5]; color = :darkgreen, linestyle = :dot, linewidth = 1.2,
+       label = "Trend ≈ 1.5%")
+
+# Forecast-start and peg-end verticals
+vline!(wage_chart, [0.5]; color = :gray, linestyle = :dash, linewidth = 1, label = "")
+vline!(wage_chart, [n_peg_quarters + 0.5]; color = :gray, linestyle = :dot,
+       linewidth = 1, label = "")
+
+# History straight out of mb_hist (FRED-derived obs_wages)
+if :obs_wages in Symbol.(names(mb_hist.means))
+    hist_wages = mb_hist.means[hist_range, :obs_wages]
+    valid = .!isnan.(hist_wages)
+    if any(valid)
+        plot!(wage_chart, x_hist[valid], hist_wages[valid];
+              color = :black, linewidth = 3, label = "Actual",
+              markershape = :circle, markersize = 4)
+    end
+end
+
+# Baseline posterior fan (:full obs_wages bands) across the full
+# forecast horizon.
+w_b90 = get_long_bands(mb_baseline, :obs_wages, "90.0%", n_fcast_display)
+w_b68 = get_long_bands(mb_baseline, :obs_wages, "68.0%", n_fcast_display)
+if w_b90 !== nothing
+    local nn = length(w_b90[1])
+    plot!(wage_chart, x_fcast[1:nn], w_b90[1]; fillrange = w_b90[2],
+          fillalpha = 0.10, color = :slategray, linewidth = 0,
+          label = "Baseline 90%")
+end
+if w_b68 !== nothing
+    local nn = length(w_b68[1])
+    plot!(wage_chart, x_fcast[1:nn], w_b68[1]; fillrange = w_b68[2],
+          fillalpha = 0.22, color = :slategray, linewidth = 0,
+          label = "Baseline 68%")
+end
+
+# Baseline mean (from :mode, same reference frame scenarios use)
+base_wages_long = get_long_forecast(mb_baseline_mode, :obs_wages, n_fcast_display)
+if base_wages_long !== nothing
+    local nn = length(base_wages_long)
+    plot!(wage_chart, x_fcast[1:nn], base_wages_long;
+          color = :slategray, linewidth = 2, linestyle = :dash,
+          label = "Baseline (mean)")
+end
+
+# Scenario conditional paths (:mode)
+for (key, color, label) in scenario_plot_order
+    if haskey(results, key)
+        y_scen = get_long_forecast(results[key], :obs_wages, n_fcast_display)
+        if y_scen !== nothing
+            local nn = length(y_scen)
+            plot!(wage_chart, x_fcast[1:nn], y_scen;
+                  color = color, linewidth = 2.5, label = label)
+        end
+    end
+end
+
+display(wage_chart)
+savefig(wage_chart, joinpath(plotdir, "wage_projections.html"))
+println("   Saved: wage_projections.html")
+
+####################################################################
 # PRESENTATION CHART: Wage Growth vs. Core PCE Inflation
 #
 # Real-wage story: the gap between nominal wage growth and inflation
