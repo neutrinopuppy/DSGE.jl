@@ -267,11 +267,36 @@ OKUN_ANCHOR_U = 4.3    # pp, Mar 2026 actual U3 unemployment
 # unemployment (OKUN_ANCHOR_U) and baseline hours are both "observed".
 anchor_hours_q1 = mb_baseline_mode.means[1, :obs_hours]
 
+# Core Okun transformation — linear, so it composes with any hours vector
+# (means or band endpoints). Negative slope means hours-UB maps to u-LB.
+hours_vec_to_u(h) = OKUN_ANCHOR_U .- OKUN_COEF .* (h .- anchor_hours_q1)
+
 # Helper: translate a MeansBands' hours column into an implied
 # unemployment path, returned as a Float64 vector in percentage points.
 function hours_to_unemployment(mb, n::Int = nrow(mb.means))
-    hours = mb.means[1:n, :obs_hours]
-    return OKUN_ANCHOR_U .- OKUN_COEF .* (hours .- anchor_hours_q1)
+    return hours_vec_to_u(mb.means[1:n, :obs_hours])
+end
+
+# Helper: translate a MeansBands' posterior hours bands into unemployment
+# bands via the same linear Okun formula. Returns (u_lb, u_ub) with the
+# correct orientation (Okun has negative slope, so hours-UB → u-LB).
+# Returns nothing if mb has no bands (e.g. :mode runs).
+function hours_to_unemployment_bands(mb, pct::String, n::Int)
+    if isempty(mb.bands); return nothing; end
+    if !haskey(mb.bands, :obs_hours); return nothing; end
+    bdf = mb.bands[:obs_hours]
+    lb_col = Symbol(pct, " LB")
+    ub_col = Symbol(pct, " UB")
+    cols = propertynames(bdf)
+    if !(lb_col in cols) || !(ub_col in cols); return nothing; end
+    nr = min(n, size(bdf, 1))
+    h_lb = bdf[1:nr, lb_col]
+    h_ub = bdf[1:nr, ub_col]
+    (any(isnan.(h_lb)) || any(isnan.(h_ub))) && return nothing
+    # Flip: hours LB maps to u UB because Okun is negative-sloped
+    u_lb = hours_vec_to_u(h_ub)
+    u_ub = hours_vec_to_u(h_lb)
+    return (u_lb, u_ub)
 end
 
 ####################################################################
@@ -561,10 +586,13 @@ println("   Saved: employment_impact.html")
 base_hours_for_diff = get_forecast(mb_baseline, :obs_hours, H)
 
 ####################################################################
-# PLOT 2e: UNEMPLOYMENT RATE via OKUN BRIDGE
+# PLOT 2e: UNEMPLOYMENT RATE via OKUN BRIDGE (with baseline fan)
 # Labor-mandate interpretable chart. Converts scenario hours paths
 # into unemployment rate paths anchored at the current observed u.
-# This is a reduced-form Okun translation, NOT a model forecast of u.
+# Baseline fan bands come from the :full baseline's obs_hours posterior
+# percentiles pushed through the same linear Okun formula — so the
+# unemployment fan inherits proper parameter uncertainty from the
+# posterior. Scenarios are deterministic lines (mode) overlaid on top.
 ####################################################################
 u_plot = plot(; title = "Unemployment Rate Path (Okun Bridge)",
               xlabel = "Quarter",
@@ -576,13 +604,30 @@ u_plot = plot(; title = "Unemployment Rate Path (Okun Bridge)",
 hline!(u_plot, [4.0]; color = :black, linestyle = :dot, linewidth = 1,
        label = "NAIRU ≈ 4.0%")
 
-# Baseline u path (from mode baseline)
+# Baseline posterior fan (90% outer, 68% inner) — linear Okun transform
+# of mb_baseline's obs_hours bands. mb_baseline is :full, so we have real
+# posterior draws to aggregate; the Okun map is linear, so bands translate
+# cleanly without the exponential-transform explosion issue.
+u_b90 = hours_to_unemployment_bands(mb_baseline, "90.0%", H)
+u_b68 = hours_to_unemployment_bands(mb_baseline, "68.0%", H)
+if u_b90 !== nothing
+    plot!(u_plot, 1:H, u_b90[1]; fillrange = u_b90[2], fillalpha = 0.12,
+          color = :slategray, linewidth = 0, label = "Baseline 90%")
+end
+if u_b68 !== nothing
+    plot!(u_plot, 1:H, u_b68[1]; fillrange = u_b68[2], fillalpha = 0.25,
+          color = :slategray, linewidth = 0, label = "Baseline 68%")
+end
+
+# Baseline mean u path (from :mode — the anchor/reference the scenarios
+# are all built relative to). Using mode here keeps the fan "centered"
+# visually on the same reference the scenario lines use.
 base_u = hours_to_unemployment(mb_baseline_mode, H)
 plot!(u_plot, 1:H, base_u;
-      color = :gray, linewidth = 2, linestyle = :dash,
-      label = "Baseline (Taylor rule)")
+      color = :slategray, linewidth = 2, linestyle = :dash,
+      label = "Baseline (mean)")
 
-# Scenario u paths
+# Scenario u paths (deterministic, from :mode runs)
 for (name, spec) in scenarios
     u_path = hours_to_unemployment(results[name], H)
     short_name = split(name, "\n")[1]
@@ -592,8 +637,14 @@ for (name, spec) in scenarios
 end
 
 # Caption with the anchor and coefficient
-annotate!(u_plot, [(H / 2, minimum(base_u) - 0.1,
-          text("anchor u = $(OKUN_ANCHOR_U)% @ Q1 · Okun coef = $(OKUN_COEF)",
+y_caption = let ymin_candidates = Float64[]
+    push!(ymin_candidates, minimum(base_u))
+    u_b90 !== nothing && push!(ymin_candidates, minimum(u_b90[1]))
+    minimum(ymin_candidates) - 0.1
+end
+annotate!(u_plot, [(H / 2, y_caption,
+          text("anchor u = $(OKUN_ANCHOR_U)% @ Q1 · Okun coef = $(OKUN_COEF) · " *
+               "bands from posterior hours",
                8, :gray, :center))])
 
 display(u_plot)
