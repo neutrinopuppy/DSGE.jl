@@ -1406,6 +1406,98 @@ display(emp_chart)
 savefig(emp_chart, joinpath(plotdir, "employment_projections.html"))
 println("   Saved: employment_projections.html")
 
+####################################################################
+# PRESENTATION CHART: Unemployment Rate Projections (long horizon)
+#
+# Same style as inflation_projections / rate_path_projections:
+#   - 8 quarters of Kalman-filtered history on the left (Okun-translated
+#     from obs_hours so it ties into the model's view of current labor
+#     market rather than a separate FRED series)
+#   - 12 quarters of forecast on the right with baseline posterior fan
+#     and scenario conditional paths overlaid
+#   - Dotted vertical at end of pinned window (Q{n_peg_quarters}.5)
+#   - NAIRU reference line at 4.0%
+####################################################################
+println(">> Generating long-horizon unemployment chart...")
+
+u_chart = plot(;
+    title = "Unemployment Rate: Scenario Projections",
+    xlabel = "",
+    ylabel = "Unemployment Rate (%)",
+    size = (1000, 500),
+    legend = :topright,
+    legendfontsize = 9,
+    titlefontsize = 13,
+    guidefontsize = 11,
+    xticks = (tick_positions, tick_labels),
+    xrotation = 45,
+    grid = true,
+    gridalpha = 0.3,
+    background_color = :white,
+)
+
+# NAIRU reference
+hline!(u_chart, [4.0]; color = :black, linestyle = :dot, linewidth = 1.5,
+       label = "NAIRU ≈ 4.0%")
+
+# Vertical line at forecast start
+vline!(u_chart, [0.5]; color = :gray, linestyle = :dash, linewidth = 1, label = "")
+
+# End-of-pinned-window marker
+vline!(u_chart, [n_peg_quarters + 0.5]; color = :gray, linestyle = :dot,
+       linewidth = 1, label = "")
+
+# History: Kalman-filtered obs_hours → Okun-translated u
+if :obs_hours in Symbol.(names(mb_hist.means))
+    hist_hours = mb_hist.means[hist_range, :obs_hours]
+    hist_u     = hours_vec_to_u(hist_hours)
+    valid = .!isnan.(hist_u)
+    if any(valid)
+        plot!(u_chart, x_hist[valid], hist_u[valid];
+              color = :black, linewidth = 3, label = "Actual (Okun)",
+              markershape = :circle, markersize = 4)
+    end
+end
+
+# Baseline posterior fan (90% outer, 68% inner) — from :full obs_hours
+# bands pushed through the Okun formula across the full forecast horizon.
+u_b90_long = hours_to_unemployment_bands(mb_baseline, "90.0%", n_fcast_display)
+u_b68_long = hours_to_unemployment_bands(mb_baseline, "68.0%", n_fcast_display)
+if u_b90_long !== nothing
+    local nn = length(u_b90_long[1])
+    plot!(u_chart, x_fcast[1:nn], u_b90_long[1]; fillrange = u_b90_long[2],
+          fillalpha = 0.10, color = :slategray, linewidth = 0,
+          label = "Baseline 90%")
+end
+if u_b68_long !== nothing
+    local nn = length(u_b68_long[1])
+    plot!(u_chart, x_fcast[1:nn], u_b68_long[1]; fillrange = u_b68_long[2],
+          fillalpha = 0.22, color = :slategray, linewidth = 0,
+          label = "Baseline 68%")
+end
+
+# Baseline mean u (from :mode — same reference frame scenarios use)
+base_u_long = hours_to_unemployment(mb_baseline_mode, n_fcast_display)
+let nn = length(base_u_long)
+    plot!(u_chart, x_fcast[1:nn], base_u_long;
+          color = :slategray, linewidth = 2, linestyle = :dash,
+          label = "Baseline (mean)")
+end
+
+# Scenario conditional paths (deterministic, from :mode)
+for (key, color, label) in scenario_plot_order
+    if haskey(results, key)
+        u_scen = hours_to_unemployment(results[key], n_fcast_display)
+        local nn = length(u_scen)
+        plot!(u_chart, x_fcast[1:nn], u_scen;
+              color = color, linewidth = 2.5, label = label)
+    end
+end
+
+display(u_chart)
+savefig(u_chart, joinpath(plotdir, "unemployment_projections.html"))
+println("   Saved: unemployment_projections.html")
+
 println()
 println("="^72)
 println("  ALL DONE!")
