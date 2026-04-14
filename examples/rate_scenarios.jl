@@ -10,6 +10,7 @@
 
 using DSGE, ModelConstructors, Plots, DataFrames, Dates, OrderedCollections
 using Printf, Statistics, LinearAlgebra
+using FredData  # for UNRATE pull used in Okun calibration
 
 plotly()
 
@@ -229,77 +230,6 @@ for (name, spec) in scenarios
 end
 
 ####################################################################
-# Labor-mandate bridge: Okun's law (hours → unemployment)
-#
-# Model1002 ss10 observes hours per capita but NOT unemployment
-# (`u_t` in this model is capacity utilization, not unemployment).
-# To give a presentation-friendly labor-mandate chart we bridge from
-# hours deviations to unemployment-rate deviations via a textbook
-# Okun coefficient:
-#
-#   Δu (pp) = -OKUN_COEF * Δhours (%)
-#
-# where Δhours (%) is the % deviation in aggregate hours per capita.
-# OKUN_COEF ≈ 0.5 is the conventional US value — empirical Okun
-# regressions of unemployment on log hours per capita over 1980–2025
-# give coefficients in the 0.3–0.6 range, and the Fed staff
-# "hours-to-unemployment" translation in internal memos usually sits
-# near 0.5.
-#
-# Anchor: at forecast start, unemployment = OKUN_ANCHOR_U (current
-# observed), and the baseline hours trajectory is taken as the
-# "natural" hours path the Fed rule would deliver. Scenarios then
-# move unemployment linearly in the opposite direction of their
-# hours response relative to baseline.
-#
-# CAVEATS (fit for presentation, not for publication):
-#  - This is NOT a model-based unemployment forecast; it is a
-#    reduced-form translation on top of the model's hours response.
-#  - The Okun coefficient is assumed constant across the business
-#    cycle. In reality it rises during recessions and near the ZLB.
-#  - We anchor at today's observed u rather than the model-filtered
-#    state because ss10 has no u state to filter from.
-####################################################################
-OKUN_COEF     = 0.5    # pp unemployment per % hours per capita
-OKUN_ANCHOR_U = 4.3    # pp, Mar 2026 actual U3 unemployment
-
-# Anchor at the baseline Q1 hours level — that's where current
-# unemployment (OKUN_ANCHOR_U) and baseline hours are both "observed".
-anchor_hours_q1 = mb_baseline_mode.means[1, :obs_hours]
-
-# Core Okun transformation — linear, so it composes with any hours vector
-# (means or band endpoints). Negative slope means hours-UB maps to u-LB.
-hours_vec_to_u(h) = OKUN_ANCHOR_U .- OKUN_COEF .* (h .- anchor_hours_q1)
-
-# Helper: translate a MeansBands' hours column into an implied
-# unemployment path, returned as a Float64 vector in percentage points.
-function hours_to_unemployment(mb, n::Int = nrow(mb.means))
-    return hours_vec_to_u(mb.means[1:n, :obs_hours])
-end
-
-# Helper: translate a MeansBands' posterior hours bands into unemployment
-# bands via the same linear Okun formula. Returns (u_lb, u_ub) with the
-# correct orientation (Okun has negative slope, so hours-UB → u-LB).
-# Returns nothing if mb has no bands (e.g. :mode runs).
-function hours_to_unemployment_bands(mb, pct::String, n::Int)
-    if isempty(mb.bands); return nothing; end
-    if !haskey(mb.bands, :obs_hours); return nothing; end
-    bdf = mb.bands[:obs_hours]
-    lb_col = Symbol(pct, " LB")
-    ub_col = Symbol(pct, " UB")
-    cols = propertynames(bdf)
-    if !(lb_col in cols) || !(ub_col in cols); return nothing; end
-    nr = min(n, size(bdf, 1))
-    h_lb = bdf[1:nr, lb_col]
-    h_ub = bdf[1:nr, ub_col]
-    (any(isnan.(h_lb)) || any(isnan.(h_ub))) && return nothing
-    # Flip: hours LB maps to u UB because Okun is negative-sloped
-    u_lb = hours_vec_to_u(h_ub)
-    u_ub = hours_vec_to_u(h_lb)
-    return (u_lb, u_ub)
-end
-
-####################################################################
 # Alternative Policy Rules
 #
 # Counterfactual: hold all parameters fixed (they were estimated under
@@ -357,6 +287,128 @@ forecast_one(m, :mode, :none, hist_vars;
 compute_meansbands(m, :mode, :none, hist_vars;
                    check_empty_columns = false, forecast_string = "hist")
 mb_hist = read_mb(m, :mode, :none, :histobs; forecast_string = "hist")
+
+####################################################################
+# Labor-mandate bridge: Okun's law (hours → unemployment),
+# CALIBRATED from FRED UNRATE aligned to the model's history window.
+#
+# Model1002 ss10 observes hours per capita but NOT unemployment
+# (`u_t` in this model is capacity utilization, not unemployment).
+# To give a presentation-friendly labor-mandate chart we bridge from
+# hours deviations to unemployment-rate deviations via a linear Okun
+# coefficient fit on actual data:
+#
+#   Δu (pp) ≈ -OKUN_COEF · Δhours (%)      (no intercept)
+#
+# The fit is first-differenced OLS on aligned (obs_hours, UNRATE)
+# quarterly pairs from mb_hist's date range. First differences
+# eliminate any slow trends in both series and avoid the need for an
+# intercept. Anchor u is set to the most recent observed FRED value;
+# anchor hours is set to the corresponding filtered obs_hours from
+# the same quarter, so history and forecast tie cleanly at the join.
+#
+# CAVEATS (fit for presentation, not for publication):
+#  - OLS assumes a constant Okun coefficient across the sample.
+#    During recessions or near the ZLB the coefficient typically
+#    rises — this is a stationary linear fit, not regime-aware.
+#  - FRED frequency="q" returns quarterly AVERAGES of monthly
+#    UNRATE, so the last history point will be the Q1 2026 average
+#    (≈ 4.3%), which may differ by ~0.05 pp from a headline monthly
+#    Mar 2026 value.
+#  - Falls back to OKUN_COEF=0.5 if FRED is unreachable or there
+#    aren't enough aligned data pairs.
+####################################################################
+println(">> Fetching FRED UNRATE for Okun calibration...")
+u_fred_df = try
+    let
+        f = FredData.Fred()
+        start_d = string(mb_hist.means[1, :date] - Dates.Month(3))
+        end_d   = string(mb_hist.means[end, :date] + Dates.Month(1))
+        series  = FredData.get_data(f, "UNRATE"; frequency = "q",
+                                    observation_start = start_d,
+                                    observation_end   = end_d)
+        series.df
+    end
+catch err
+    @warn "FRED UNRATE fetch failed; falling back to hardcoded Okun defaults" err
+    nothing
+end
+
+# Align FRED quarterly dates to mb_hist quarter-end dates. FRED's "q"
+# frequency returns quarter START dates; match by year + quarter number.
+function match_fred_to_hist(hist_dates, fred_df)
+    aligned = fill(NaN, length(hist_dates))
+    fred_df === nothing && return aligned
+    for (i, hd) in enumerate(hist_dates)
+        hy, hq = Dates.year(hd), Dates.quarterofyear(hd)
+        idx = findfirst(row -> Dates.year(row.date) == hy &&
+                               Dates.quarterofyear(row.date) == hq,
+                        eachrow(fred_df))
+        idx !== nothing && (aligned[i] = fred_df[idx, :value])
+    end
+    return aligned
+end
+u_actual_full    = match_fred_to_hist(mb_hist.means[!, :date], u_fred_df)
+hist_hours_full  = mb_hist.means[!, :obs_hours]
+
+# First-difference OLS: α = -(Δh' · Δu) / (Δh' · Δh)
+valid_idx = findall(i -> !isnan(u_actual_full[i]) && !isnan(hist_hours_full[i]),
+                    1:length(u_actual_full))
+OKUN_COEF = if length(valid_idx) < 8
+    @warn "Not enough aligned (U3, hours) pairs for OLS ($(length(valid_idx))); " *
+          "falling back to OKUN_COEF = 0.5"
+    0.5
+else
+    u_v = u_actual_full[valid_idx]
+    h_v = hist_hours_full[valid_idx]
+    du  = diff(u_v)
+    dh  = diff(h_v)
+    -(dh' * du) / (dh' * dh)
+end
+
+# Anchor at the most recent observed (u, hours) pair so history and
+# forecast meet at the same quarter.
+last_obs_idx = findlast(!isnan, u_actual_full)
+OKUN_ANCHOR_U = last_obs_idx === nothing ? 4.3 : u_actual_full[last_obs_idx]
+anchor_hours_q1 = last_obs_idx === nothing ?
+    mb_baseline_mode.means[1, :obs_hours] :
+    hist_hours_full[last_obs_idx]
+
+println(">> Okun fit: Δu = -$(round(OKUN_COEF, digits=3)) · Δhours%, " *
+        "anchor u = $(round(OKUN_ANCHOR_U, digits=2))% " *
+        "(n = $(max(0, length(valid_idx)-1)) quarterly diffs)")
+
+# Core Okun transformation — linear, so it composes with any hours vector
+# (means or band endpoints). Negative slope means hours-UB maps to u-LB.
+hours_vec_to_u(h) = OKUN_ANCHOR_U .- OKUN_COEF .* (h .- anchor_hours_q1)
+
+# Helper: translate a MeansBands' hours column into an implied
+# unemployment path, returned as a Float64 vector in percentage points.
+function hours_to_unemployment(mb, n::Int = nrow(mb.means))
+    return hours_vec_to_u(mb.means[1:n, :obs_hours])
+end
+
+# Helper: translate a MeansBands' posterior hours bands into unemployment
+# bands via the same linear Okun formula. Returns (u_lb, u_ub) with the
+# correct orientation (Okun has negative slope, so hours-UB → u-LB).
+# Returns nothing if mb has no bands (e.g. :mode runs).
+function hours_to_unemployment_bands(mb, pct::String, n::Int)
+    if isempty(mb.bands); return nothing; end
+    if !haskey(mb.bands, :obs_hours); return nothing; end
+    bdf = mb.bands[:obs_hours]
+    lb_col = Symbol(pct, " LB")
+    ub_col = Symbol(pct, " UB")
+    cols = propertynames(bdf)
+    if !(lb_col in cols) || !(ub_col in cols); return nothing; end
+    nr = min(n, size(bdf, 1))
+    h_lb = bdf[1:nr, lb_col]
+    h_ub = bdf[1:nr, ub_col]
+    (any(isnan.(h_lb)) || any(isnan.(h_ub))) && return nothing
+    # Flip: hours LB maps to u UB because Okun is negative-sloped
+    u_lb = hours_vec_to_u(h_ub)
+    u_ub = hours_vec_to_u(h_lb)
+    return (u_lb, u_ub)
+end
 
 ############################
 # Tariff cost-push shock: pure IRF for λ_f_sh (the price markup shock),
@@ -1447,14 +1499,19 @@ vline!(u_chart, [0.5]; color = :gray, linestyle = :dash, linewidth = 1, label = 
 vline!(u_chart, [n_peg_quarters + 0.5]; color = :gray, linestyle = :dot,
        linewidth = 1, label = "")
 
-# History: Kalman-filtered obs_hours → Okun-translated u
-if :obs_hours in Symbol.(names(mb_hist.means))
-    hist_hours = mb_hist.means[hist_range, :obs_hours]
-    hist_u     = hours_vec_to_u(hist_hours)
-    valid = .!isnan.(hist_u)
+# History: actual FRED U3 (quarterly averages from the UNRATE pull
+# above, aligned to mb_hist dates). Falls back to Okun-translated
+# filtered hours if the FRED pull failed.
+hist_u_display = if u_fred_df !== nothing
+    u_actual_full[hist_range]
+else
+    hours_vec_to_u(mb_hist.means[hist_range, :obs_hours])
+end
+let valid = .!isnan.(hist_u_display)
     if any(valid)
-        plot!(u_chart, x_hist[valid], hist_u[valid];
-              color = :black, linewidth = 3, label = "Actual (Okun)",
+        plot!(u_chart, x_hist[valid], hist_u_display[valid];
+              color = :black, linewidth = 3,
+              label = u_fred_df !== nothing ? "Actual U3 (FRED)" : "Actual (Okun)",
               markershape = :circle, markersize = 4)
     end
 end
