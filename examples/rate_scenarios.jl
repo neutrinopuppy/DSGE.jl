@@ -1498,6 +1498,109 @@ display(u_chart)
 savefig(u_chart, joinpath(plotdir, "unemployment_projections.html"))
 println("   Saved: unemployment_projections.html")
 
+####################################################################
+# PRESENTATION CHART: Wage Growth vs. Core PCE Inflation
+#
+# Real-wage story: the gap between nominal wage growth and inflation
+# is (approximately) real wage growth. When wages > inflation, workers
+# are gaining purchasing power; when inflation > wages, they're losing
+# it. This chart puts both series on the same axis with history + a
+# 12-quarter baseline forecast fan so the reader can see whether the
+# model expects inflation to converge to wage growth, diverge further,
+# or cross it entirely.
+####################################################################
+println(">> Generating wage-vs-inflation chart...")
+
+wage_infl_chart = plot(;
+    title = "Wage Growth vs. Core PCE Inflation (Baseline)",
+    xlabel = "",
+    ylabel = "Annualized %",
+    size = (1000, 500),
+    legend = :topright,
+    legendfontsize = 9,
+    titlefontsize = 13,
+    guidefontsize = 11,
+    xticks = (tick_positions, tick_labels),
+    xrotation = 45,
+    grid = true,
+    gridalpha = 0.3,
+    background_color = :white,
+)
+
+# 2% inflation target
+hline!(wage_infl_chart, [2.0]; color = :black, linestyle = :dot, linewidth = 1.5,
+       label = "2% Target")
+
+# Forecast-start vertical
+vline!(wage_infl_chart, [0.5]; color = :gray, linestyle = :dash, linewidth = 1, label = "")
+
+# History: wages and inflation from the Kalman filter (mb_hist)
+if :obs_corepce in Symbol.(names(mb_hist.means))
+    hist_pce = mb_hist.means[hist_range, :obs_corepce]
+    valid = .!isnan.(hist_pce)
+    any(valid) && plot!(wage_infl_chart, x_hist[valid], hist_pce[valid];
+                        color = :crimson, linewidth = 3, label = "Inflation (actual)",
+                        markershape = :circle, markersize = 4)
+end
+
+if :obs_wages in Symbol.(names(mb_hist.means))
+    hist_wages = mb_hist.means[hist_range, :obs_wages]
+    valid = .!isnan.(hist_wages)
+    any(valid) && plot!(wage_infl_chart, x_hist[valid], hist_wages[valid];
+                        color = :steelblue, linewidth = 3, label = "Wages (actual)",
+                        markershape = :circle, markersize = 4)
+end
+
+# Baseline posterior fans from :full — both 68% and 90% for inflation,
+# just 68% for wages so the two fans don't visually fight each other.
+b90_infl_w = get_long_bands(mb_baseline, :obs_corepce, "90.0%", n_fcast_display)
+b68_infl_w = get_long_bands(mb_baseline, :obs_corepce, "68.0%", n_fcast_display)
+if b90_infl_w !== nothing
+    local nn = length(b90_infl_w[1])
+    plot!(wage_infl_chart, x_fcast[1:nn], b90_infl_w[1]; fillrange = b90_infl_w[2],
+          fillalpha = 0.08, color = :crimson, linewidth = 0,
+          label = "Inflation 90%")
+end
+if b68_infl_w !== nothing
+    local nn = length(b68_infl_w[1])
+    plot!(wage_infl_chart, x_fcast[1:nn], b68_infl_w[1]; fillrange = b68_infl_w[2],
+          fillalpha = 0.18, color = :crimson, linewidth = 0,
+          label = "Inflation 68%")
+end
+
+b68_wages_w = get_long_bands(mb_baseline, :obs_wages, "68.0%", n_fcast_display)
+if b68_wages_w !== nothing
+    local nn = length(b68_wages_w[1])
+    plot!(wage_infl_chart, x_fcast[1:nn], b68_wages_w[1]; fillrange = b68_wages_w[2],
+          fillalpha = 0.18, color = :steelblue, linewidth = 0,
+          label = "Wages 68%")
+end
+
+# Baseline mean lines (from :mode for consistency with other charts)
+mode_infl_path  = get_long_forecast(mb_baseline_mode, :obs_corepce, n_fcast_display)
+mode_wages_path = get_long_forecast(mb_baseline_mode, :obs_wages,   n_fcast_display)
+
+if mode_infl_path !== nothing
+    local nn = length(mode_infl_path)
+    plot!(wage_infl_chart, x_fcast[1:nn], mode_infl_path;
+          color = :crimson, linewidth = 2.5, label = "Inflation (baseline)")
+end
+if mode_wages_path !== nothing
+    local nn = length(mode_wages_path)
+    plot!(wage_infl_chart, x_fcast[1:nn], mode_wages_path;
+          color = :steelblue, linewidth = 2.5, label = "Wages (baseline)")
+end
+
+# Annotation reminding the reader that the gap between the two lines is
+# (approximately) real wage growth.
+annotate!(wage_infl_chart, [(n_fcast_display ÷ 2, 0.3,
+          text("gap = real wage growth (wages − inflation)",
+               9, :gray, :center))])
+
+display(wage_infl_chart)
+savefig(wage_infl_chart, joinpath(plotdir, "wages_vs_inflation.html"))
+println("   Saved: wages_vs_inflation.html")
+
 println()
 println("="^72)
 println("  ALL DONE!")
