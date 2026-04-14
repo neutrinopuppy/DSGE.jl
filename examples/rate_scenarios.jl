@@ -229,6 +229,52 @@ for (name, spec) in scenarios
 end
 
 ####################################################################
+# Labor-mandate bridge: Okun's law (hours → unemployment)
+#
+# Model1002 ss10 observes hours per capita but NOT unemployment
+# (`u_t` in this model is capacity utilization, not unemployment).
+# To give a presentation-friendly labor-mandate chart we bridge from
+# hours deviations to unemployment-rate deviations via a textbook
+# Okun coefficient:
+#
+#   Δu (pp) = -OKUN_COEF * Δhours (%)
+#
+# where Δhours (%) is the % deviation in aggregate hours per capita.
+# OKUN_COEF ≈ 0.5 is the conventional US value — empirical Okun
+# regressions of unemployment on log hours per capita over 1980–2025
+# give coefficients in the 0.3–0.6 range, and the Fed staff
+# "hours-to-unemployment" translation in internal memos usually sits
+# near 0.5.
+#
+# Anchor: at forecast start, unemployment = OKUN_ANCHOR_U (current
+# observed), and the baseline hours trajectory is taken as the
+# "natural" hours path the Fed rule would deliver. Scenarios then
+# move unemployment linearly in the opposite direction of their
+# hours response relative to baseline.
+#
+# CAVEATS (fit for presentation, not for publication):
+#  - This is NOT a model-based unemployment forecast; it is a
+#    reduced-form translation on top of the model's hours response.
+#  - The Okun coefficient is assumed constant across the business
+#    cycle. In reality it rises during recessions and near the ZLB.
+#  - We anchor at today's observed u rather than the model-filtered
+#    state because ss10 has no u state to filter from.
+####################################################################
+OKUN_COEF     = 0.5    # pp unemployment per % hours per capita
+OKUN_ANCHOR_U = 4.3    # pp, Mar 2026 actual U3 unemployment
+
+# Anchor at the baseline Q1 hours level — that's where current
+# unemployment (OKUN_ANCHOR_U) and baseline hours are both "observed".
+anchor_hours_q1 = mb_baseline_mode.means[1, :obs_hours]
+
+# Helper: translate a MeansBands' hours column into an implied
+# unemployment path, returned as a Float64 vector in percentage points.
+function hours_to_unemployment(mb, n::Int = nrow(mb.means))
+    hours = mb.means[1:n, :obs_hours]
+    return OKUN_ANCHOR_U .- OKUN_COEF .* (hours .- anchor_hours_q1)
+end
+
+####################################################################
 # Alternative Policy Rules
 #
 # Counterfactual: hold all parameters fixed (they were estimated under
@@ -515,6 +561,46 @@ println("   Saved: employment_impact.html")
 base_hours_for_diff = get_forecast(mb_baseline, :obs_hours, H)
 
 ####################################################################
+# PLOT 2e: UNEMPLOYMENT RATE via OKUN BRIDGE
+# Labor-mandate interpretable chart. Converts scenario hours paths
+# into unemployment rate paths anchored at the current observed u.
+# This is a reduced-form Okun translation, NOT a model forecast of u.
+####################################################################
+u_plot = plot(; title = "Unemployment Rate Path (Okun Bridge)",
+              xlabel = "Quarter",
+              ylabel = "Unemployment Rate (%)",
+              size = (900, 500), legend = :topright,
+              titlefontsize = 12, legendfontsize = 9)
+
+# NAIRU reference line (Fed staff estimate ~4.0% for US)
+hline!(u_plot, [4.0]; color = :black, linestyle = :dot, linewidth = 1,
+       label = "NAIRU ≈ 4.0%")
+
+# Baseline u path (from mode baseline)
+base_u = hours_to_unemployment(mb_baseline_mode, H)
+plot!(u_plot, 1:H, base_u;
+      color = :gray, linewidth = 2, linestyle = :dash,
+      label = "Baseline (Taylor rule)")
+
+# Scenario u paths
+for (name, spec) in scenarios
+    u_path = hours_to_unemployment(results[name], H)
+    short_name = split(name, "\n")[1]
+    plot!(u_plot, 1:H, u_path;
+          color = spec.color, linewidth = 2.5, label = short_name,
+          markershape = :circle, markersize = 4)
+end
+
+# Caption with the anchor and coefficient
+annotate!(u_plot, [(H / 2, minimum(base_u) - 0.1,
+          text("anchor u = $(OKUN_ANCHOR_U)% @ Q1 · Okun coef = $(OKUN_COEF)",
+               8, :gray, :center))])
+
+display(u_plot)
+savefig(u_plot, joinpath(plotdir, "unemployment_okun.html"))
+println("   Saved: unemployment_okun.html")
+
+####################################################################
 # PLOT 2c: ALT POLICY RULES vs PERMANENT RATE PEG SCENARIOS
 # Two angles on the same question, side by side:
 #   - Discretionary peg lines: what each level (cut/hold/hike at the
@@ -730,6 +816,14 @@ if hold_h !== nothing
     end
     println()
 end
+
+# Unemployment rate via Okun bridge (anchor u=4.3% at Q1, Okun=0.5)
+@printf("  %-28s", "Unemployment rate (Okun)")
+for name in scenario_keys
+    u_path = hours_to_unemployment(results[name], H)
+    @printf("  %+9.2f%%", mean(u_path))
+end
+println()
 println()
 
 # Differential impact
@@ -765,8 +859,19 @@ if hold_h !== nothing
     end
     println()
 end
+
+# Unemployment rate differential via Okun bridge
+hold_u = hours_to_unemployment(results[hold_key], H)
+@printf("  %-30s", "Unemployment rate (Okun)")
+for name in [scenario_keys[1], scenario_keys[3]]
+    u_path = hours_to_unemployment(results[name], H)
+    @printf("  %+12.3f pp", mean(u_path) - mean(hold_u))
+end
+println()
+
 println("  ", "-"^58)
-println("  pp = percentage points; hours shown as % deviation (obs_hours = 100·log(hours))")
+println("  pp = percentage points; hours in % deviation (obs_hours = 100·log(hours));")
+println("  unemployment via Okun bridge: Δu = -$(OKUN_COEF) × Δhours%, anchored at $(OKUN_ANCHOR_U)%")
 println()
 
 ####################################################################
@@ -797,6 +902,17 @@ if hold_h !== nothing
     @printf("    Hike 25bp    → %+.3f %%\n", hike_emp_diff)
     println()
 end
+
+# Unemployment rate levels (Okun bridge)
+cut_u  = mean(hours_to_unemployment(results[scenario_keys[1]], H))
+hold_u_lvl  = mean(hours_to_unemployment(results[hold_key], H))
+hike_u = mean(hours_to_unemployment(results[scenario_keys[3]], H))
+println("  UNEMPLOYMENT RATE (Okun bridge, anchor = $(OKUN_ANCHOR_U)%):")
+@printf("    Cut 25bp     → %.2f%%  (%+.2f pp vs. Hold)\n", cut_u,  cut_u  - hold_u_lvl)
+@printf("    Hold         → %.2f%%  (baseline)\n",          hold_u_lvl)
+@printf("    Hike 25bp    → %.2f%%  (%+.2f pp vs. Hold)\n", hike_u, hike_u - hold_u_lvl)
+println("    (Okun coef $(OKUN_COEF): Δu pp = -$(OKUN_COEF) × Δhours%)")
+println()
 
 println("  KEY CONTEXT:")
 println("  - Inflation above target is driven largely by SUPPLY shocks")
